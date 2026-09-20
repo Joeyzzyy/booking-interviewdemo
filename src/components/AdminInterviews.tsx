@@ -162,7 +162,7 @@ export default function AdminInterviews() {
             </List.Item>
           )}
         />
-        <Space.Compact style={{ width: "100%", marginTop: 12 }}>
+        <div className="admin-q-add">
           <Input
             placeholder="問題，例如：請介紹你照顧初生嬰兒嘅經驗"
             value={newQ.question}
@@ -176,7 +176,7 @@ export default function AdminInterviews() {
           <Button type="primary" icon={<PlusOutlined />} loading={addingQ} onClick={addQuestion}>
             新增
           </Button>
-        </Space.Compact>
+        </div>
       </Card>
 
       {/* 發起面試 */}

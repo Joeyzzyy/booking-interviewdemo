@@ -1047,6 +1047,11 @@ body {
 .booking-topbar {
   padding: 24px 32px 0;
 }
+@media (max-width: 640px) {
+  .booking-topbar {
+    padding: 16px 20px 0;
+  }
+}
 .booking-topbar .site-logo-text {
   font-size: 22px;
 }
@@ -1256,10 +1261,18 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
   background: var(--color-surface);
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 14px;
+}
+.booking-file-list li > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: break-all;
 }
 .booking-file-list button {
   border: none;
@@ -1669,11 +1682,18 @@ body {
 .booking-link-btn:hover {
   color: var(--color-ink);
 }
+.booking-account > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .booking-account {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
   background: var(--color-surface);
   border-radius: 10px;
   padding: 10px 16px;
@@ -1743,6 +1763,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 20px;
+  overflow-y: auto;
   z-index: 1100;
 }
 .booking-modal {
@@ -1808,6 +1829,17 @@ body {
   accent-color: var(--color-accent);
   width: 16px;
   height: 16px;
+}
+
+.admin-q-add {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+@media (min-width: 640px) {
+  .admin-q-add {
+    grid-template-columns: 1fr 1fr auto;
+  }
 }
 
 /* 套票購買區 */
@@ -1948,6 +1980,7 @@ body {
 }
 .iv-live {
   width: 100%;
+  aspect-ratio: 4 / 3;
   border-radius: 10px;
   background: #000;
   margin-bottom: 14px;
@@ -1972,6 +2005,7 @@ body {
 }
 .iv-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
 }
@@ -2179,6 +2213,7 @@ body {
 /* 套票演示 + 無餘額引導 */
 .booking-passes-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;

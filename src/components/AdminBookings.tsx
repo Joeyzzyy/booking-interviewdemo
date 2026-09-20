@@ -244,6 +244,7 @@ export default function AdminBookings() {
         loading={loading}
         columns={columns}
         dataSource={bookings}
+        scroll={{ x: true }}
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
         locale={{ emptyText: "暫無訂單" }}
         expandable={{

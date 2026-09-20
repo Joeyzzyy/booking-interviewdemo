@@ -161,6 +161,7 @@ export default function AdminInterviewRecords() {
         loading={loading}
         columns={columns}
         dataSource={interviews}
+        scroll={{ x: true }}
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
         locale={{ emptyText: "暫無面試記錄" }}
         expandable={{
