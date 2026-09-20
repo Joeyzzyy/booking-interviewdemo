@@ -12,7 +12,7 @@ function getResend(): Resend | null {
   return new Resend(key);
 }
 
-const FROM = process.env.EMAIL_FROM || "Oneplus Employment <onboarding@resend.dev>";
+const FROM = process.env.EMAIL_FROM || "Booking Demo <onboarding@resend.dev>";
 
 const STATUS_TEXT: Record<Booking["status"], string> = {
   pending: "待確認",
@@ -42,11 +42,11 @@ function detailRows(booking: Booking): string {
 function wrapHtml(title: string, body: string): string {
   return `<!doctype html><html><body style="font-family:Helvetica,Arial,'PingFang HK',sans-serif;background:#f5f5f5;padding:24px">
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
-    <div style="background:#ffde59;padding:16px 24px;font-weight:700;color:#2d3339">家壹僱傭中心 — 服務預約通知</div>
+    <div style="background:#e8f1fd;padding:16px 24px;font-weight:700;color:#2d3339">Booking Demo — 服務預約通知</div>
     <div style="padding:24px">
       <h2 style="margin:0 0 16px;color:#2d3339">${title}</h2>
       ${body}
-      <p style="color:#9499af;font-size:13px;margin-top:24px">如有查詢，可 WhatsApp <a href="https://wa.me/85295223881">9522 3881</a> 或電郵 info@oneplusagency.com 聯絡我們。</p>
+      <p style="color:#9499af;font-size:13px;margin-top:24px">此郵件由 Booking Demo 演示系統自動發出，僅作演示用途。</p>
     </div>
   </div>
 </body></html>`;
@@ -95,7 +95,7 @@ export async function sendRejectedEmail(booking: Booking): Promise<boolean> {
   const html = wrapHtml(
     `預約未能安排（${booking.order_no}）`,
     `<p>${booking.employer_name} 你好，好抱歉你嘅「${booking.service_label}」預約暫時未能安排，已用嘅套票已退回你嘅賬戶。${reason}</p>
-     <p>如有疑問，歡迎 WhatsApp <a href="https://wa.me/85295223881">9522 3881</a> 聯絡我哋重新安排。</p>
+     <p>如有疑問，歡迎聯絡我哋重新安排。</p>
      <table style="border-collapse:collapse;margin:16px 0">${detailRows(booking)}</table>`
   );
   return send(booking.email, `【預約未能安排】${booking.service_label}（${booking.order_no}）`, html);

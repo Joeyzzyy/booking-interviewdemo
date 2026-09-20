@@ -27,7 +27,7 @@ export async function createPassCheckoutSession(params: {
   const { default: Stripe } = await import("stripe");
   const stripe = new Stripe(secret);
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://oneplusemployment.com";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const { passOrderId, customer, service, quantity, amountHkd } = params;
 
   const session = await stripe.checkout.sessions.create({

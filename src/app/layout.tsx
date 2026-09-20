@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://oneplusemployment.com"),
+  metadataBase: new URL("http://localhost:3000"),
   title: {
-    default: "Booking Demo & Interview Demo | 家壹僱傭中心",
-    template: "%s | Booking Demo & Interview Demo",
+    default: "Booking Demo | 服務預約與視頻面試",
+    template: "%s | Booking Demo",
   },
-  description: "家壹僱傭中心服務預約平台——陪同驗身、工人接機、視頻面試，一站式安排。",
+  description: "服務預約 + 視頻面試演示平台——陪同驗身、工人接機、視頻面試，一站式安排。",
 };
 
 export default function RootLayout({

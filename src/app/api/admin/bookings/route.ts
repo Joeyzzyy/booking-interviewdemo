@@ -3,7 +3,7 @@ import { getSupabase, STORAGE_BUCKET, type Booking } from "@/lib/booking/db";
 export const dynamic = "force-dynamic";
 
 export function checkAdminAuth(request: Request): boolean {
-  const password = process.env.ADMIN_PASSWORD || "oneplus@2026";
+  const password = process.env.ADMIN_PASSWORD || "admin@2026";
   return request.headers.get("x-admin-auth") === password;
 }
 

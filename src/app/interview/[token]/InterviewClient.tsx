@@ -226,7 +226,7 @@ export default function InterviewClient({ token }: { token: string }) {
       <div className="iv-page">
         <div className="iv-card">
           <h1>視頻面試</h1>
-          <p>{info.workerName} 你好，歡迎參加家壹僱傭中心嘅視頻面試。</p>
+          <p>{info.workerName} 你好，歡迎參加視頻面試。</p>
           <ul className="iv-rules">
             <li>共 {info.questions.length} 條問題，請用<strong>普通話、粵語或英文</strong>逐題口頭回答</li>
             <li>每條問題錄製上限 {MAX_SECONDS} 秒，最多可重錄 {MAX_ATTEMPTS} 次</li>

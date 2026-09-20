@@ -46,3 +46,6 @@ next-env.d.ts
 # 截圖測試腳本與產物
 scripts/screenshot-*.mjs
 traffic*-screenshot.png
+
+.env.vercel-import
+vercel-env-import.txt

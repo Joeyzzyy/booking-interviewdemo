@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  *
  * 接入步驟：
  * 1. Stripe Dashboard → Developers → Webhooks → Add endpoint：
- *    URL = https://oneplusemployment.com/api/stripe/webhook
+ *    URL = https://<你的域名>/api/stripe/webhook
  *    監聽事件 = checkout.session.completed
  * 2. 把 Signing secret 填進環境變量 STRIPE_WEBHOOK_SECRET
  * 3. STRIPE_SECRET_KEY 填好後，套票購買全鏈路自動生效

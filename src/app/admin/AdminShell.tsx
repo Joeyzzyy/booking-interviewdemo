@@ -84,7 +84,7 @@ function AdminShellInner() {
                 height: 56,
                 margin: "0 auto 12px",
                 borderRadius: 14,
-                background: "#ffde59",
+                background: "#e8f1fd",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -97,7 +97,7 @@ function AdminShellInner() {
             <Typography.Title level={3} style={{ margin: 0 }}>
               管理後台
             </Typography.Title>
-            <Typography.Text type="secondary">家壹僱傭中心</Typography.Text>
+            <Typography.Text type="secondary">Booking Demo</Typography.Text>
           </div>
           <Input.Password
             size="large"
@@ -149,15 +149,15 @@ function AdminShellInner() {
               width: 32,
               height: 32,
               borderRadius: 8,
-              background: "#ffde59",
+              background: "#e8f1fd",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontWeight: 800,
-              color: "#2d3339",
+              color: "#2563eb",
             }}
           >
-            壹
+            B
           </div>
           <Typography.Title level={4} style={{ margin: 0 }}>
             管理後台

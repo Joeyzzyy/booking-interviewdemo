@@ -12,7 +12,7 @@ export default function SiteLayout({
   return (
     <>
       <header>
-        {/* 頂條 — 黃底（.top-menu2） */}
+        {/* 頂條 — 淺藍底（.top-menu2） */}
         <div className="top-menu2">
           <div className="site-container">
             <span className="top-menu2-spacer" />
@@ -26,8 +26,9 @@ export default function SiteLayout({
         <nav className="site-navbar">
           <div className="site-container site-navbar-inner">
             <Link className="site-navbar-brand" href="/booking">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/common/logo.png" alt="家壹僱傭中心" />
+              <span className="site-logo-text">
+                Booking<span className="site-logo-accent">Demo</span>
+              </span>
             </Link>
             <HeaderNav />
           </div>
@@ -41,39 +42,28 @@ export default function SiteLayout({
             <div><Link href="/admin">管理後台</Link></div>
           </div>
           <div>
-            <div className="site-footer-address-title">地址</div>
+            <div className="site-footer-address-title">關於本項目</div>
             <div className="site-footer-address">
               <span>
-                九龍旺角彌敦道574-576號和富商業大廈1501室
+                服務預約 + 視頻面試獨立演示項目
                 <br />
-                Room 1501, 15/F, Wofoo Commercial Building,
-                <br />
-                No. 574-576 Nathan Road, Mong Kok, Kowloon
+                僅作功能演示用途，並非真實服務
               </span>
-            </div>
-            <div className="site-footer-address">
-              <span><a href="tel:85295223881">9522 3881</a></span>
-            </div>
-            <div className="site-footer-address">
-              <span><a href="mailto:info@oneplusagency.com">info@oneplusagency.com</a></span>
             </div>
           </div>
           <div className="site-footer-logo">
             <div className="logo2">
               <Link href="/booking">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/common/logo-150.png" alt="家壹僱傭中心" height="50" style={{ height: 50, width: "auto" }} />
+                <span className="site-logo-text">
+                  Booking<span className="site-logo-accent">Demo</span>
+                </span>
               </Link>
             </div>
-            <div className="site-footer-license">
-              香港職業介紹所
-              <br />
-              牌照號碼: 79911
-            </div>
+            <div className="site-footer-license">Demo Project</div>
           </div>
         </div>
         <div className="site-footer-copyright">
-          <p>© {new Date().getFullYear()} Oneplus Employment Agency. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Booking Demo. For demo purposes only.</p>
         </div>
       </footer>
       <ScrollToTop />

@@ -66,7 +66,7 @@ function waNumber(raw: string | null): string | null {
 function waLink(b: AdminBooking): string | null {
   const num = waNumber(b.whatsapp) || waNumber(b.phone);
   if (!num) return null;
-  const text = `你好 ${b.employer_name}，呢度係家壹僱傭中心。關於你嘅預約 ${b.order_no}（${b.service_label}）：`;
+  const text = `你好 ${b.employer_name}，呢度係 Booking Demo。關於你嘅預約 ${b.order_no}（${b.service_label}）：`;
   return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
 }
 

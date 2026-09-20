@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  /* OnePlus Employment 品牌色（取自 oneplusemployment.com） */
-  --color-primary: #ffde59; /* 品牌明黄（点缀） */
-  --color-primary-light: #ffe680;
-  --color-accent: #e69d00; /* 橙色点缀 */
+  /* 淺色調通用配色 */
+  --color-primary: #e8f1fd; /* 淺藍（頂條/footer 底色） */
+  --color-primary-light: #f5f9ff;
+  --color-accent: #2563eb; /* 藍色點綴（hover/鏈接） */
   --color-muted: #9499af; /* 灰蓝（次要文字） */
   --color-teal: #54c3bc; /* 青绿点缀 */
   --color-ink: #2d3339; /* 标题/正文深色 */
@@ -30,7 +30,7 @@ body {
 
 /* ===== 頂條（.top-menu2，黃底） ===== */
 .top-menu2 {
-  background: #ffde59;
+  background: #e8f1fd;
   font-size: 15px;
 }
 .top-menu2 .site-container {
@@ -49,17 +49,17 @@ body {
   font-weight: 700;
   text-decoration: none;
 }
-/* 服務預約入口：深底膠囊按鈕，黃條上更醒目 */
+/* 服務預約入口：深底膠囊按鈕，淺藍條上更醒目 */
 .top-menu2 .top-menu2-booking {
   background: #2d3339;
-  color: #ffde59;
+  color: #fff;
   border-radius: 9999px;
   padding: 5px 16px;
   transition: background 0.2s ease;
 }
 .top-menu2 .top-menu2-booking:hover {
   background: #1e2328;
-  color: #ffde59;
+  color: #fff;
 }
 .top-menu2-spacer {
   flex: 1;
@@ -84,12 +84,18 @@ body {
   padding: 8px 0;
   display: inline-block;
 }
-.site-navbar-brand img {
-  /* 窄屏時等比縮小：固定高度會被 preflight 的 max-width 壓扁寬度 */
-  width: auto;
-  height: auto;
-  max-height: 60px;
-  max-width: 100%;
+/* 文字 logo（替代品牌圖片） */
+.site-logo-text {
+  font-size: 26px;
+  font-weight: 800;
+  color: #2d3339;
+  letter-spacing: 0.5px;
+}
+.site-logo-accent {
+  color: #2563eb;
+}
+.site-footer-logo .site-logo-text {
+  font-size: 24px;
 }
 .site-navbar-nav {
   display: flex;
@@ -113,9 +119,9 @@ body {
 }
 .site-navbar-nav li.active > a,
 .site-navbar-nav li a:hover {
-  color: #e6b800;
+  color: #2563eb;
   padding-bottom: 3px;
-  border-bottom: 2px solid #e6b800;
+  border-bottom: 2px solid #2563eb;
 }
 
 /* 漢堡按鈕（僅 <992px 顯示） */
@@ -185,7 +191,7 @@ body {
   }
   .site-navbar-nav li a:hover,
   .site-navbar-nav li.active > a {
-    color: #e6b800;
+    color: #2563eb;
     padding: 13px 6px;
     border-bottom: 1px solid #f0f1f3;
   }
@@ -197,11 +203,11 @@ body {
   }
 }
 
-/* ===== Footer（footer，黃底） ===== */
+/* ===== Footer（footer，淺藍底） ===== */
 .site-footer {
   font-size: 16px;
   padding: 50px 0 10px;
-  background: #ffde59;
+  background: #e8f1fd;
   color: #333;
   font-weight: 400;
 }
@@ -239,9 +245,8 @@ body {
   align-items: flex-start;
   padding-top: 2px;
 }
-.site-footer-logo .logo2 img {
-  margin-left: 5px;
-  margin-bottom: 30px;
+.site-footer-logo .logo2 {
+  margin-bottom: 16px;
 }
 .site-footer-license {
   padding-left: 10px;
@@ -266,8 +271,8 @@ body {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: #ffde59;
-  color: #2d3339;
+  background: #3b82f6;
+  color: #fff;
   border: none;
   cursor: pointer;
   display: flex;
@@ -278,11 +283,11 @@ body {
   transition: background 0.2s ease, transform 0.2s ease;
 }
 .scrollup:hover {
-  background: #ffe680;
+  background: #2563eb;
   transform: translateY(-2px);
 }
 
-/* ===== Blog 詳情頁（對齊正式站 oneplusemployment.com/tc/blogs） ===== */
+/* ===== Blog 詳情頁 ===== */
 /* 頁面背景：淺灰 */
 .blog-page {
   background: rgb(243, 244, 246);
@@ -359,8 +364,8 @@ body {
 }
 .home-cluster-nav a.active,
 .home-cluster-nav button.active {
-  background: #ffde59;
-  color: #2d3339;
+  background: #3b82f6;
+  color: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 .home-cluster-nav span {
@@ -666,7 +671,7 @@ body {
   transform: translateY(-1px);
 }
 
-/* ===== 首頁（復刻 oneplusemployment.com 主頁） ===== */
+/* ===== 首頁 ===== */
 
 /* Banner 橫幅 */
 .home-banner img {
