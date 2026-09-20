@@ -162,6 +162,7 @@ export default function BookingForm() {
   const [logoutConfirm, setLogoutConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [serviceKey, setServiceKey] = useState<string>("");
+  const [tab, setTab] = useState<"passes" | "buy" | "book">("book");
   const [files, setFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState("");
   const [state, setState] = useState<SubmitState>({ phase: "idle" });
@@ -407,33 +408,114 @@ export default function BookingForm() {
         </button>
       </div>
 
-      {/* 套票購買與餘額 */}
-      <div className="booking-passes">
-        <div className="booking-passes-head">
-          <h2 className="booking-step-title">我嘅套票</h2>
+      {/* 功能分頁 */}
+      <div className="booking-tabs" role="tablist" aria-label="預約功能分頁">
+        {(
+          [
+            { key: "passes", label: "我嘅套票" },
+            { key: "buy", label: "購買套票" },
+            { key: "book", label: "發起預約" },
+          ] as const
+        ).map((t) => (
           <button
+            key={t.key}
             type="button"
-            className="booking-demo-btn"
-            disabled={buying !== null}
-            onClick={claimDemoPass}
+            role="tab"
+            aria-selected={tab === t.key}
+            className={tab === t.key ? "active" : ""}
+            onClick={() => setTab(t.key)}
           >
-            {buying === "demo" ? "領取中…" : "領取試用套票（演示）"}
+            {t.label}
           </button>
+        ))}
+      </div>
+
+      {/* 我嘅套票（餘額 + 我嘅預約） */}
+      {tab === "passes" && (
+        <div className="booking-passes">
+          <h2 className="booking-step-title">我嘅套票</h2>
+          <div className="booking-pass-grid">
+            {SERVICES.map((s) => {
+              const remaining = balances[s.key] || 0;
+              return (
+                <div key={s.key} className="booking-pass-card">
+                  <div className="booking-pass-head">
+                    <strong>{s.label}</strong>
+                    <span className={`booking-pass-remaining${remaining > 0 ? " has" : ""}`}>
+                      剩餘 {remaining} 次
+                    </span>
+                  </div>
+                  <div className="booking-pass-buy">
+                    <button type="button" onClick={() => setTab("buy")}>
+                      去購買
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 我嘅預約 */}
+          {myBookings.length > 0 ? (
+            <div className="booking-mine">
+              <h2 className="booking-step-title">我嘅預約</h2>
+              <ul>
+                {myBookings.map((b) => (
+                  <li key={b.order_no}>
+                    <span className="booking-mine-no">{b.order_no}</span>
+                    <span>{b.service_label}</span>
+                    <span>{b.worker_name}</span>
+                    <span className={`admin-status admin-status-${b.status}`}>
+                      {MY_STATUS[b.status] || b.status}
+                    </span>
+                    <span className="booking-mine-time">
+                      {new Date(b.created_at).toLocaleDateString("zh-HK")}
+                    </span>
+                    {b.status === "pending" && (
+                      <button
+                        type="button"
+                        className="booking-cancel-btn"
+                        onClick={() => setCancelTarget(b)}
+                      >
+                        取消
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="booking-upload-hint">暫時未有預約記錄。</p>
+          )}
         </div>
-        {purchaseMsg && (
-          <p className={purchaseMsg.ok ? "booking-pass-ok" : "booking-error"}>
-            {purchaseMsg.text}
-          </p>
-        )}
-        <div className="booking-pass-grid">
-          {SERVICES.map((s) => {
-            const remaining = balances[s.key] || 0;
-            return (
+      )}
+
+      {/* 購買套票 */}
+      {tab === "buy" && (
+        <div className="booking-passes">
+          <div className="booking-passes-head">
+            <h2 className="booking-step-title">購買套票</h2>
+            <button
+              type="button"
+              className="booking-demo-btn"
+              disabled={buying !== null}
+              onClick={claimDemoPass}
+            >
+              {buying === "demo" ? "領取中…" : "領取試用套票（演示）"}
+            </button>
+          </div>
+          {purchaseMsg && (
+            <p className={purchaseMsg.ok ? "booking-pass-ok" : "booking-error"}>
+              {purchaseMsg.text}
+            </p>
+          )}
+          <div className="booking-pass-grid">
+            {SERVICES.map((s) => (
               <div key={s.key} className="booking-pass-card">
                 <div className="booking-pass-head">
                   <strong>{s.label}</strong>
-                  <span className={`booking-pass-remaining${remaining > 0 ? " has" : ""}`}>
-                    剩餘 {remaining} 次
+                  <span className="booking-pass-remaining">
+                    HK${s.priceSingle}/次
                   </span>
                 </div>
                 <div className="booking-pass-buy">
@@ -454,42 +536,12 @@ export default function BookingForm() {
                   </button>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 我嘅預約 */}
-      {myBookings.length > 0 && (
-        <div className="booking-mine">
-          <h2 className="booking-step-title">我嘅預約</h2>
-          <ul>
-            {myBookings.map((b) => (
-              <li key={b.order_no}>
-                <span className="booking-mine-no">{b.order_no}</span>
-                <span>{b.service_label}</span>
-                <span>{b.worker_name}</span>
-                <span className={`admin-status admin-status-${b.status}`}>
-                  {MY_STATUS[b.status] || b.status}
-                </span>
-                <span className="booking-mine-time">
-                  {new Date(b.created_at).toLocaleDateString("zh-HK")}
-                </span>
-                {b.status === "pending" && (
-                  <button
-                    type="button"
-                    className="booking-cancel-btn"
-                    onClick={() => setCancelTarget(b)}
-                  >
-                    取消
-                  </button>
-                )}
-              </li>
             ))}
-          </ul>
+          </div>
         </div>
       )}
 
+      {tab === "book" && (
       <form onSubmit={onSubmit} className="booking-form">
         {/* 1. 選擇服務 */}
         <h2 className="booking-step-title">1. 選擇服務</h2>
@@ -530,14 +582,12 @@ export default function BookingForm() {
               <div className="booking-no-balance">
                 <p>
                   你未購買「{service.label}」套票，暫時不能填寫預約資料。
-                  請先到上面「我嘅套票」購買，或領取試用套票體驗流程。
+                  請先到「購買套票」分頁購買，或領取試用套票體驗流程。
                 </p>
                 <button
                   type="button"
                   className="booking-submit"
-                  onClick={() =>
-                    document.querySelector(".booking-passes")?.scrollIntoView({ behavior: "smooth" })
-                  }
+                  onClick={() => setTab("buy")}
                 >
                   前往購買套票
                 </button>
@@ -653,6 +703,7 @@ export default function BookingForm() {
           </>
         )}
       </form>
+      )}
 
       {/* 登出確認彈窗 */}
       {logoutConfirm && (
