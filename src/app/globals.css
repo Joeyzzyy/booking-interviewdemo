@@ -21,210 +21,6 @@ body {
   font-size: 17px;
 }
 
-/* ===== 全站共享容器 ===== */
-.site-container {
-  max-width: 1170px;
-  margin: 0 auto;
-  padding: 0 15px;
-}
-
-/* ===== 主導航（.navbar） ===== */
-.site-navbar {
-  background: #fff;
-  color: #2d3339;
-  font-size: 1.1em;
-  font-weight: 600;
-  min-height: 76px;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12), 0 2px 12px rgba(0, 0, 0, 0.08);
-  position: relative;
-  z-index: 1000;
-}
-.site-navbar-inner {
-  display: flex;
-  align-items: center;
-}
-.site-navbar-brand {
-  padding: 8px 0;
-  display: inline-block;
-}
-/* 文字 logo（替代品牌圖片） */
-.site-logo-text {
-  font-size: 26px;
-  font-weight: 800;
-  color: #2d3339;
-  letter-spacing: 0.5px;
-}
-.site-logo-accent {
-  color: #2563eb;
-}
-.site-footer-logo .site-logo-text {
-  font-size: 24px;
-}
-.site-navbar-nav {
-  display: flex;
-  align-items: flex-end;
-  list-style: none;
-  margin: 0 0 0 auto;
-  padding: 0 60px 0 0;
-}
-.site-navbar-nav > li {
-  padding: 0 5px;
-}
-.site-navbar-nav li a {
-  display: inline-block;
-  color: #2d3339;
-  padding: 0 12px;
-  font-size: 16px;
-  font-weight: 500;
-  text-align: center;
-  text-decoration: none;
-  margin-top: 12px;
-}
-.site-navbar-nav li.active > a,
-.site-navbar-nav li a:hover {
-  color: #2563eb;
-  padding-bottom: 3px;
-  border-bottom: 2px solid #2563eb;
-}
-
-/* 漢堡按鈕（僅 <992px 顯示） */
-.site-nav-toggle {
-  display: none;
-  margin-left: auto;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-  width: 44px;
-  height: 44px;
-  padding: 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  cursor: pointer;
-}
-.site-nav-toggle span {
-  display: block;
-  width: 100%;
-  height: 3px;
-  border-radius: 2px;
-  background: #2d3339;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-.site-nav-toggle.open span:nth-child(1) {
-  transform: translateY(8px) rotate(45deg);
-}
-.site-nav-toggle.open span:nth-child(2) {
-  opacity: 0;
-}
-.site-nav-toggle.open span:nth-child(3) {
-  transform: translateY(-8px) rotate(-45deg);
-}
-
-/* 移動端導航：下拉選單 */
-@media (max-width: 991.98px) {
-  .site-nav-toggle {
-    display: flex;
-  }
-  .site-navbar-nav {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-    margin: 0;
-    padding: 6px 15px 10px;
-    background: #fff;
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.14);
-  }
-  .site-navbar-nav.open {
-    display: flex;
-    animation: fadeIn 0.18s ease;
-  }
-  .site-navbar-nav > li {
-    padding: 0;
-  }
-  .site-navbar-nav li a {
-    display: block;
-    margin: 0;
-    padding: 13px 6px;
-    text-align: left;
-    border-bottom: 1px solid #f0f1f3;
-  }
-  .site-navbar-nav li a:hover,
-  .site-navbar-nav li.active > a {
-    color: #2563eb;
-    padding: 13px 6px;
-    border-bottom: 1px solid #f0f1f3;
-  }
-  .site-navbar-nav li.active > a {
-    font-weight: 700;
-  }
-  .site-navbar-nav > li:last-child a {
-    border-bottom: none;
-  }
-}
-
-/* ===== Footer（footer，淺藍底） ===== */
-.site-footer {
-  font-size: 16px;
-  padding: 50px 0 10px;
-  background: #e8f1fd;
-  color: #333;
-  font-weight: 400;
-}
-.site-footer a,
-.site-footer a:hover,
-.site-footer p {
-  color: #333;
-  font-weight: 400;
-  text-decoration: none;
-}
-.site-footer-grid {
-  display: grid;
-  gap: 32px;
-}
-@media (min-width: 768px) {
-  .site-footer-grid {
-    grid-template-columns: 3fr 5fr 4fr;
-  }
-}
-.site-footer-link > div {
-  padding-bottom: 10px;
-}
-.site-footer-address-title {
-  padding-bottom: 5px;
-}
-.site-footer-address {
-  display: flex;
-  padding-bottom: 5px;
-  line-height: 1.5;
-}
-.site-footer-icon {
-  width: 30px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: flex-start;
-  padding-top: 2px;
-}
-.site-footer-logo .logo2 {
-  margin-bottom: 16px;
-}
-.site-footer-license {
-  padding-left: 10px;
-  margin-bottom: 15px;
-  font-size: 13px;
-}
-.site-footer-license-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.site-footer-copyright {
-  text-align: center;
-  padding-top: 50px;
-}
 
 /* 回到頂部按鈕 */
 .scrollup {
@@ -250,144 +46,6 @@ body {
   transform: translateY(-2px);
 }
 
-/* ===== Blog 詳情頁 ===== */
-/* 頁面背景：淺灰 */
-.blog-page {
-  background: rgb(243, 244, 246);
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 頁頭橫幅：背景圖 + 白色大標題（.blogs .header） */
-.blog-header {
-  background: url("/images/common/blog.jpg") center / cover no-repeat;
-  padding: 60px 15px 20px;
-  text-align: center;
-}
-.blog-header-title {
-  font-size: 36px;
-  font-weight: 600;
-  color: #fff;
-  text-shadow: 2px 2px 2px #999;
-  margin-bottom: 16px;
-}
-@media (min-width: 768px) {
-  .blog-header-title {
-    font-size: 60px;
-  }
-}
-
-/* 話題導航 — 放在背景圖內，白色描邊 */
-.home-cluster-nav {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 9999px;
-  padding: 5px;
-  box-shadow:
-    0 0 0 2px #ffffff,
-    0 0 0 4px rgba(255, 255, 255, 0.5),
-    0 4px 12px rgba(0, 0, 0, 0.2);
-  max-width: 100%;
-}
-.home-cluster-nav a,
-.home-cluster-nav button,
-.home-cluster-nav span {
-  display: inline-block;
-  padding: 6px 12px;
-  border-radius: 9999px;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 0.2s ease, color 0.2s ease;
-}
-@media (min-width: 768px) {
-  .home-cluster-nav a,
-  .home-cluster-nav button,
-  .home-cluster-nav span {
-    padding: 7px 18px;
-    font-size: 14px;
-  }
-}
-.home-cluster-nav a,
-.home-cluster-nav button {
-  color: #555;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
-.home-cluster-nav a:hover,
-.home-cluster-nav button:hover {
-  color: #2d3339;
-  background: rgba(255, 222, 89, 0.35);
-}
-.home-cluster-nav a.active,
-.home-cluster-nav button.active {
-  background: #3b82f6;
-  color: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-}
-.home-cluster-nav span {
-  color: #9499af;
-  cursor: default;
-}
-
-/* 正文容器（.blog-section .container） */
-.blog-section {
-  max-width: 1140px;
-  margin: 0 auto;
-  padding: 50px 15px;
-}
-
-/* 正文白色卡片（.blog-detail） */
-.blog-detail-card {
-  border-radius: 10px;
-  padding: 28px 20px;
-  background: #fff;
-  box-shadow: 2px 2px 5px 0px #ddd;
-  width: 100%;
-  line-height: 1.6;
-}
-@media (min-width: 768px) {
-  .blog-detail-card {
-    padding: 40px 60px;
-  }
-}
-@media (min-width: 1024px) {
-  .blog-detail-card {
-    padding: 50px 120px 40px;
-  }
-}
-.blog-detail-title {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: var(--color-ink);
-  margin-bottom: 10px;
-  line-height: 1.3;
-}
-@media (min-width: 768px) {
-  .blog-detail-title {
-    font-size: 1.75rem;
-  }
-}
-.blog-detail-date {
-  font-size: 16px;
-  color: #000;
-  margin-bottom: 15px;
-  line-height: 1.5;
-}
-.blog-detail-photo {
-  margin-bottom: 30px;
-}
-.blog-detail-photo img {
-  width: 100%;
-  height: auto;
-  border-radius: 0.5rem;
-}
 
 /* Markdown 文章排版 */
 .prose-content h2 {
@@ -1351,18 +1009,6 @@ body {
   .fee-list {
     gap: 28px;
   }
-
-  /* Footer */
-  .site-footer {
-    padding: 36px 0 8px;
-  }
-  .site-footer-grid {
-    gap: 26px;
-  }
-  .site-footer-copyright {
-    padding-top: 28px;
-  }
-
   /* 回到頂部按鈕 */
   .scrollup {
     right: 16px;
@@ -1390,18 +1036,64 @@ body {
   }
 }
 
-/* ===== 服務預約（/booking） ===== */
+/* ===== 服務預約（/booking）—— 極簡風 ===== */
+.booking-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8fafd 0%, #eef3f9 100%);
+}
+.booking-topbar {
+  padding: 24px 32px 0;
+}
+.booking-topbar .site-logo-text {
+  font-size: 22px;
+}
+.booking-hero {
+  text-align: center;
+  padding: 52px 16px 4px;
+}
+.booking-hero h1 {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #1f2937;
+  margin: 0 0 12px;
+}
+.booking-hero p {
+  color: #6b7280;
+  font-size: 16px;
+  margin: 0;
+}
+.booking-body {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 36px 16px 90px;
+  flex: 1;
+}
 .booking-card {
-  border-radius: 10px;
-  padding: 28px 20px;
+  border-radius: 16px;
+  padding: 36px 24px;
   background: #fff;
-  box-shadow: 2px 2px 5px 0px #ddd;
+  border: 1px solid #edf1f6;
+  box-shadow: 0 12px 44px rgba(15, 40, 80, 0.08);
   max-width: 860px;
   margin: 0 auto;
 }
 @media (min-width: 768px) {
   .booking-card {
-    padding: 40px 48px;
+    padding: 48px 56px;
+  }
+}
+@media (max-width: 640px) {
+  .booking-hero {
+    padding-top: 36px;
+  }
+  .booking-hero h1 {
+    font-size: 27px;
+    letter-spacing: 1px;
   }
 }
 .booking-step-title {

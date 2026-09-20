@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import BookingForm from "./BookingForm";
 
 export const metadata: Metadata = {
@@ -9,11 +10,17 @@ export const metadata: Metadata = {
 
 export default function BookingPage() {
   return (
-    <div className="blog-page">
-      <div className="blog-header">
-        <h1 className="blog-header-title">服務預約</h1>
+    <div className="booking-page">
+      <header className="booking-topbar">
+        <Link href="/booking" className="site-logo-text">
+          Booking<span className="site-logo-accent">Demo</span>
+        </Link>
+      </header>
+      <div className="booking-hero">
+        <h1>服務預約</h1>
+        <p>陪同驗身、工人接機、一站式安排，網上提交，專人跟進。</p>
       </div>
-      <div className="blog-section">
+      <div className="booking-body">
         <div className="booking-card">
           <BookingForm />
         </div>
