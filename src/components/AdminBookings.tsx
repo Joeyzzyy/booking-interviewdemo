@@ -70,7 +70,7 @@ function waLink(b: AdminBooking): string | null {
   return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
 }
 
-export default function AdminBookings({ password }: { password: string }) {
+export default function AdminBookings() {
   const { message, modal } = App.useApp();
   const [status, setStatus] = useState("pending");
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
@@ -83,13 +83,7 @@ export default function AdminBookings({ password }: { password: string }) {
     async (s: string) => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/admin/bookings?status=${s}`, {
-          headers: { "x-admin-auth": password },
-        });
-        if (res.status === 401) {
-          message.error("登入已過期，請重新登入");
-          return;
-        }
+        const res = await fetch(`/api/admin/bookings?status=${s}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "讀取失敗");
         setBookings(data.bookings);
@@ -99,7 +93,7 @@ export default function AdminBookings({ password }: { password: string }) {
         setLoading(false);
       }
     },
-    [password, message]
+    [message]
   );
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -113,7 +107,7 @@ export default function AdminBookings({ password }: { password: string }) {
     try {
       const res = await fetch(`/api/admin/bookings/${b.id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-auth": password },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, adminNote: note }),
       });
       const data = await res.json();

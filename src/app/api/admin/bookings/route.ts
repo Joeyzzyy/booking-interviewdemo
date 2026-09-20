@@ -2,19 +2,11 @@ import { getSupabase, STORAGE_BUCKET, type Booking } from "@/lib/booking/db";
 
 export const dynamic = "force-dynamic";
 
-export function checkAdminAuth(request: Request): boolean {
-  const password = process.env.ADMIN_PASSWORD || "admin@2026";
-  return request.headers.get("x-admin-auth") === password;
-}
-
 /**
  * GET /api/admin/bookings?status=pending|confirmed|rejected|cancelled|all
- * 訂單列表（需 x-admin-auth 頭）。文件附 1 小時 signed URL。
+ * 訂單列表。文件附 1 小時 signed URL。
  */
 export async function GET(request: Request) {
-  if (!checkAdminAuth(request)) {
-    return Response.json({ error: "未授權" }, { status: 401 });
-  }
   const supabase = getSupabase();
   if (!supabase) {
     return Response.json({ error: "數據庫未配置" }, { status: 503 });

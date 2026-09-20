@@ -1,4 +1,3 @@
-import { checkAdminAuth } from "@/app/api/admin/bookings/route";
 import { getSupabase } from "@/lib/booking/db";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +7,6 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!checkAdminAuth(request)) return Response.json({ error: "未授權" }, { status: 401 });
   const supabase = getSupabase();
   if (!supabase) return Response.json({ error: "數據庫未配置" }, { status: 503 });
 
@@ -39,7 +37,6 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!checkAdminAuth(request)) return Response.json({ error: "未授權" }, { status: 401 });
   const supabase = getSupabase();
   if (!supabase) return Response.json({ error: "數據庫未配置" }, { status: 503 });
   const { id } = await params;

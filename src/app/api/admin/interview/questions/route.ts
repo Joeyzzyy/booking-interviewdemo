@@ -1,11 +1,9 @@
-import { checkAdminAuth } from "@/app/api/admin/bookings/route";
 import { getSupabase } from "@/lib/booking/db";
 
 export const dynamic = "force-dynamic";
 
 /** GET 題庫列表（含停用） */
 export async function GET(request: Request) {
-  if (!checkAdminAuth(request)) return Response.json({ error: "未授權" }, { status: 401 });
   const supabase = getSupabase();
   if (!supabase) return Response.json({ error: "數據庫未配置" }, { status: 503 });
   const { data, error } = await supabase
@@ -19,7 +17,6 @@ export async function GET(request: Request) {
 
 /** POST 新增問題 { question, focus?, sortOrder? } */
 export async function POST(request: Request) {
-  if (!checkAdminAuth(request)) return Response.json({ error: "未授權" }, { status: 401 });
   const supabase = getSupabase();
   if (!supabase) return Response.json({ error: "數據庫未配置" }, { status: 503 });
 

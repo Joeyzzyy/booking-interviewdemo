@@ -15,7 +15,6 @@ npm run build && npm run start
 
 ## 環境變量
 
-見 `.env.local.example`（Supabase / Resend / Gemini / ADMIN_PASSWORD 等）。
 
 ## 數據庫
 

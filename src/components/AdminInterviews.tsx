@@ -31,9 +31,8 @@ interface Question {
 }
 
 /** 視頻面試 tab：題庫管理 + 發起新面試（記錄在獨立「面試記錄」tab） */
-export default function AdminInterviews({ password }: { password: string }) {
+export default function AdminInterviews() {
   const { message, modal } = App.useApp();
-  const headers = { "x-admin-auth": password };
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -45,7 +44,7 @@ export default function AdminInterviews({ password }: { password: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/interview/questions", { headers });
+      const res = await fetch("/api/admin/interview/questions");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "讀取失敗");
       setQuestions(data.questions || []);
@@ -55,7 +54,7 @@ export default function AdminInterviews({ password }: { password: string }) {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [password]);
+  }, []);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -68,7 +67,7 @@ export default function AdminInterviews({ password }: { password: string }) {
     setAddingQ(true);
     const res = await fetch("/api/admin/interview/questions", {
       method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...newQ, sortOrder: questions.length }),
     });
     setAddingQ(false);
@@ -81,7 +80,7 @@ export default function AdminInterviews({ password }: { password: string }) {
   const toggleQuestion = async (q: Question) => {
     await fetch(`/api/admin/interview/questions/${q.id}`, {
       method: "PUT",
-      headers: { ...headers, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ active: !q.active }),
     });
     void load();
@@ -90,7 +89,6 @@ export default function AdminInterviews({ password }: { password: string }) {
   const deleteQuestion = async (q: Question) => {
     const res = await fetch(`/api/admin/interview/questions/${q.id}`, {
       method: "DELETE",
-      headers,
     });
     if (res.ok) {
       message.success("已刪除");
@@ -108,7 +106,7 @@ export default function AdminInterviews({ password }: { password: string }) {
       fd.set("resumeText", values.resumeText || "");
       const file = fileList[0]?.originFileObj;
       if (file) fd.set("resume", file);
-      const res = await fetch("/api/admin/interviews", { method: "POST", headers, body: fd });
+      const res = await fetch("/api/admin/interviews", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) {
         message.error(data.error || "創建失敗");

@@ -41,9 +41,8 @@ const STATUS_TAG: Record<string, { color: string; label: string }> = {
 };
 
 /** 面試記錄（獨立 tab）：列表 + 展開詳情（報告/作答/視頻）+ 整場刪除 */
-export default function AdminInterviewRecords({ password }: { password: string }) {
+export default function AdminInterviewRecords() {
   const { message, modal } = App.useApp();
-  const headers = { "x-admin-auth": password };
   const [interviews, setInterviews] = useState<InterviewItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -54,7 +53,7 @@ export default function AdminInterviewRecords({ password }: { password: string }
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/interviews", { headers });
+      const res = await fetch("/api/admin/interviews");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "讀取失敗");
       setInterviews(data.interviews || []);
@@ -64,7 +63,7 @@ export default function AdminInterviewRecords({ password }: { password: string }
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [password]);
+  }, []);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -87,7 +86,7 @@ export default function AdminInterviewRecords({ password }: { password: string }
       onOk: async () => {
         setDeletingId(iv.id);
         try {
-          const res = await fetch(`/api/admin/interviews/${iv.id}`, { method: "DELETE", headers });
+          const res = await fetch(`/api/admin/interviews/${iv.id}`, { method: "DELETE" });
           if (res.ok) {
             message.success("已刪除");
             await load();
@@ -104,7 +103,7 @@ export default function AdminInterviewRecords({ password }: { password: string }
   const loadDetail = async (id: string, expanded: boolean) => {
     if (!expanded || details[id]) return;
     try {
-      const res = await fetch(`/api/admin/interviews/${id}`, { headers });
+      const res = await fetch(`/api/admin/interviews/${id}`);
       const data = await res.json();
       if (res.ok) setDetails((prev) => ({ ...prev, [id]: data }));
     } catch {

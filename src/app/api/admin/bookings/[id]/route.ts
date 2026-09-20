@@ -1,7 +1,6 @@
 import { getSupabase, type Booking } from "@/lib/booking/db";
 import { sendConfirmedEmail, sendRejectedEmail } from "@/lib/booking/email";
 import { refundCredit } from "@/lib/booking/passes";
-import { checkAdminAuth } from "../route";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +14,6 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!checkAdminAuth(request)) {
-    return Response.json({ error: "未授權" }, { status: 401 });
-  }
   const supabase = getSupabase();
   if (!supabase) {
     return Response.json({ error: "數據庫未配置" }, { status: 503 });
