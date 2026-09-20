@@ -1,7 +1,6 @@
 import Link from "next/link";
 import ScrollToTop from "@/components/ScrollToTop";
 import HeaderNav from "@/components/HeaderNav";
-import AccountNav from "@/components/AccountNav";
 
 /** demo 站點外殼：頂條 + 主導航 + footer（只保留預約/後台相關入口） */
 export default function SiteLayout({
@@ -12,16 +11,6 @@ export default function SiteLayout({
   return (
     <>
       <header>
-        {/* 頂條 — 淺藍底（.top-menu2） */}
-        <div className="top-menu2">
-          <div className="site-container">
-            <span className="top-menu2-spacer" />
-            <AccountNav />
-            <Link href="/admin" className="top-menu2-login">
-              管理後台
-            </Link>
-          </div>
-        </div>
         {/* 主導航（.navbar） */}
         <nav className="site-navbar">
           <div className="site-container site-navbar-inner">

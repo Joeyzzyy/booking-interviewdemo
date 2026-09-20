@@ -28,43 +28,6 @@ body {
   padding: 0 15px;
 }
 
-/* ===== 頂條（.top-menu2，黃底） ===== */
-.top-menu2 {
-  background: #e8f1fd;
-  font-size: 15px;
-}
-.top-menu2 .site-container {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 20px;
-  /* 加高觸控區域，方便手機點擊 */
-  padding-top: 10px;
-  padding-bottom: 10px;
-}
-.top-menu2,
-.top-menu2 a {
-  color: #666;
-  font-size: 15px;
-  font-weight: 700;
-  text-decoration: none;
-}
-/* 服務預約入口：深底膠囊按鈕，淺藍條上更醒目 */
-.top-menu2 .top-menu2-booking {
-  background: #2d3339;
-  color: #fff;
-  border-radius: 9999px;
-  padding: 5px 16px;
-  transition: background 0.2s ease;
-}
-.top-menu2 .top-menu2-booking:hover {
-  background: #1e2328;
-  color: #fff;
-}
-.top-menu2-spacer {
-  flex: 1;
-}
-
 /* ===== 主導航（.navbar） ===== */
 .site-navbar {
   background: #fff;
@@ -1334,11 +1297,6 @@ body {
 
 /* ===== 響應式優化（移動端） ===== */
 @media (max-width: 767.98px) {
-  /* 頂條 */
-  .top-menu2 .site-container {
-    gap: 12px;
-  }
-
   /* 服務理念 + 介紹短片 */
   .section-video {
     padding: 40px 0;
@@ -1429,17 +1387,6 @@ body {
   }
   .search-panel-heading {
     font-size: 18px;
-  }
-}
-
-/* 極窄屏幕（≤374px）：頂條文字縮小避免換行 */
-@media (max-width: 374.98px) {
-  .top-menu2,
-  .top-menu2 a {
-    font-size: 12px;
-  }
-  .top-menu2 .site-container {
-    gap: 8px;
   }
 }
 
@@ -2132,41 +2079,6 @@ body {
   accent-color: var(--color-accent);
   width: 16px;
   height: 16px;
-}
-
-/* 頂條登入狀態 */
-.top-menu2-account {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-.top-menu2-email {
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.top-menu2-account button {
-  border: none;
-  background: transparent;
-  color: #666;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
-}
-.top-menu2-account button:hover {
-  color: #2d3339;
-}
-.top-menu2-login {
-  text-decoration: underline !important;
-}
-@media (max-width: 640px) {
-  .top-menu2-email {
-    max-width: 110px;
-  }
 }
 
 /* 套票購買區 */
