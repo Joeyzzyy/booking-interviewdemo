@@ -1,4 +1,4 @@
-# OnePlus Booking Demo（服務預約 + 視頻面試獨立項目）
+# Booking Demo & Interview Demo（服務預約 + 視頻面試）
 
 從 oneplus 主站拆出嘅獨立演示項目，包含：
 - `/booking` 服務預約（套票制：先買後用，演示可領試用套票）

@@ -4,8 +4,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL("https://oneplusemployment.com"),
   title: {
-    default: "服務預約 | 家壹僱傭中心",
-    template: "%s | 家壹僱傭中心",
+    default: "Booking Demo & Interview Demo | 家壹僱傭中心",
+    template: "%s | Booking Demo & Interview Demo",
   },
   description: "家壹僱傭中心服務預約平台——陪同驗身、工人接機、視頻面試，一站式安排。",
 };
