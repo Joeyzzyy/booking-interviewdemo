@@ -47,7 +47,7 @@ export default function AdminInterviewRecords() {
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [details, setDetails] = useState<
-    Record<string, { interview: { resume_text: string | null; resume_url: string | null; report: Report | null }; answers: Answer[] }>
+    Record<string, { interview: { resume_text: string | null; resume_url: string | null; report: Report | null }; answers: Answer[] } | null>
   >({});
 
   const load = useCallback(async () => {
@@ -104,10 +104,13 @@ export default function AdminInterviewRecords() {
     if (!expanded || details[id]) return;
     try {
       const res = await fetch(`/api/admin/interviews/${id}`);
-      const data = await res.json();
-      if (res.ok) setDetails((prev) => ({ ...prev, [id]: data }));
-    } catch {
-      message.error("詳情載入失敗");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `讀取失敗（${res.status}）`);
+      setDetails((prev) => ({ ...prev, [id]: data }));
+    } catch (e) {
+      // 記錄失敗狀態，避免展開行永遠停留喺「載入中…」
+      setDetails((prev) => ({ ...prev, [id]: null }));
+      message.error(e instanceof Error ? e.message : "詳情載入失敗");
     }
   };
 
@@ -168,6 +171,8 @@ export default function AdminInterviewRecords() {
           onExpand: (expanded, record) => loadDetail(record.id, expanded),
           expandedRowRender: (iv) => {
             const d = details[iv.id];
+            if (iv.id in details && !d)
+              return <Typography.Text type="danger">詳情載入失敗，請收合後重新展開重試。</Typography.Text>;
             if (!d) return <Typography.Text type="secondary">載入中…</Typography.Text>;
             const r = d.interview.report;
             return (

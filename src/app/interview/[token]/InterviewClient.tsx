@@ -51,14 +51,18 @@ export default function InterviewClient({ token }: { token: string }) {
   const doneCount = info ? info.questions.filter((q) => info.progress[q.id]?.passed).length : 0;
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/interview/${token}`, { cache: "no-store" });
-    const data = await res.json();
-    if (!res.ok) {
-      setPhase({ name: "error", message: data.error || "載入失敗" });
-      return;
+    try {
+      const res = await fetch(`/api/interview/${token}`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPhase({ name: "error", message: data.error || `載入失敗（${res.status}），請重試` });
+        return;
+      }
+      setInfo(data);
+      setPhase(data.status === "completed" ? { name: "finished" } : { name: "consent" });
+    } catch {
+      setPhase({ name: "error", message: "網絡錯誤，無法載入面試資料，請檢查網絡後重試。" });
     }
-    setInfo(data);
-    setPhase(data.status === "completed" ? { name: "finished" } : { name: "consent" });
   }, [token]);
 
   const stopStream = () => {
@@ -205,7 +209,16 @@ export default function InterviewClient({ token }: { token: string }) {
     return <div className="iv-page"><p className="iv-center">載入中…</p></div>;
   }
   if (phase.name === "error") {
-    return <div className="iv-page"><p className="iv-center">⚠️ {phase.message}</p></div>;
+    return (
+      <div className="iv-page">
+        <div className="iv-card iv-center">
+          <p>⚠️ {phase.message}</p>
+          <button type="button" className="booking-submit" onClick={() => { setPhase({ name: "loading" }); void load(); }}>
+            重新載入
+          </button>
+        </div>
+      </div>
+    );
   }
   if (!info) return null;
 
