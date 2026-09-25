@@ -12,6 +12,7 @@ import {
   Volume2,
 } from "lucide-react";
 import Logo from "@/components/brand/Logo";
+import VideoWithCover from "@/components/common/VideoWithCover";
 import {
   DEFAULT_LOCALE,
   LOCALES,
@@ -633,7 +634,7 @@ export default function InterviewClient({ token }: { token: string }) {
           </>
         ) : (
           <>
-            <video
+            <VideoWithCover
               key="preview"
               src={videoUrl}
               controls

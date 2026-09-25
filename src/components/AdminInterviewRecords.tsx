@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { App, Button, Card, List, Space, Table, Tag, Typography } from "antd";
 import { CopyOutlined, DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
+import VideoWithCover from "@/components/common/VideoWithCover";
 
 interface InterviewItem {
   id: string;
@@ -222,7 +223,7 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                             <Typography.Text type="danger">AI 反饋：{a.feedback}</Typography.Text>
                           )}
                           {a.video_url && (
-                            <video src={a.video_url} controls preload="metadata" style={{ width: "100%", maxWidth: 480, borderRadius: 8, background: "#000" }} />
+                            <VideoWithCover src={a.video_url} controls preload="metadata" style={{ width: "100%", maxWidth: 480, borderRadius: 8, background: "#000" }} />
                           )}
                         </Space>
                       </List.Item>
