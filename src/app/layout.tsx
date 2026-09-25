@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
+import LoginDialogProvider from "@/components/auth/LoginDialogProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("http://localhost:3000"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   title: {
-    default: "Booking Demo | 服務預約與視頻面試",
-    template: "%s | Booking Demo",
+    default: "NEXUSLINK | 連結僱主與工人・一站式服務安排",
+    template: "%s | NEXUSLINK",
   },
-  description: "服務預約 + 視頻面試演示平台——陪同驗身、工人接機、視頻面試，一站式安排。",
+  description:
+    "NEXUSLINK SERVICES LIMITED——陪同驗身、工人接機、一站式打包安排，網上預約專人跟進；AI 視頻面試為合作機構而設。",
 };
 
 export default function RootLayout({
@@ -17,16 +19,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-HK" className="h-full antialiased">
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-          integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
-          crossOrigin="anonymous"
-          referrerPolicy="no-referrer"
-        />
-      </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <LoginDialogProvider>{children}</LoginDialogProvider>
+      </body>
     </html>
   );
 }

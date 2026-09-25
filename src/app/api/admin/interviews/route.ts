@@ -40,10 +40,18 @@ export async function POST(request: Request) {
   }
   let resumeText = String(form.get("resumeText") || "").trim();
   const resumeFile = form.get("resume");
+  const hasResumeFile = resumeFile instanceof File && resumeFile.size > 0;
+  // 簡歷必填：沒有簡歷，AI 無法做「簡歷 × 回答」匹配分析
+  if (!hasResumeFile && !resumeText) {
+    return Response.json(
+      { error: "請上傳工人簡歷（PDF/TXT）或貼上簡歷文字，沒有簡歷不能發起面試" },
+      { status: 400 }
+    );
+  }
   let resumeFilePath: string | null = null;
 
   // 上傳簡歷原件 + 提取文字（PDF/TXT）
-  if (resumeFile instanceof File && resumeFile.size > 0) {
+  if (hasResumeFile) {
     if (resumeFile.size > 4 * 1024 * 1024) {
       return Response.json({ error: "簡歷文件不能超過 4MB" }, { status: 400 });
     }

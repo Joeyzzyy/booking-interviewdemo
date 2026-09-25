@@ -49,13 +49,13 @@ export async function POST(request: Request) {
     return Response.json({ error: "請選擇服務項目" }, { status: 400 });
   }
 
-  // 通用欄位校驗（電郵以登入賬號為準，不接受表單提交）
+  // 通用欄位校驗（賬戶有電郵則以賬戶為準；手機號註冊且未綁電郵時，接受表單聯絡電郵）
   const employerName = get("employerName");
   const phone = get("phone");
   const whatsapp = get("whatsapp");
   const workerName = get("workerName");
   const passport = get("passport");
-  const email = customer.email;
+  const email = customer.email || get("contactEmail");
   if (!employerName || !phone || !whatsapp || !workerName || !passport) {
     return Response.json(
       { error: "請填寫僱主姓名、聯絡電話、WhatsApp、工人姓名及護照號碼" },
@@ -63,7 +63,10 @@ export async function POST(request: Request) {
     );
   }
   if (!isValidEmail(email)) {
-    return Response.json({ error: "請填寫有效電郵地址" }, { status: 400 });
+    return Response.json(
+      { error: customer.email ? "請填寫有效電郵地址" : "請填寫有效的聯絡電郵（用於接收確認通知）" },
+      { status: 400 }
+    );
   }
 
   // 服務專屬欄位（required 校驗按配置）；護照號碼入 details

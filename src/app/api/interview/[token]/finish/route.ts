@@ -2,7 +2,7 @@ import { getSupabase } from "@/lib/booking/db";
 import { generateReport } from "@/lib/interview/ai";
 import {
   currentQuestion,
-  getActiveQuestions,
+  getActiveQuestionsForOwner,
   getAnswerProgress,
   getInterviewByToken,
 } from "@/lib/interview/store";
@@ -28,7 +28,7 @@ export async function POST(
     return Response.json({ ok: true }); // 冪等
   }
 
-  const questions = await getActiveQuestions();
+  const questions = await getActiveQuestionsForOwner(interview.customer_id);
   const progress = await getAnswerProgress(interview.id);
   if (currentQuestion(questions, progress) !== null) {
     return Response.json({ error: "仲有問題未完成" }, { status: 409 });
@@ -47,12 +47,22 @@ export async function POST(
     return { question: q.question, answer: last?.transcript || "（無轉寫）" };
   });
 
+  // 報告生成失敗唔好卡住成個面試：以 fallback 報告標記完成，
+  // 否則狀態停在未完成，工人刷新/重開連結會閃回「面試開始」
   let report;
   try {
     report = await generateReport(interview.worker_name, interview.resume_text || "", qaList);
   } catch (e) {
-    console.error("[interview] 報告生成失敗:", e);
-    return Response.json({ error: "報告生成失敗，請稍後再試" }, { status: 502 });
+    console.error("[interview] 報告生成失敗（以 fallback 標記完成）:", e);
+    report = {
+      score: 0,
+      summary: "整體報告生成失敗（AI 服務暫時不可用），請聯絡管理員重新生成或參考逐題結果。",
+      strengths: [],
+      concerns: [],
+      resumeMatch: "",
+      recommendation: "",
+      generatedBy: "none",
+    };
   }
 
   await supabase

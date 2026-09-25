@@ -45,7 +45,8 @@ export async function createPassCheckoutSession(params: {
         },
       },
     ],
-    customer_email: customer.email,
+    // 賬戶可能只綁定了手機號：無電郵時交由 Stripe 於付款頁收集
+    ...(customer.email ? { customer_email: customer.email } : {}),
     metadata: {
       passOrderId,
       customerId: customer.id,

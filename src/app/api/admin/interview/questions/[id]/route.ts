@@ -1,6 +1,9 @@
 import { getSupabase } from "@/lib/booking/db";
+import { generateQuestionAssets } from "@/lib/interview/tts";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+export const preferredRegion = "sin1";
 
 /** PUT 更新問題 { question?, focus?, sortOrder?, active? } */
 export async function PUT(
@@ -29,6 +32,15 @@ export async function PUT(
 
   const { error } = await supabase.from("interview_questions").update(update).eq("id", id);
   if (error) return Response.json({ error: "更新失敗" }, { status: 500 });
+
+  // 問題文字有變更 → 重新生成譯文 + 音頻
+  if (body.question !== undefined) {
+    try {
+      await generateQuestionAssets(id, update.question as string);
+    } catch (e) {
+      console.error("[questions] 翻譯/語音生成失敗（不影響更新）:", e);
+    }
+  }
   return Response.json({ ok: true });
 }
 

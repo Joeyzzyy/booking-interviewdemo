@@ -3,7 +3,7 @@ import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
 import { judgeAnswer, transcribeVideo } from "@/lib/interview/ai";
 import {
   currentQuestion,
-  getActiveQuestions,
+  getActiveQuestionsForOwner,
   getAnswerProgress,
   getInterviewByToken,
   MAX_ATTEMPTS,
@@ -47,7 +47,7 @@ export async function POST(
     return Response.json({ error: "無效視頻" }, { status: 400 });
   }
 
-  const questions = await getActiveQuestions();
+  const questions = await getActiveQuestionsForOwner(interview.customer_id);
   const progress = await getAnswerProgress(interview.id);
   const current = currentQuestion(questions, progress);
   if (!current || current.id !== questionId) {

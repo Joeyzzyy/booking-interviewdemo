@@ -6,6 +6,8 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const customer = await getSessionCustomer(request);
   return Response.json({
-    customer: customer ? { email: customer.email } : null,
+    customer: customer
+      ? { id: customer.id, email: customer.email, phone: customer.phone }
+      : null,
   });
 }

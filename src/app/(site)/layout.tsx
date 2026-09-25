@@ -1,6 +1,7 @@
+import SiteHeader from "@/components/brand/SiteHeader";
 import ScrollToTop from "@/components/ScrollToTop";
 
-/** demo 站點外殼：極簡，無 header/footer */
+/** 站點外殼：統一頂部導航 */
 export default function SiteLayout({
   children,
 }: Readonly<{
@@ -8,7 +9,8 @@ export default function SiteLayout({
 }>) {
   return (
     <>
-      <main className="flex-1 flex flex-col">{children}</main>
+      <SiteHeader />
+      <main className="flex flex-1 flex-col pt-[64px]">{children}</main>
       <ScrollToTop />
     </>
   );

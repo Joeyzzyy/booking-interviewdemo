@@ -41,7 +41,7 @@ const STATUS_TAG: Record<string, { color: string; label: string }> = {
 };
 
 /** 面試記錄（獨立 tab）：列表 + 展開詳情（報告/作答/視頻）+ 整場刪除 */
-export default function AdminInterviewRecords() {
+export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiBase?: string }) {
   const { message, modal } = App.useApp();
   const [interviews, setInterviews] = useState<InterviewItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -53,7 +53,7 @@ export default function AdminInterviewRecords() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/interviews");
+      const res = await fetch(`${apiBase}/interviews`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "讀取失敗");
       setInterviews(data.interviews || []);
@@ -86,7 +86,7 @@ export default function AdminInterviewRecords() {
       onOk: async () => {
         setDeletingId(iv.id);
         try {
-          const res = await fetch(`/api/admin/interviews/${iv.id}`, { method: "DELETE" });
+          const res = await fetch(`${apiBase}/interviews/${iv.id}`, { method: "DELETE" });
           if (res.ok) {
             message.success("已刪除");
             await load();
@@ -103,7 +103,7 @@ export default function AdminInterviewRecords() {
   const loadDetail = async (id: string, expanded: boolean) => {
     if (!expanded || details[id]) return;
     try {
-      const res = await fetch(`/api/admin/interviews/${id}`);
+      const res = await fetch(`${apiBase}/interviews/${id}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `讀取失敗（${res.status}）`);
       setDetails((prev) => ({ ...prev, [id]: data }));

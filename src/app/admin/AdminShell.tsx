@@ -41,21 +41,27 @@ function AdminShellInner() {
             style={{
               width: 32,
               height: 32,
-              borderRadius: 8,
-              background: "#e8f1fd",
+              borderRadius: 9,
+              background: "linear-gradient(135deg,#4cb896,#2a9470)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontWeight: 800,
-              color: "#2563eb",
+              color: "#fff",
             }}
           >
-            B
+            N
           </div>
           <Typography.Title level={4} style={{ margin: 0 }}>
-            管理後台
+            NEXUSLINK 管理後台
           </Typography.Title>
         </div>
+        <a
+          href="/"
+          style={{ fontSize: 13, fontWeight: 600, color: "#35a07a" }}
+        >
+          返回網站
+        </a>
       </Layout.Header>
       <Layout.Content style={{ padding: "16px 24px 40px", maxWidth: 1280, width: "100%", margin: "0 auto" }}>
         <Tabs

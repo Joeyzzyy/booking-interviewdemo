@@ -2,7 +2,7 @@ import { getSupabase } from "@/lib/booking/db";
 import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
 import {
   currentQuestion,
-  getActiveQuestions,
+  getActiveQuestionsForOwner,
   getAnswerProgress,
   getInterviewByToken,
   MAX_ATTEMPTS,
@@ -49,7 +49,7 @@ export async function POST(
   }
 
   // 順序作答校驗 + 重試次數
-  const questions = await getActiveQuestions();
+  const questions = await getActiveQuestionsForOwner(interview.customer_id);
   const progress = await getAnswerProgress(interview.id);
   const current = currentQuestion(questions, progress);
   if (!current || current.id !== body.questionId) {

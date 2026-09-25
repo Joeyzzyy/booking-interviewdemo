@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   App,
   Button,
@@ -28,23 +28,72 @@ interface Question {
   focus: string | null;
   sort_order: number;
   active: boolean;
+  /** 各語言 TTS 音頻路徑（空 = 未生成） */
+  audio?: Record<string, string> | null;
+  /** 各語言音頻簽名 URL（供試聽） */
+  audioUrls?: Record<string, string> | null;
 }
 
+/** 試聽用語言 */
+const AUDIO_LANGS = [
+  { key: "en", label: "EN" },
+  { key: "id", label: "ID" },
+  { key: "tl", label: "FIL" },
+  { key: "zh", label: "普" },
+] as const;
+
 /** 視頻面試 tab：題庫管理 + 發起新面試（記錄在獨立「面試記錄」tab） */
-export default function AdminInterviews() {
+export default function AdminInterviews({
+  apiBase = "/api/admin",
+  section = "all",
+}: {
+  apiBase?: string;
+  /** 渲染範圍：all=題庫+發起（後台用）；questions=僅題庫；create=僅發起面試 */
+  section?: "all" | "questions" | "create";
+}) {
   const { message, modal } = App.useApp();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [addingQ, setAddingQ] = useState(false);
+  const [audioBusy, setAudioBusy] = useState<string | null>(null);
+  const [playingLang, setPlayingLang] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, []);
+
+  /** 試聽某語言的題目語音（再次點擊停止） */
+  const previewAudio = (key: string, url: string) => {
+    if (playingLang === key) {
+      audioRef.current?.pause();
+      setPlayingLang(null);
+      return;
+    }
+    if (!audioRef.current) audioRef.current = new Audio();
+    const a = audioRef.current;
+    a.src = url;
+    a.onended = () => setPlayingLang(null);
+    a.onerror = () => setPlayingLang(null);
+    setPlayingLang(key);
+    a.play().catch(() => setPlayingLang(null));
+  };
   const [newQ, setNewQ] = useState({ question: "", focus: "" });
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [form] = Form.useForm<{ workerName: string; resumeText?: string }>();
+  // 簡歷必填（文件或文字至少一種）：沒有簡歷 AI 無法做匹配分析
+  const workerNameValue = Form.useWatch("workerName", form);
+  const resumeTextValue = Form.useWatch("resumeText", form);
+  const resumeProvided = Boolean((resumeTextValue || "").trim()) || fileList.length > 0;
+  const canCreate = Boolean((workerNameValue || "").trim()) && resumeProvided;
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/interview/questions");
+      const res = await fetch(`${apiBase}/interview/questions`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "讀取失敗");
       setQuestions(data.questions || []);
@@ -65,7 +114,7 @@ export default function AdminInterviews() {
   const addQuestion = async () => {
     if (!newQ.question.trim()) return message.warning("請填寫問題");
     setAddingQ(true);
-    const res = await fetch("/api/admin/interview/questions", {
+    const res = await fetch(`${apiBase}/interview/questions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...newQ, sortOrder: questions.length }),
@@ -78,7 +127,7 @@ export default function AdminInterviews() {
   };
 
   const toggleQuestion = async (q: Question) => {
-    await fetch(`/api/admin/interview/questions/${q.id}`, {
+    await fetch(`${apiBase}/interview/questions/${q.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ active: !q.active }),
@@ -86,8 +135,27 @@ export default function AdminInterviews() {
     void load();
   };
 
+  const generateAudio = async (q: Question) => {
+    const key = `audio-${q.id}`;
+    setAudioBusy(key);
+    try {
+      const res = await fetch(`${apiBase}/interview/questions/${q.id}/audio`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        message.error(data.error || "生成失敗");
+        return;
+      }
+      message.success("已生成 5 語言語音");
+      void load();
+    } catch {
+      message.error("生成失敗");
+    } finally {
+      setAudioBusy(null);
+    }
+  };
+
   const deleteQuestion = async (q: Question) => {
-    const res = await fetch(`/api/admin/interview/questions/${q.id}`, {
+    const res = await fetch(`${apiBase}/interview/questions/${q.id}`, {
       method: "DELETE",
     });
     if (res.ok) {
@@ -106,7 +174,7 @@ export default function AdminInterviews() {
       fd.set("resumeText", values.resumeText || "");
       const file = fileList[0]?.originFileObj;
       if (file) fd.set("resume", file);
-      const res = await fetch("/api/admin/interviews", { method: "POST", body: fd });
+      const res = await fetch(`${apiBase}/interviews`, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) {
         message.error(data.error || "創建失敗");
@@ -132,6 +200,7 @@ export default function AdminInterviews() {
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
       {/* 題庫管理 */}
+      {section !== "create" && (
       <Card
         title="面試問題管理"
         extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={() => load()}>刷新</Button>}
@@ -144,6 +213,9 @@ export default function AdminInterviews() {
             <List.Item
               style={{ opacity: q.active ? 1 : 0.45 }}
               actions={[
+                <Button key="a" size="small" onClick={() => generateAudio(q)} loading={audioBusy === `audio-${q.id}`}>
+                  {q.audio && Object.keys(q.audio).length > 0 ? "重生成語音" : "生成語音"}
+                </Button>,
                 <Button key="t" size="small" onClick={() => toggleQuestion(q)}>
                   {q.active ? "停用" : "啟用"}
                 </Button>,
@@ -158,7 +230,33 @@ export default function AdminInterviews() {
                 </Popconfirm>,
               ]}
             >
-              <List.Item.Meta title={q.question} description={q.focus ? `考察：${q.focus}` : null} />
+              <List.Item.Meta
+                title={q.question}
+                description={
+                  <div>
+                    {q.focus ? <div style={{ marginBottom: 6 }}>{`考察：${q.focus}`}</div> : null}
+                    <div className="admin-audio-row">
+                      <span className="admin-audio-label">試聽：</span>
+                      {AUDIO_LANGS.map((l) => {
+                        const url = q.audioUrls?.[l.key];
+                        const playing = playingLang === l.key;
+                        return (
+                          <button
+                            key={l.key}
+                            type="button"
+                            disabled={!url}
+                            title={url ? `播放 ${l.label}` : `${l.label} 暫無語音`}
+                            onClick={() => url && previewAudio(l.key, url)}
+                            className={`admin-audio-btn${playing ? " playing" : ""}`}
+                          >
+                            {playing ? "■" : "▶"} {l.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                }
+              />
             </List.Item>
           )}
         />
@@ -178,8 +276,10 @@ export default function AdminInterviews() {
           </Button>
         </div>
       </Card>
+      )}
 
       {/* 發起面試 */}
+      {section !== "questions" && (
       <Card title="發起新面試">
         <Form form={form} layout="vertical" onFinish={createInterview}>
           <Form.Item
@@ -189,7 +289,11 @@ export default function AdminInterviews() {
           >
             <Input placeholder="工人姓名" />
           </Form.Item>
-          <Form.Item label="簡歷文件（PDF/TXT，≤4MB，可選）">
+          <Form.Item
+            label="簡歷文件（PDF/TXT，≤4MB）"
+            required
+            tooltip="文件或文字至少提供一種；圖片簡歷請直接貼上文字"
+          >
             <Upload
               fileList={fileList}
               beforeUpload={() => false}
@@ -200,14 +304,26 @@ export default function AdminInterviews() {
               <Button icon={<UploadOutlined />}>選擇文件</Button>
             </Upload>
           </Form.Item>
-          <Form.Item name="resumeText" label="簡歷文字（可選；上傳 PDF/TXT 會自動提取）">
-            <Input.TextArea rows={4} placeholder="圖片簡歷請手動貼上文字" />
+          <Form.Item name="resumeText" label="簡歷文字（上傳 PDF/TXT 會自動提取；圖片簡歷請手動貼上）">
+            <Input.TextArea rows={4} placeholder="貼上簡歷文字" />
           </Form.Item>
-          <Button type="primary" htmlType="submit" icon={<LinkOutlined />} loading={creating}>
+          <Button
+            type="primary"
+            htmlType="submit"
+            icon={<LinkOutlined />}
+            loading={creating}
+            disabled={!canCreate}
+          >
             生成面試連結
           </Button>
+          {!canCreate && (
+            <Typography.Text type="secondary" style={{ display: "block", marginTop: 8, fontSize: 12 }}>
+              需要工人姓名 + 簡歷（文件或文字至少一種）才能發起面試
+            </Typography.Text>
+          )}
         </Form>
       </Card>
+      )}
     </Space>
   );
 }
