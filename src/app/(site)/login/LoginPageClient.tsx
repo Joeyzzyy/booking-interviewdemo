@@ -6,7 +6,7 @@ import LoginForm from "@/components/auth/LoginForm";
 /** 獨立登入頁（與彈窗共用同一套表單；主要作為深鏈回退） */
 export default function LoginPageClient() {
   const params = useSearchParams();
-  const next = params.get("next") || "/account";
+  const next = params.get("next") || "/booking";
   return (
     <div className="flex flex-1 items-center justify-center bg-[#f8f9fc] px-6 py-16 sm:py-24">
       <div className="card w-full max-w-[440px] p-8 sm:p-10">

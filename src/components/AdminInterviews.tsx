@@ -56,6 +56,7 @@ export default function AdminInterviews({
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [addingQ, setAddingQ] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [audioBusy, setAudioBusy] = useState<string | null>(null);
   const [playingLang, setPlayingLang] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -145,7 +146,7 @@ export default function AdminInterviews({
         message.error(data.error || "生成失敗");
         return;
       }
-      message.success("已生成 5 語言語音");
+      message.success("已生成 4 語言語音");
       void load();
     } catch {
       message.error("生成失敗");
@@ -155,14 +156,19 @@ export default function AdminInterviews({
   };
 
   const deleteQuestion = async (q: Question) => {
-    const res = await fetch(`${apiBase}/interview/questions/${q.id}`, {
-      method: "DELETE",
-    });
-    if (res.ok) {
-      message.success("已刪除");
-      void load();
-    } else {
-      message.error("刪除失敗");
+    setDeletingId(q.id);
+    try {
+      const res = await fetch(`${apiBase}/interview/questions/${q.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        message.success("已刪除");
+        void load();
+      } else {
+        message.error((await res.json()).error || "刪除失敗");
+      }
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -224,9 +230,10 @@ export default function AdminInterviews({
                   title={`刪除「${q.question}」？`}
                   okText="刪除"
                   cancelText="取消"
+                  okButtonProps={{ loading: deletingId === q.id }}
                   onConfirm={() => deleteQuestion(q)}
                 >
-                  <Button size="small" danger icon={<DeleteOutlined />} />
+                  <Button size="small" danger icon={<DeleteOutlined />} loading={deletingId === q.id} />
                 </Popconfirm>,
               ]}
             >

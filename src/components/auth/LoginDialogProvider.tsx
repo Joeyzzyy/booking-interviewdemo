@@ -14,7 +14,8 @@ export default function LoginDialogProvider({ children }: { children: ReactNode 
   useEffect(() => {
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent<{ next?: string }>).detail;
-      setNext(detail?.next);
+      // 未指定時默認登入後進入預約工作台
+      setNext(detail?.next || "/booking");
       setOpen(true);
     };
     window.addEventListener("nl-open-login", onOpen);
