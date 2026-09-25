@@ -410,6 +410,9 @@ export default function InterviewClient({ token }: { token: string }) {
           <p className="max-w-[420px] text-[14px] leading-[1.85] text-[#5d6b85]">
             {t("finishedDesc", { name: info.workerName })}
           </p>
+          <p className="mt-2 rounded-full bg-[#e9f5f0] px-4 py-2 text-[13px] font-semibold text-[#2a8163]">
+            {t("finishedClose")}
+          </p>
         </div>
       </Shell>
     );

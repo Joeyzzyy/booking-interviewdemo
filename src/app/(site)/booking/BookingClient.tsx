@@ -71,6 +71,8 @@ export default function BookingClient() {
   const [waSame, setWaSame] = useState(true);
   const [serviceKey, setServiceKey] = useState<string>("");
   const [tab, setTab] = useState<BookingTab>("book");
+  const [createdIv, setCreatedIv] = useState<{ token: string; link: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState("");
   const [state, setState] = useState<SubmitState>({ phase: "idle" });
@@ -515,7 +517,14 @@ export default function BookingClient() {
                 AI 自動完成語音轉寫、逐題評估並輸出整體報告。
               </p>
               <AdminTheme>
-                <AdminInterviews apiBase="/api/my" section="create" />
+                <AdminInterviews
+                  apiBase="/api/my"
+                  section="create"
+                  onCreated={(info) => {
+                    setCreatedIv(info);
+                    switchTab("records"); // 自動切到面試記錄；彈窗關閉後即見記錄頁
+                  }}
+                />
               </AdminTheme>
             </div>
           )}
@@ -726,6 +735,48 @@ export default function BookingClient() {
             {cancelError && <p className="mt-3 text-[13px] font-medium text-red-600">{cancelError}</p>}
           </>
         )}
+      </Modal>
+
+      {/* 面試連結已生成彈窗（創建後自動切到「面試記錄」分欄） */}
+      <Modal
+        open={createdIv !== null}
+        onClose={() => {
+          setCreatedIv(null);
+          setCopied(false);
+        }}
+        title="面試連結已生成"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (!createdIv) return;
+                void navigator.clipboard.writeText(createdIv.link).catch(() => {});
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              }}
+            >
+              {copied ? "已複製 ✓" : "複製連結"}
+            </Button>
+            <Button
+              onClick={() => {
+                setCreatedIv(null);
+                setCopied(false);
+              }}
+            >
+              前往面試記錄
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[13.5px] leading-[1.8] text-[#5d6b85]">
+          連結已複製到剪貼板，可直接發送給工人。工人<strong className="text-[#161b2e]">無需登入</strong>即可作答，
+          完成後我們這邊會看到面試狀態與分析結果。
+        </p>
+        <div className="mt-3 rounded-xl border border-[#e6e9f2] bg-[#f8f9fc] px-4 py-3 text-[12.5px] break-all text-[#3d4763]">
+          {createdIv?.link}
+        </div>
+        <p className="mt-3 text-[12px] text-[#8b95ad]">關閉本彈窗後，你就在「AI 面試 → 面試記錄」分欄，可隨時查看進度。</p>
       </Modal>
     </div>
   );

@@ -46,10 +46,13 @@ const AUDIO_LANGS = [
 export default function AdminInterviews({
   apiBase = "/api/admin",
   section = "all",
+  onCreated,
 }: {
   apiBase?: string;
   /** 渲染範圍：all=題庫+發起（後台用）；questions=僅題庫；create=僅發起面試 */
   section?: "all" | "questions" | "create";
+  /** 創建成功回調（由父層負責彈窗/切換 tab）；不傳則用內建 antd 彈窗 */
+  onCreated?: (info: { token: string; link: string }) => void;
 }) {
   const { message, modal } = App.useApp();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -188,6 +191,12 @@ export default function AdminInterviews({
       }
       const link = `${window.location.origin}/interview/${data.token}`;
       await navigator.clipboard.writeText(link).catch(() => {});
+      form.resetFields();
+      setFileList([]);
+      if (onCreated) {
+        onCreated({ token: data.token, link }); // 父層：切到面試記錄 + 顯示彈窗
+        return;
+      }
       modal.success({
         title: "面試連結已生成（已複製）",
         content: (
@@ -196,8 +205,6 @@ export default function AdminInterviews({
           </Typography.Paragraph>
         ),
       });
-      form.resetFields();
-      setFileList([]);
     } finally {
       setCreating(false);
     }
