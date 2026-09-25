@@ -37,7 +37,6 @@ interface InterviewInfo {
 }
 
 const MAX_SECONDS = 90;
-const MAX_ATTEMPTS = 3;
 
 type Phase =
   | { name: "loading" }
@@ -108,7 +107,6 @@ export default function InterviewClient({ token }: { token: string }) {
   const currentQ: Question | null = info
     ? info.questions.find((q) => !info.progress[q.id]?.passed) || null
     : null;
-  const attemptsUsed = currentQ ? info?.progress[currentQ.id]?.attempts || 0 : 0;
   const doneCount = info ? info.questions.filter((q) => info.progress[q.id]?.passed).length : 0;
 
   /** 只拉取資料、不改階段（答題後的刷新用，避免閃回「面試開始」） */
@@ -299,10 +297,8 @@ export default function InterviewClient({ token }: { token: string }) {
       const ansData = await ansRes.json();
       if (!ansRes.ok) throw new Error(ansData.error || "分析失敗");
 
+      // 提交即接受（唔做逐題 AI 門禁），直接進入下一題
       retake();
-      if (!ansData.passed) {
-        setFeedback(ansData.feedback || "回答未達要求，請再試一次。");
-      }
       await fetchInfo(); // 只刷新資料，不重設階段（避免閃回「面試開始」）
       setPhase({ name: "question" });
     } catch (e) {
@@ -429,7 +425,7 @@ export default function InterviewClient({ token }: { token: string }) {
         <ul className="mt-6 flex flex-col gap-3">
           {[
             t("ruleCount", { n: info.questions.length }),
-            t("ruleSeconds", { max: MAX_SECONDS, n: MAX_ATTEMPTS }),
+            t("ruleSeconds", { max: MAX_SECONDS }),
             t("ruleAi"),
             t("ruleEnv"),
           ].map((text) => (
@@ -549,7 +545,6 @@ export default function InterviewClient({ token }: { token: string }) {
           <span className="text-[#161b2e]">
             {t("progressOf", { x: doneCount + 1, n: info.questions.length })}
           </span>
-          <span className="text-[#8b95ad]">{t("attemptsLeft", { n: MAX_ATTEMPTS - attemptsUsed })}</span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#eef1f6]">
           <div
@@ -628,7 +623,7 @@ export default function InterviewClient({ token }: { token: string }) {
                   type="button"
                   className={BTN_PRIMARY}
                   onClick={startRecording}
-                  disabled={busy || attemptsUsed >= MAX_ATTEMPTS}
+                  disabled={busy}
                 >
                   <Mic size={15} aria-hidden="true" />
                   {t("startRecord")}

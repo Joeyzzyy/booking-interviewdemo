@@ -5,7 +5,6 @@ import {
   getActiveQuestionsForOwner,
   getAnswerProgress,
   getInterviewByToken,
-  MAX_ATTEMPTS,
   MAX_VIDEO_SIZE,
   VIDEO_ACCEPT,
 } from "@/lib/interview/store";
@@ -48,7 +47,7 @@ export async function POST(
     return Response.json({ error: "視頻超過 60MB 上限" }, { status: 400 });
   }
 
-  // 順序作答校驗 + 重試次數
+  // 順序作答校驗（唔設重試上限：提交即接受）
   const questions = await getActiveQuestionsForOwner(interview.customer_id);
   const progress = await getAnswerProgress(interview.id);
   const current = currentQuestion(questions, progress);
@@ -56,9 +55,6 @@ export async function POST(
     return Response.json({ error: "請按順序作答" }, { status: 409 });
   }
   const attempts = progress[current.id]?.attempts || 0;
-  if (attempts >= MAX_ATTEMPTS) {
-    return Response.json({ error: "呢條問題已達重試上限" }, { status: 409 });
-  }
 
   const ext = baseType === "video/mp4" ? "mp4" : "webm";
   const path = `videos/${interview.id}/${current.id}-attempt${attempts + 1}.${ext}`;

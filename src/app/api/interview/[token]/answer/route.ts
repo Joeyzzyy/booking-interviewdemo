@@ -1,12 +1,11 @@
 import { getSupabase } from "@/lib/booking/db";
 import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
-import { judgeAnswer, transcribeVideo } from "@/lib/interview/ai";
+import { transcribeVideo } from "@/lib/interview/ai";
 import {
   currentQuestion,
   getActiveQuestionsForOwner,
   getAnswerProgress,
   getInterviewByToken,
-  MAX_ATTEMPTS,
 } from "@/lib/interview/store";
 
 export const dynamic = "force-dynamic";
@@ -54,9 +53,6 @@ export async function POST(
     return Response.json({ error: "請按順序作答" }, { status: 409 });
   }
   const attempt = (progress[current.id]?.attempts || 0) + 1;
-  if (attempt > MAX_ATTEMPTS) {
-    return Response.json({ error: "呢條問題已達重試上限" }, { status: 409 });
-  }
 
   // 下載視頻 → 轉寫
   const { data: videoData, error: dlErr } = await supabase.storage
@@ -68,24 +64,16 @@ export async function POST(
   }
   const videoBuffer = Buffer.from(await videoData.arrayBuffer());
 
+  // 轉寫（失敗唔阻流程：報告會標註無轉寫）
   let transcript = "";
   try {
     transcript = await transcribeVideo(videoBuffer, videoPath.split("/").pop() || "answer.webm", videoData.type);
   } catch (e) {
-    console.error("[interview] 轉寫失敗:", e);
-    return Response.json({ error: "語音識別失敗，請重新錄製（留意環境噪音）" }, { status: 502 });
+    console.error("[interview] 轉寫失敗（仍接受作答）:", e);
   }
 
-  // AI 判斷
-  let judged;
-  try {
-    judged = await judgeAnswer(current.question, current.focus, transcript);
-  } catch (e) {
-    console.error("[interview] AI 判斷失敗:", e);
-    return Response.json({ error: "AI 分析失敗，請稍後再試" }, { status: 502 });
-  }
-
-  // 記錄作答 + 標記面試進行中
+  // 提交即通過：工人提交作答即接受（佢可自願重錄後再提交），唔做逐題 AI 門禁。
+  // 整體評估喺提交面試時同簡歷一併做（generateReport）。
   await supabase.from("interview_answers").insert({
     interview_id: interview.id,
     question_id: current.id,
@@ -93,17 +81,12 @@ export async function POST(
     attempt,
     video_path: videoPath,
     transcript,
-    passed: judged.passed,
-    feedback: judged.feedback,
+    passed: true,
+    feedback: null,
   });
   if (interview.status === "pending") {
     await supabase.from("interviews").update({ status: "in_progress" }).eq("id", interview.id);
   }
 
-  return Response.json({
-    passed: judged.passed,
-    feedback: judged.feedback,
-    attempt,
-    attemptsLeft: MAX_ATTEMPTS - attempt,
-  });
+  return Response.json({ passed: true, feedback: "", attempt });
 }
