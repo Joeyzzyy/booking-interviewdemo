@@ -6,6 +6,7 @@ import InterviewSection from "@/components/home/InterviewSection";
 import AboutSection from "@/components/home/AboutSection";
 import CTASection from "@/components/home/CTASection";
 import SiteHeader from "@/components/brand/SiteHeader";
+import SiteFooter from "@/components/brand/SiteFooter";
 
 export const metadata: Metadata = {
   title: "NEXUSLINK | 連結僱主與工人・一站式服務安排",
@@ -25,6 +26,7 @@ export default function HomePage() {
         <AboutSection />
         <CTASection />
       </main>
+      <SiteFooter />
     </>
   );
 }
