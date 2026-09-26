@@ -9,6 +9,18 @@ export default function CTASection() {
   return (
     <section className="px-6 py-20 sm:px-10 sm:py-24">
       <div className="mx-auto max-w-[760px] text-center">
+        <Reveal delay={0}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/illustrations/link-rings.webp"
+            alt="環環相扣的品牌插畫"
+            className="mx-auto mb-6 w-[130px] sm:w-[150px]"
+            width={640}
+            height={640}
+            loading="lazy"
+            decoding="async"
+          />
+        </Reveal>
         <SectionHeader
           eyebrow="開始使用"
           title="現在就連結起來"

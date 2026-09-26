@@ -81,6 +81,20 @@ export default function HeroSection() {
             專人確認安排
           </span>
         </div>
+
+        {/* 品牌插畫：連結 */}
+        <div className="hero-in mx-auto mt-14 max-w-[680px]" style={{ animationDelay: "0.55s" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/illustrations/hero-link.webp"
+            alt="兩個人透過流線與節點彼此連結的品牌插畫"
+            className="mx-auto w-full"
+            width={1200}
+            height={675}
+            loading="eager"
+            decoding="async"
+          />
+        </div>
       </div>
     </section>
   );

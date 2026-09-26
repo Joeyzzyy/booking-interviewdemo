@@ -31,6 +31,19 @@ export default function InterviewSection() {
           subtitle="為合作機構而設的後台評估工具：建立面試、發送專屬連結給工人，AI 自動完成轉寫與評估，機構在後台查看逐題結果與整體報告。"
         />
 
+        <Reveal delay={0.05}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/illustrations/ai-interview.webp"
+            alt="手機視頻面試的品牌插畫"
+            className="mx-auto mb-14 w-full max-w-[460px]"
+            width={1000}
+            height={750}
+            loading="lazy"
+            decoding="async"
+          />
+        </Reveal>
+
         <div className="grid gap-5 sm:grid-cols-3">
           {FEATURES.map((f, i) => (
             <Reveal key={f.title} delay={i * 0.06}>
