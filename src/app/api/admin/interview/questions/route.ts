@@ -1,5 +1,6 @@
 import { getSupabase } from "@/lib/booking/db";
 import { generateQuestionAssets } from "@/lib/interview/tts";
+import { adminUnauthorized, isAdminRequest } from "@/lib/booking/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -7,6 +8,7 @@ export const preferredRegion = "sin1";
 
 /** GET 題庫列表（含停用） */
 export async function GET(request: Request) {
+  if (!isAdminRequest(request)) return adminUnauthorized();
   const supabase = getSupabase();
   if (!supabase) return Response.json({ error: "數據庫未配置" }, { status: 503 });
   const { data, error } = await supabase
@@ -38,6 +40,7 @@ export async function GET(request: Request) {
 
 /** POST 新增問題 { question, focus?, sortOrder? } */
 export async function POST(request: Request) {
+  if (!isAdminRequest(request)) return adminUnauthorized();
   const supabase = getSupabase();
   if (!supabase) return Response.json({ error: "數據庫未配置" }, { status: 503 });
 

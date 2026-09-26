@@ -1,4 +1,5 @@
 import { getSupabase, STORAGE_BUCKET, type Booking } from "@/lib/booking/db";
+import { adminUnauthorized, isAdminRequest } from "@/lib/booking/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,7 @@ export const dynamic = "force-dynamic";
  * 訂單列表。文件附 1 小時 signed URL。
  */
 export async function GET(request: Request) {
+  if (!isAdminRequest(request)) return adminUnauthorized();
   const supabase = getSupabase();
   if (!supabase) {
     return Response.json({ error: "數據庫未配置" }, { status: 503 });

@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/booking/db";
+import { adminUnauthorized, isAdminRequest } from "@/lib/booking/admin-auth";
 import { INTERVIEW_BUCKET } from "../route";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isAdminRequest(request)) return adminUnauthorized();
   const supabase = getSupabase();
   if (!supabase) return Response.json({ error: "數據庫未配置" }, { status: 503 });
 
@@ -60,6 +62,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isAdminRequest(request)) return adminUnauthorized();
   const supabase = getSupabase();
   if (!supabase) return Response.json({ error: "數據庫未配置" }, { status: 503 });
 

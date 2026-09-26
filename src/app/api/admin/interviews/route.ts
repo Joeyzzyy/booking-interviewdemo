@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { getSupabase } from "@/lib/booking/db";
+import { adminUnauthorized, isAdminRequest } from "@/lib/booking/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,7 @@ export const INTERVIEW_BUCKET = "interview-videos";
 
 /** GET 面試列表（含每場作答題數統計） */
 export async function GET(request: Request) {
+  if (!isAdminRequest(request)) return adminUnauthorized();
   const supabase = getSupabase();
   if (!supabase) return Response.json({ error: "數據庫未配置" }, { status: 503 });
   const { data, error } = await supabase
@@ -24,6 +26,7 @@ export async function GET(request: Request) {
  * 返回工人端連結 token。
  */
 export async function POST(request: Request) {
+  if (!isAdminRequest(request)) return adminUnauthorized();
   const supabase = getSupabase();
   if (!supabase) return Response.json({ error: "數據庫未配置" }, { status: 503 });
 

@@ -1,5 +1,6 @@
 import { getSupabase } from "@/lib/booking/db";
 import { generateQuestionAssets } from "@/lib/interview/tts";
+import { adminUnauthorized, isAdminRequest } from "@/lib/booking/admin-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -7,9 +8,10 @@ export const preferredRegion = "sin1";
 
 /** POST /api/admin/interview/questions/[id]/audio — 重新生成譯文 + TTS 音頻 */
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (!isAdminRequest(request)) return adminUnauthorized();
   const supabase = getSupabase();
   if (!supabase) return Response.json({ error: "數據庫未配置" }, { status: 503 });
 
