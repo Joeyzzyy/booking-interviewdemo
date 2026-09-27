@@ -2,27 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Button, Card, Input, Layout, Spin, Tabs, Typography, App } from "antd";
+import { Button, Card, Input, Layout, Spin, Typography, App } from "antd";
 import AdminTheme from "@/components/admin/AdminTheme";
 import AdminBookings from "@/components/AdminBookings";
-import AdminInterviews from "@/components/AdminInterviews";
-import AdminInterviewRecords from "@/components/AdminInterviewRecords";
 
 /**
- * 管理後台統一入口：訂單管理 / 視頻面試 / 面試記錄 tabs。
+ * 管理後台：僅預約訂單管理。
+ * 視頻面試（題庫 / 發起 / 記錄）是前台功能，登入後於 /booking 使用，不在後台。
  * 密碼門禁：進入時校驗 /api/admin/me，未授權先顯示登入框（密碼見 ADMIN_PASSWORD 環境變量）。
  */
-type Tab = "bookings" | "interview" | "records";
 type AuthState = "checking" | "locked" | "authed";
 
 function AdminShellInner() {
-  const params = useSearchParams();
   const { modal } = App.useApp();
-  const initialTab = params.get("tab");
-  const [tab, setTab] = useState<Tab>(
-    ["interview", "records"].includes(initialTab || "") ? (initialTab as Tab) : "bookings"
-  );
   const [auth, setAuth] = useState<AuthState>("checking");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -194,15 +186,10 @@ function AdminShellInner() {
         </div>
       </Layout.Header>
       <Layout.Content style={{ padding: "16px 24px 40px", maxWidth: 1280, width: "100%", margin: "0 auto" }}>
-        <Tabs
-          activeKey={tab}
-          onChange={(k) => setTab(k as Tab)}
-          items={[
-            { key: "bookings", label: "預約訂單管理", children: <AdminBookings /> },
-            { key: "interview", label: "視頻面試", children: <AdminInterviews /> },
-            { key: "records", label: "面試記錄", children: <AdminInterviewRecords /> },
-          ]}
-        />
+        <Typography.Title level={5} style={{ marginTop: 8 }}>
+          預約訂單管理
+        </Typography.Title>
+        <AdminBookings />
       </Layout.Content>
     </Layout>
   );

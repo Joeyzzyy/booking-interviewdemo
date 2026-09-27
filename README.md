@@ -24,7 +24,7 @@
 - 資料表（`interview_questions` / `interviews` / `interview_answers`）與主站預約系統完全獨立，後續可隨時拆分成獨立服務
 
 **後台（管理端，Ant Design）**
-- `/admin` 預約訂單管理 / 視頻面試（共用示範題庫）/ 面試記錄
+- `/admin` 預約訂單管理（視頻面試題庫/發起/記錄為前台功能，登入後於 `/booking` 使用）
 - **密碼門禁**：進入 `/admin` 與調用 `/api/admin/*` 需先輸入管理密碼（環境變量 `ADMIN_PASSWORD`，未配置時默認 `admin@2026`，登入後 12 小時有效）
 
 ## 啟動
