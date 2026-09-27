@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X, UserRound, LogOut, ChevronDown } from "lucide-react";
 import Logo from "./Logo";
 import { openLogin } from "@/components/auth/login-events";
+import { Button, Modal } from "@/components/ui";
 
 const NAV = [
   { href: "/#services", label: "服務項目" },
@@ -22,6 +23,7 @@ export default function SiteHeader() {
   const [account, setAccount] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const loadMe = useCallback(async () => {
@@ -72,7 +74,15 @@ export default function SiteHeader() {
     setAccount(null);
     setUserMenuOpen(false);
     setMenuOpen(false);
+    setLogoutOpen(false);
     window.dispatchEvent(new Event("nl-auth-changed"));
+  };
+
+  /** 打開登出確認（並關閉所在菜單） */
+  const askLogout = () => {
+    setUserMenuOpen(false);
+    setMenuOpen(false);
+    setLogoutOpen(true);
   };
 
   /** 「立即預約」：未登入攔截並彈登入框 */
@@ -156,7 +166,7 @@ export default function SiteHeader() {
                       <button
                         type="button"
                         role="menuitem"
-                        onClick={() => void logout()}
+                        onClick={askLogout}
                         className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left text-[13px] font-semibold text-[#5d6b85] transition-colors hover:bg-[#f6f8fa] hover:text-red-600"
                       >
                         <LogOut size={14} aria-hidden="true" />
@@ -244,7 +254,7 @@ export default function SiteHeader() {
                     </Link>
                     <button
                       type="button"
-                      onClick={() => void logout()}
+                      onClick={askLogout}
                       className="cursor-pointer rounded-xl px-4 py-3 text-[14px] font-semibold text-[#8b95ad]"
                     >
                       登出
@@ -274,6 +284,27 @@ export default function SiteHeader() {
           </motion.nav>
         )}
       </AnimatePresence>
+
+      {/* 登出確認彈窗 */}
+      <Modal
+        open={logoutOpen}
+        onClose={() => setLogoutOpen(false)}
+        title="登出？"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setLogoutOpen(false)}>
+              取消
+            </Button>
+            <Button variant="danger" onClick={() => void logout()}>
+              確定登出
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[14px] leading-[1.8] text-[#5d6b85]">
+          登出後需要重新驗證電郵或手機號才能再次登入。
+        </p>
+      </Modal>
     </header>
   );
 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Button, Card, Input, Layout, Spin, Tabs, Typography } from "antd";
+import { Button, Card, Input, Layout, Spin, Tabs, Typography, App } from "antd";
 import AdminTheme from "@/components/admin/AdminTheme";
 import AdminBookings from "@/components/AdminBookings";
 import AdminInterviews from "@/components/AdminInterviews";
@@ -18,6 +18,7 @@ type AuthState = "checking" | "locked" | "authed";
 
 function AdminShellInner() {
   const params = useSearchParams();
+  const { modal } = App.useApp();
   const initialTab = params.get("tab");
   const [tab, setTab] = useState<Tab>(
     ["interview", "records"].includes(initialTab || "") ? (initialTab as Tab) : "bookings"
@@ -65,6 +66,18 @@ function AdminShellInner() {
     await fetch("/api/admin/logout", { method: "POST" }).catch(() => {});
     setAuth("locked");
   }, []);
+
+  /** 登出前彈窗確認 */
+  const confirmLogout = useCallback(() => {
+    modal.confirm({
+      title: "確認登出？",
+      content: "登出後需要重新輸入管理密碼才能進入後台。",
+      okText: "登出",
+      cancelText: "取消",
+      okButtonProps: { danger: true },
+      onOk: () => void logout(),
+    });
+  }, [modal, logout]);
 
   if (auth === "checking") {
     return (
@@ -175,7 +188,7 @@ function AdminShellInner() {
           <Link href="/" style={{ fontSize: 13, fontWeight: 600, color: "#35a07a" }}>
             返回網站
           </Link>
-          <Button size="small" onClick={logout}>
+          <Button size="small" onClick={confirmLogout}>
             登出
           </Button>
         </div>

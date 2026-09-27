@@ -163,6 +163,7 @@ export default function AccountClient() {
   const [bindChannel, setBindChannel] = useState<Channel | null>(null);
   const [unbindTarget, setUnbindTarget] = useState<Channel | null>(null);
   const [unbinding, setUnbinding] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
   const loadMe = useCallback(async () => {
@@ -257,7 +258,7 @@ export default function AccountClient() {
             <h1 className="text-[26px] font-bold tracking-[-0.02em] text-[#161b2e]">賬號中心</h1>
             <p className="mt-1.5 text-[13.5px] text-[#5d6b85]">管理你的聯絡方式與賬戶設定</p>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => void logout()}>
+          <Button variant="secondary" size="sm" onClick={() => setLogoutOpen(true)}>
             <LogOut size={13} aria-hidden="true" />
             登出
           </Button>
@@ -397,6 +398,27 @@ export default function AccountClient() {
             （{customer[unbindTarget === "email" ? "phone" : "email"]}）登入。
           </p>
         )}
+      </Modal>
+
+      {/* 登出確認彈窗 */}
+      <Modal
+        open={logoutOpen}
+        onClose={() => setLogoutOpen(false)}
+        title="登出？"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setLogoutOpen(false)}>
+              取消
+            </Button>
+            <Button variant="danger" onClick={() => void logout()}>
+              確定登出
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[14px] leading-[1.8] text-[#5d6b85]">
+          登出後需要重新驗證電郵或手機號才能再次登入。
+        </p>
       </Modal>
     </div>
   );
