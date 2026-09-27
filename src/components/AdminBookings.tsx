@@ -78,6 +78,8 @@ export default function AdminBookings() {
   const [actingId, setActingId] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<AdminBooking | null>(null);
   const [rejectNote, setRejectNote] = useState("");
+  // 詳情默認展開：載入後自動展開全部行
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
 
   const load = useCallback(
     async (s: string) => {
@@ -87,6 +89,7 @@ export default function AdminBookings() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "讀取失敗");
         setBookings(data.bookings);
+        setExpandedKeys((data.bookings as AdminBooking[]).map((b) => b.id));
       } catch (e) {
         message.error(e instanceof Error ? e.message : "讀取失敗");
       } finally {
@@ -248,6 +251,8 @@ export default function AdminBookings() {
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
         locale={{ emptyText: "暫無訂單" }}
         expandable={{
+          expandedRowKeys: expandedKeys,
+          onExpandedRowsChange: (keys) => setExpandedKeys([...keys] as string[]),
           expandedRowRender: (b) => (
             <Descriptions column={{ xs: 1, sm: 2 }} size="small" bordered>
               <Descriptions.Item label="工人姓名">{b.worker_name}</Descriptions.Item>

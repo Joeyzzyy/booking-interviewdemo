@@ -50,6 +50,8 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
   const [details, setDetails] = useState<
     Record<string, { interview: { resume_text: string | null; resume_url: string | null; report: Report | null }; answers: Answer[] } | null>
   >({});
+  // 詳情默認展開：載入後自動展開全部行
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,6 +117,14 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
     }
   };
 
+  // 默認展開所有詳情：列表載入後自動展開並逐條載入詳情
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+  useEffect(() => {
+    setExpandedKeys(interviews.map((i) => i.id));
+    interviews.forEach((i) => void loadDetail(i.id, true));
+  }, [interviews]);
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+
   const columns: ColumnsType<InterviewItem> = [
     { title: "工人", dataIndex: "worker_name", width: 150, render: (v) => <strong>{v}</strong> },
     {
@@ -169,6 +179,8 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
         locale={{ emptyText: "暫無面試記錄" }}
         expandable={{
+          expandedRowKeys: expandedKeys,
+          onExpandedRowsChange: (keys) => setExpandedKeys([...keys] as string[]),
           onExpand: (expanded, record) => loadDetail(record.id, expanded),
           expandedRowRender: (iv) => {
             const d = details[iv.id];
