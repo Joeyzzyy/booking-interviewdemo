@@ -181,7 +181,7 @@ export default function AdminBookings() {
     },
     {
       title: "操作",
-      width: 220,
+      width: 360,
       render: (_, b) => (
         <Space wrap>
           {waLink(b) && (
@@ -192,7 +192,7 @@ export default function AdminBookings() {
               target="_blank"
               style={{ background: "#25d366", color: "#fff", border: "none" }}
             >
-              WhatsApp
+              透過 WhatsApp 聯絡客戶
             </Button>
           )}
           {b.status === "pending" && (
@@ -204,7 +204,7 @@ export default function AdminBookings() {
                 loading={actingId === b.id}
                 onClick={() => onConfirm(b)}
               >
-                確認
+                確認訂單
               </Button>
               <Button
                 size="small"
@@ -215,7 +215,7 @@ export default function AdminBookings() {
                   setRejectNote("");
                 }}
               >
-                拒絕
+                拒絕訂單
               </Button>
             </>
           )}
