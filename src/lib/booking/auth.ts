@@ -113,6 +113,23 @@ export async function createOtpCode(
   return { code };
 }
 
+/**
+ * 丟棄該標識下所有未使用的驗證碼。
+ * 用於「驗證碼已寫入但發送失敗」的場景：避免一次失敗的發送佔用 60 秒頻率限制，
+ * 令用戶即刻可以重試（否則會出現 503 → 429 → 503 的循環）。
+ */
+export async function discardOtpCode(identifier: string, channel: Channel): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("otp_codes")
+    .delete()
+    .eq("identifier", identifier)
+    .eq("channel", channel)
+    .eq("used", false);
+  if (error) console.error("[auth] 清理失敗驗證碼出錯:", error);
+}
+
 /** 校驗驗證碼並標記已用；通過返回 ok */
 export async function verifyOtpCode(
   identifier: string,

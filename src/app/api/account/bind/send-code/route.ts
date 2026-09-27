@@ -1,5 +1,6 @@
 import {
   createOtpCode,
+  discardOtpCode,
   findCustomerBy,
   getSessionCustomer,
   isChannel,
@@ -66,6 +67,8 @@ export async function POST(request: Request) {
 
   if (!sent) {
     if (process.env.NODE_ENV === "production") {
+      // 發送失敗：丟棄驗證碼，避免佔用 60 秒頻率限制導致無法重試
+      await discardOtpCode(identifier, channel);
       return Response.json(
         { error: channel === "email" ? "驗證碼發送失敗，請稍後再試" : "短訊服務暫不可用" },
         { status: 503 }
