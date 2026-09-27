@@ -71,13 +71,15 @@ function waLink(b: AdminBooking): string | null {
 }
 
 export default function AdminBookings() {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const [status, setStatus] = useState("pending");
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<AdminBooking | null>(null);
   const [rejectNote, setRejectNote] = useState("");
+  const [confirmTarget, setConfirmTarget] = useState<AdminBooking | null>(null);
+  const [confirmNote, setConfirmNote] = useState("");
   // 詳情默認展開：載入後自動展開全部行
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
 
@@ -132,14 +134,17 @@ export default function AdminBookings() {
   };
 
   const onConfirm = (b: AdminBooking) => {
-    modal.confirm({
-      title: "確認訂單？",
-      content: `${b.order_no}（${b.service_label}）— 確認後會以電郵通知客戶。`,
-      okText: "確認訂單",
-      cancelText: "取消",
-      okButtonProps: { loading: actingId === b.id },
-      onOk: () => act(b, "confirm", ""),
-    });
+    setConfirmTarget(b);
+    setConfirmNote("");
+  };
+
+  const doConfirm = async () => {
+    if (!confirmTarget) return;
+    const ok = await act(confirmTarget, "confirm", confirmNote);
+    if (ok) {
+      setConfirmTarget(null);
+      setConfirmNote("");
+    }
   };
 
   const onReject = async () => {
@@ -286,24 +291,45 @@ export default function AdminBookings() {
         }}
       />
 
-      {/* 拒絕原因彈窗（自研 antd Modal，唔用瀏覽器原生） */}
+      {/* 拒絕理由彈窗（必填，客戶可見） */}
       <Modal
         title={`拒絕訂單 ${rejectTarget?.order_no || ""}`}
         open={!!rejectTarget}
         onCancel={() => setRejectTarget(null)}
         onOk={onReject}
-        okText="確定拒絕"
+        okText="確定拒絕訂單"
         cancelText="返回"
-        okButtonProps={{ danger: true, loading: actingId === rejectTarget?.id }}
+        okButtonProps={{ danger: true, loading: actingId === rejectTarget?.id, disabled: !rejectNote.trim() }}
       >
         <Typography.Paragraph type="secondary">
-          拒絕原因會以電郵通知客戶，套票會自動退回客戶賬戶。
+          請填寫拒絕理由（必填）。理由會顯示在客戶的訂單記錄並以電郵通知，套票會自動退回客戶賬戶。
         </Typography.Paragraph>
         <Input.TextArea
           rows={3}
-          placeholder="拒絕原因（選填）"
+          placeholder="拒絕理由（必填，例如：該日期已滿，請另約時間）"
           value={rejectNote}
           onChange={(e) => setRejectNote(e.target.value)}
+        />
+      </Modal>
+
+      {/* 確認訂單彈窗（可寫備忘，客戶可見） */}
+      <Modal
+        title={`確認訂單 ${confirmTarget?.order_no || ""}`}
+        open={!!confirmTarget}
+        onCancel={() => setConfirmTarget(null)}
+        onOk={doConfirm}
+        okText="確定確認訂單"
+        cancelText="返回"
+        okButtonProps={{ loading: actingId === confirmTarget?.id }}
+      >
+        <Typography.Paragraph type="secondary">
+          確認後會以電郵通知客戶。可填寫備忘（選填），備忘會顯示在客戶的訂單記錄。
+        </Typography.Paragraph>
+        <Input.TextArea
+          rows={3}
+          placeholder="確認備忘（選填，例如：已安排 10 月 5 日下午陪同驗身）"
+          value={confirmNote}
+          onChange={(e) => setConfirmNote(e.target.value)}
         />
       </Modal>
     </>

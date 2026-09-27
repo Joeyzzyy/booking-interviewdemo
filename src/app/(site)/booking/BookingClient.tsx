@@ -35,6 +35,7 @@ interface MyBooking {
   price_hkd: number | null;
   worker_name: string;
   status: string;
+  admin_note: string | null;
   created_at: string;
 }
 
@@ -484,6 +485,20 @@ export default function BookingClient() {
                           <Button variant="danger" size="sm" onClick={() => setCancelTarget(b)}>
                             取消
                           </Button>
+                        )}
+                        {b.admin_note && (
+                          <p
+                            className={`w-full rounded-xl px-4 py-2.5 text-[12.5px] leading-[1.7] ${
+                              b.status === "rejected"
+                                ? "bg-red-50 text-red-600"
+                                : "bg-black/[0.03] text-[#5d6b85]"
+                            }`}
+                          >
+                            <strong>
+                              {b.status === "rejected" ? "拒絕理由" : b.status === "confirmed" ? "確認備忘" : "備註"}：
+                            </strong>
+                            {b.admin_note}
+                          </p>
                         )}
                       </li>
                     );
