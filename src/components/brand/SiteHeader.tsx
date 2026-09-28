@@ -78,6 +78,8 @@ export default function SiteHeader() {
     window.dispatchEvent(new Event("nl-auth-changed"));
   };
 
+  const isHome = pathname === "/";
+
   /** 打開登出確認（並關閉所在菜單） */
   const askLogout = () => {
     setUserMenuOpen(false);
@@ -101,8 +103,8 @@ export default function SiteHeader() {
           <Logo size={34} wordmarkSize={17} />
         </Link>
 
-        {/* 桌面導航（僅未登入時顯示） */}
-        {authChecked && !account && (
+        {/* 桌面導航（僅首頁顯示，登入與否都展示） */}
+        {authChecked && isHome && (
           <nav className="hidden items-center gap-1 md:flex" aria-label="主導航">
             {NAV.map((item) => (
               <a
@@ -227,7 +229,7 @@ export default function SiteHeader() {
             aria-label="移動端導航"
           >
             <div className="flex flex-col gap-1 px-5 py-4">
-              {authChecked && !account &&
+              {authChecked && isHome &&
                 NAV.map((item) => (
                   <a
                     key={item.href}
