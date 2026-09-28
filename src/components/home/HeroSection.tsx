@@ -29,15 +29,15 @@ export default function HeroSection() {
             animationDelay: "0.15s",
           }}
         >
-          連結僱主與工人
-          <span className="block text-[#35a07a]">每個環節・環環相扣</span>
+          前線交給你，
+          <span className="block text-[#35a07a]">後勤交給我。</span>
         </h1>
 
         <p
           className="hero-in mx-auto mt-6 max-w-xl text-[15px] leading-[1.9] text-[#5d6b85] sm:text-[16px]"
           style={{ animationDelay: "0.25s" }}
         >
-          陪同驗身、工人接機、一站式打包安排——網上提交預約，專人確認跟進，
+          全方位支援僱傭中心，助您業務輕鬆起航——網上提交預約，專人確認跟進，
           訂單狀態全程透明。
         </p>
 

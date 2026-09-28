@@ -23,8 +23,8 @@ export default function CTASection() {
         </Reveal>
         <SectionHeader
           eyebrow="開始使用"
-          title="現在就連結起來"
-          subtitle="開戶只需一個驗證碼。登入後即可購買套票、提交預約，並在賬號中心管理你的聯絡方式。"
+          title="後勤就緒，準備起航"
+          subtitle="開戶只需一個驗證碼。登入後即可購買套票、提交預約，讓我們為您的僱傭中心處理一切後勤安排。"
         />
 
         <Reveal delay={0.08}>

@@ -1,37 +1,49 @@
+import { Compass, Target } from "lucide-react";
 import SectionHeader from "@/components/brand/SectionHeader";
 import Reveal from "@/components/brand/Reveal";
 import { brand } from "@/lib/brand";
 
-const STATS = [
-  { value: "4", unit: "項", label: "核心工人服務" },
-  { value: "2", unit: "種", label: "登入方式（電郵 / 短訊）" },
-  { value: "1", unit: "個", label: "賬戶管理全部預約" },
-  { value: "30", unit: "日", label: "登入狀態保持" },
-] as const;
-
-/** 關於我們 + 數據（簡約版） */
+/** 關於我們：品牌口號 + 願景 / 使命（簡約版） */
 export default function AboutSection() {
   return (
     <section id="about" className="bg-[#f8f9fc] px-6 py-20 sm:px-10 sm:py-28">
       <div className="mx-auto max-w-[1100px]">
         <SectionHeader
           eyebrow="關於我們"
-          title="以「連結」為念"
-          subtitle={`${brand.nameFull} 相信：好的服務來自好的連結。我們把僱主、工人與每一個服務環節連成一條清晰的鏈——資料透明、進度可查、事事有回應。`}
+          title="以品質成就信賴，與僱傭中心並肩同行"
+          subtitle={`${brand.nameFull} 專注外傭後勤支援，把接機、驗身、住宿、培訓等繁瑣環節逐一辦妥，讓僱傭中心專注前線業務，無後顧之憂。`}
         />
 
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {STATS.map((s, i) => (
-            <Reveal key={s.label} delay={i * 0.06}>
-              <div className="card flex flex-col items-center px-6 py-8 text-center">
-                <p className="text-[40px] leading-none font-bold text-[#35a07a]">
-                  {s.value}
-                  <span className="ml-1 text-[16px] font-bold">{s.unit}</span>
-                </p>
-                <p className="mt-3 text-[13px] font-semibold text-[#5d6b85]">{s.label}</p>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Reveal delay={0.05}>
+            <div className="card flex h-full flex-col gap-4 p-7 sm:p-9">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#e9f5f0] text-[#35a07a]">
+                <Compass size={20} aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-[12px] font-bold tracking-[0.18em] text-[#35a07a]">VISION｜願景</p>
+                <h3 className="mt-2 text-[19px] font-bold text-[#161b2e]">外傭後勤支援樞紐</h3>
               </div>
-            </Reveal>
-          ))}
+              <p className="text-[14px] leading-[1.9] text-[#5d6b85]">
+                成為亞太區最具信賴與創新力的外傭後勤支援樞紐，重新定義業界標準，讓每一份跨國信任都穩固而溫暖。
+              </p>
+            </div>
+          </Reveal>
+
+          <Reveal delay={0.12}>
+            <div className="card flex h-full flex-col gap-4 p-7 sm:p-9">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#e9f5f0] text-[#35a07a]">
+                <Target size={20} aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-[12px] font-bold tracking-[0.18em] text-[#35a07a]">MISSION｜使命</p>
+                <h3 className="mt-2 text-[19px] font-bold text-[#161b2e]">高效・全方位的後勤支援</h3>
+              </div>
+              <p className="text-[14px] leading-[1.9] text-[#5d6b85]">
+                我們致力於為僱傭中介與僱主提供高效、全方位的後勤支援——從實證為本的外傭篩選方法、貼心的接機與健康驗身、住宿安排，到扎實的技能培訓，協助僱傭中心省卻後勤煩惱，專注前線業務，輕鬆起航。
+              </p>
+            </div>
+          </Reveal>
         </div>
       </div>
     </section>
