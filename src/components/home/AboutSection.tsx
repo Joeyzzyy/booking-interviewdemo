@@ -69,7 +69,7 @@ export default function AboutSection() {
                   </span>
                   <div>
                     <p className="text-[12px] font-bold tracking-[0.18em] text-[#35a07a]">
-                      {value.en}
+                      {t.about.valueLabel(index + 1)}
                     </p>
                     <h4 className="mt-2 text-[19px] font-bold text-[#161b2e]">{value.title}</h4>
                   </div>

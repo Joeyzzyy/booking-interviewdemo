@@ -71,7 +71,7 @@ const yue = {
     eyebrow: "服務流程",
     title: "四步・完成預約",
     subtitle: "流程簡單直接，一環扣一環，每一步都有跡可循。",
-    stepLabel: (n: number) => `STEP ${n}`,
+    stepLabel: (n: number) => `第 ${n} 步`,
     steps: [
       {
         title: "註冊 / 登入",
@@ -99,7 +99,7 @@ const yue = {
     features: [
       {
         title: "視頻作答",
-        desc: "工人透過專屬連結逐題錄影作答，無需下載任何 App。",
+        desc: "工人透過專屬連結逐題錄影作答，無需下載任何應用程式。",
       },
       {
         title: "AI 語音轉寫",
@@ -118,31 +118,29 @@ const yue = {
     subtitle: (brand: string) =>
       `${brand} 專注外傭後勤支援，把接機、驗身、住宿、培訓等繁瑣環節逐一辦妥，讓僱傭中心專注前線業務，無後顧之憂。`,
     vision: {
-      eyebrow: "VISION｜願景",
+      eyebrow: "願景",
       title: "外傭後勤支援樞紐",
       desc: "成為亞太區最具信賴與創新力的外傭後勤支援樞紐，重新定義業界標準，讓每一份跨國信任都穩固而溫暖。",
     },
     mission: {
-      eyebrow: "MISSION｜使命",
+      eyebrow: "使命",
       title: "高效・全方位的後勤支援",
       desc: "致力為僱傭中介與僱主提供高效、全方位的後勤支援——從實證為本的篩選外傭方法、貼心的接機與健康驗身、住宿安排，到扎實的技能與培訓，協助僱傭中心省卻後勤煩惱，專注前線業務，輕鬆起航。",
     },
-    valuesEyebrow: "VALUES｜核心價值",
+    valuesEyebrow: "核心價值",
     valuesTitle: "三大核心價值，支撐每一份托付",
+    valueLabel: (n: number) => `核心價值 0${n}`,
     values: [
       {
         title: "高效專業",
-        en: "Efficiency & Professionalism",
-        desc: "運用標準化與數位化流程，AI 協助僱主省卻時間；全方位以數據為本，精準核對 CV，深入了解個人能力與性格。",
+        desc: "運用標準化與數位化流程，AI 協助僱主省卻時間；全方位以數據為本，精準核對履歷，深入了解個人能力與性格。",
       },
       {
         title: "誠信嚴謹",
-        en: "Integrity & Rigor",
-        desc: "支援工作嚴格把關，重視溝通與承諾。由接機、驗身、Briefing 到培訓全方位支援，上門服務，務求一步到位。",
+        desc: "支援工作嚴格把關，重視溝通與承諾。由接機、驗身、簡介會到培訓全方位支援，上門服務，務求一步到位。",
       },
       {
         title: "溫暖賦能",
-        en: "Care & Empowerment",
         desc: "不僅提供後勤服務，更連結不同中介公司，促進資訊發放與交流，讓僱傭服務更具支援、更有人情味。",
       },
     ],
@@ -162,7 +160,7 @@ const yue = {
     account: "賬號中心",
     interview: "AI 視頻面試",
     contact: "聯絡",
-    rights: "All rights reserved.",
+    rights: "版權所有。",
   },
 };
 
@@ -262,7 +260,7 @@ const cmn: Messages = {
     features: [
       {
         title: "视频作答",
-        desc: "工人通过专属链接逐题录制作答，无需下载任何 App。",
+        desc: "工人通过专属链接逐题录制作答，无需下载任何应用。",
       },
       {
         title: "AI 语音转写",
@@ -281,31 +279,29 @@ const cmn: Messages = {
     subtitle: (brand: string) =>
       `${brand} 专注外佣后勤支援，把接机、验身、住宿、培训等繁琐环节逐一办妥，让雇佣中心专注前线业务，无后顾之忧。`,
     vision: {
-      eyebrow: "VISION｜愿景",
+      eyebrow: "愿景",
       title: "外佣后勤支援枢纽",
       desc: "成为亚太区最具信赖与创新力的外佣后勤支援枢纽，重新定义业界标准，让每一份跨国信任都稳固而温暖。",
     },
     mission: {
-      eyebrow: "MISSION｜使命",
+      eyebrow: "使命",
       title: "高效・全方位的后勤支援",
       desc: "致力于为雇佣中介与雇主提供高效、全方位的后勤支援——从实证为本的筛选外佣方法、贴心的接机与健康验身、住宿安排，到扎实的技能与培训，协助雇佣中心省却后勤烦恼，专注前线业务，轻松起航。",
     },
-    valuesEyebrow: "VALUES｜核心价值",
+    valuesEyebrow: "核心价值",
     valuesTitle: "三大核心价值，支撑每一份托付",
+    valueLabel: (n: number) => `核心价值 0${n}`,
     values: [
       {
         title: "高效专业",
-        en: "Efficiency & Professionalism",
-        desc: "运用标准化与数字化流程，AI 协助雇主节省时间；全方位以数据为本，精准核对 CV，深入了解个人能力与性格。",
+        desc: "运用标准化与数字化流程，AI 协助雇主节省时间；全方位以数据为本，精准核对简历，深入了解个人能力与性格。",
       },
       {
         title: "诚信严谨",
-        en: "Integrity & Rigor",
-        desc: "支援工作严格把关，重视沟通与承诺。由接机、验身、Briefing 到培训全方位支援，上门服务，务求一步到位。",
+        desc: "支援工作严格把关，重视沟通与承诺。由接机、验身、简介会到培训全方位支援，上门服务，务求一步到位。",
       },
       {
         title: "温暖赋能",
-        en: "Care & Empowerment",
         desc: "不仅提供后勤服务，更连接不同中介公司，促进资讯发放与交流，让雇佣服务更具支援、更有人情味。",
       },
     ],
@@ -325,7 +321,7 @@ const cmn: Messages = {
     account: "账号中心",
     interview: "AI 视频面试",
     contact: "联系方式",
-    rights: "All rights reserved.",
+    rights: "版权所有。",
   },
 };
 
@@ -479,20 +475,18 @@ const en: Messages = {
     },
     valuesEyebrow: "VALUES",
     valuesTitle: "Three core values behind every trust placed in us",
+    valueLabel: (n: number) => `VALUE 0${n}`,
     values: [
       {
         title: "Efficiency & Professionalism",
-        en: "高效專業",
         desc: "With standardized and digitized workflows and AI-assisted screening, we save employers time. Data-driven throughout, we verify CVs precisely and understand each candidate's ability and personality in depth.",
       },
       {
         title: "Integrity & Rigor",
-        en: "誠信嚴謹",
         desc: "We hold our support work to strict standards and value communication and commitment. From pickup and medical check-ups to briefings and training, we provide full on-site support—getting everything right in one go.",
       },
       {
         title: "Care & Empowerment",
-        en: "溫暖賦能",
         desc: "Beyond back-office services, we connect different agencies and facilitate information sharing and exchange—making employment services better supported and more human.",
       },
     ],
