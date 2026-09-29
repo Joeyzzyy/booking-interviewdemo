@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import LoginDialogProvider from "@/components/auth/LoginDialogProvider";
+import { LanguageProvider } from "@/lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,7 +21,9 @@ export default function RootLayout({
   return (
     <html lang="zh-HK" className="h-full antialiased">
       <body className="flex min-h-full flex-col">
-        <LoginDialogProvider>{children}</LoginDialogProvider>
+        <LanguageProvider>
+          <LoginDialogProvider>{children}</LoginDialogProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

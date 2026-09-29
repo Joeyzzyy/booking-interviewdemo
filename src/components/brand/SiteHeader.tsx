@@ -6,18 +6,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X, UserRound, LogOut, ChevronDown } from "lucide-react";
 import Logo from "./Logo";
+import LanguageSwitcher from "./LanguageSwitcher";
 import { openLogin } from "@/components/auth/login-events";
 import { Button, Modal } from "@/components/ui";
+import { useLanguage } from "@/lib/i18n";
 
-const NAV = [
-  { href: "/#services", label: "服務項目" },
-  { href: "/#process", label: "服務流程" },
-  { href: "/#interview", label: "AI 面試" },
-  { href: "/#about", label: "關於我們" },
+/** 導航項（href 固定，標籤隨語言切換） */
+const NAV_HREFS = [
+  { href: "/#services", key: "services" },
+  { href: "/#process", key: "process" },
+  { href: "/#interview", key: "interview" },
+  { href: "/#about", key: "about" },
 ] as const;
 
 /** 站點頂部導航（簡約版）：固定白色細邊；登入後顯示郵箱，點擊展開下拉菜單（賬號中心 / 登出） */
 export default function SiteHeader() {
+  const { t } = useLanguage();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [account, setAccount] = useState<string | null>(null);
@@ -105,20 +109,21 @@ export default function SiteHeader() {
 
         {/* 桌面導航（僅首頁顯示，登入與否都展示） */}
         {authChecked && isHome && (
-          <nav className="hidden items-center gap-1 md:flex" aria-label="主導航">
-            {NAV.map((item) => (
+          <nav className="hidden items-center gap-1 md:flex" aria-label={t.header.mainNav}>
+            {NAV_HREFS.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
                 className="rounded-full px-4 py-2 text-[13.5px] font-semibold text-[#3d4763] transition-colors hover:text-[#2a8163]"
               >
-                {item.label}
+                {t.header.nav[item.key]}
               </a>
             ))}
           </nav>
         )}
 
         <div className="hidden items-center gap-2.5 md:flex">
+          <LanguageSwitcher />
           {authChecked && account ? (
             <>
               {/* 郵箱 + 下拉菜單 */}
@@ -163,7 +168,7 @@ export default function SiteHeader() {
                         className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] font-semibold text-[#3d4763] transition-colors hover:bg-[#f6f8fa] hover:text-[#2a8163]"
                       >
                         <UserRound size={14} aria-hidden="true" />
-                        賬號中心
+                        {t.header.account}
                       </Link>
                       <button
                         type="button"
@@ -172,7 +177,7 @@ export default function SiteHeader() {
                         className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left text-[13px] font-semibold text-[#5d6b85] transition-colors hover:bg-[#f6f8fa] hover:text-red-600"
                       >
                         <LogOut size={14} aria-hidden="true" />
-                        登出
+                        {t.header.logout}
                       </button>
                     </motion.div>
                   )}
@@ -183,7 +188,7 @@ export default function SiteHeader() {
                 onClick={onBookClick}
                 className="btn-primary inline-flex items-center rounded-full bg-[#35a07a] px-5 py-2.5 text-[13px] font-bold text-white"
               >
-                立即預約
+                {t.header.bookNow}
               </Link>
             </>
           ) : (
@@ -193,14 +198,14 @@ export default function SiteHeader() {
                 onClick={() => openLogin()}
                 className="cursor-pointer rounded-full px-4 py-2 text-[13px] font-semibold text-[#3d4763] transition-colors hover:text-[#2a8163]"
               >
-                登入 / 註冊
+                {t.header.login}
               </button>
               <Link
                 href="/booking"
                 onClick={onBookClick}
                 className="btn-primary inline-flex items-center rounded-full bg-[#35a07a] px-5 py-2.5 text-[13px] font-bold text-white"
               >
-                立即預約
+                {t.header.bookNow}
               </Link>
             </>
           )}
@@ -209,7 +214,7 @@ export default function SiteHeader() {
         {/* 移動端菜單按鈕 */}
         <button
           type="button"
-          aria-label={menuOpen ? "關閉菜單" : "打開菜單"}
+          aria-label={menuOpen ? t.header.closeMenu : t.header.openMenu}
           onClick={() => setMenuOpen((v) => !v)}
           className="cursor-pointer rounded-full p-2 text-[#161b2e] md:hidden"
         >
@@ -226,18 +231,21 @@ export default function SiteHeader() {
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden border-t border-[#e6e9f2] bg-white md:hidden"
-            aria-label="移動端導航"
+            aria-label={t.header.mobileNav}
           >
             <div className="flex flex-col gap-1 px-5 py-4">
+              <div className="flex justify-end pb-1">
+                <LanguageSwitcher />
+              </div>
               {authChecked && isHome &&
-                NAV.map((item) => (
+                NAV_HREFS.map((item) => (
                   <a
                     key={item.href}
                     href={item.href}
                     onClick={() => setMenuOpen(false)}
                     className="rounded-xl px-4 py-3 text-[15px] font-semibold text-[#3d4763] hover:bg-black/[0.03]"
                   >
-                    {item.label}
+                    {t.header.nav[item.key]}
                   </a>
                 ))}
               <div className="mt-2 flex flex-col gap-2 border-t border-[#e6e9f2] pt-4">
@@ -252,14 +260,14 @@ export default function SiteHeader() {
                       onClick={() => setMenuOpen(false)}
                       className="rounded-xl border border-[#e6e9f2] px-4 py-3 text-center text-[14px] font-semibold text-[#3d4763]"
                     >
-                      賬號中心
+                      {t.header.account}
                     </Link>
                     <button
                       type="button"
                       onClick={askLogout}
                       className="cursor-pointer rounded-xl px-4 py-3 text-[14px] font-semibold text-[#8b95ad]"
                     >
-                      登出
+                      {t.header.logout}
                     </button>
                   </>
                 ) : (
@@ -271,7 +279,7 @@ export default function SiteHeader() {
                     }}
                     className="cursor-pointer rounded-xl border border-[#e6e9f2] px-4 py-3 text-center text-[14px] font-semibold text-[#3d4763]"
                   >
-                    登入 / 註冊
+                    {t.header.login}
                   </button>
                 )}
                 <Link
@@ -279,7 +287,7 @@ export default function SiteHeader() {
                   onClick={onBookClick}
                   className="rounded-xl bg-[#35a07a] px-4 py-3 text-center text-[14px] font-bold text-white"
                 >
-                  立即預約
+                  {t.header.bookNow}
                 </Link>
               </div>
             </div>
@@ -291,20 +299,20 @@ export default function SiteHeader() {
       <Modal
         open={logoutOpen}
         onClose={() => setLogoutOpen(false)}
-        title="登出？"
+        title={t.header.logoutTitle}
         footer={
           <>
             <Button variant="secondary" onClick={() => setLogoutOpen(false)}>
-              取消
+              {t.header.cancel}
             </Button>
             <Button variant="danger" onClick={() => void logout()}>
-              確定登出
+              {t.header.confirmLogout}
             </Button>
           </>
         }
       >
         <p className="text-[14px] leading-[1.8] text-[#5d6b85]">
-          登出後需要重新驗證電郵或手機號才能再次登入。
+          {t.header.logoutHint}
         </p>
       </Modal>
     </header>
