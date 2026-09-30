@@ -65,6 +65,27 @@ const MY_STATUS: Record<string, { label: string; variant: "amber" | "green" | "r
   cancelled: { label: "已取消", variant: "gray" },
 };
 
+/** 訂單狀態對應左側強調色（我的預約列表用） */
+const ORDER_ACCENT: Record<string, string> = {
+  pending: "border-l-amber-400",
+  confirmed: "border-l-[#35a07a]",
+  rejected: "border-l-red-400",
+  cancelled: "border-l-gray-300",
+};
+
+/** 步驟標題：漸變序號徽章 + 標題（發起預約三步用） */
+function StepHeading({ n, title, desc }: { n: string; title: string; desc?: string }) {
+  return (
+    <div className="mt-9 mb-4 flex items-center gap-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-[14px] font-extrabold text-white shadow-[0_5px_14px_rgba(53,160,122,0.4)]">
+        {n}
+      </span>
+      <h2 className="text-[17px] font-extrabold tracking-[-0.01em] text-[#161b2e]">{title}</h2>
+      {desc && <span className="text-[12.5px] text-[#8b95ad]">{desc}</span>}
+    </div>
+  );
+}
+
 /** 服務預約主頁：套票 / 購票 / 預約 三分頁（需登入） */
 export default function BookingClient() {
   const [account, setAccount] = useState<AccountInfo | null>(null);
@@ -493,6 +514,41 @@ export default function BookingClient() {
             />
           </div>
 
+          {/* 品牌橫幅（服務預約分組）：賬戶 + 套票餘額一覽 */}
+          {GROUP_OF[tab] === "booking" && (
+            <div className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-br from-[#2a9470] via-[#35a07a] to-[#4cb896] px-6 py-6 text-white shadow-[0_16px_40px_rgba(42,148,112,0.3)] sm:px-8">
+              {/* 裝飾光圈 */}
+              <span className="pointer-events-none absolute -top-16 -right-10 h-48 w-48 rounded-full bg-white/15 blur-2xl" aria-hidden="true" />
+              <span className="pointer-events-none absolute -bottom-20 left-1/3 h-44 w-44 rounded-full bg-[#b7f0d8]/25 blur-2xl" aria-hidden="true" />
+              <p className="text-[12px] font-semibold tracking-[0.18em] text-white/75">NEXUSLINK · 傭易做</p>
+              <h1 className="mt-1 text-[22px] font-extrabold tracking-[-0.01em] sm:text-[26px]">
+                服務預約工作台
+              </h1>
+              <p className="mt-1 text-[13px] text-white/85">
+                {account.email || account.phone} · 購買套票、提交預約、跟進訂單，一站式完成
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {SERVICES.map((s) => {
+                  const n = balances[s.key] || 0;
+                  return (
+                    <button
+                      key={s.key}
+                      type="button"
+                      onClick={() => switchTab("passes")}
+                      className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[12px] font-bold backdrop-blur-sm transition-all ${
+                        n > 0
+                          ? "bg-white text-[#2a8163] shadow-[0_3px_10px_rgba(0,0,0,0.12)] hover:-translate-y-0.5"
+                          : "bg-white/15 text-white/85 hover:bg-white/25"
+                      }`}
+                    >
+                      {s.label} · {n > 0 ? `剩 ${n} 次` : "未購套票"}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* 子分欄 */}
           <Tabs
             variant="underline"
@@ -532,14 +588,27 @@ export default function BookingClient() {
                   {purchaseMsg.text}
                 </p>
               )}
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {SERVICES.map((s) => {
                   const remaining = balances[s.key] || 0;
                   return (
-                    <div key={s.key} className="flex flex-col rounded-2xl border border-[#e6e9f2] bg-white p-5">
+                    <div
+                      key={s.key}
+                      className={`relative flex flex-col overflow-hidden rounded-2xl border p-5 transition-shadow hover:shadow-[0_10px_30px_rgba(42,148,112,0.14)] ${
+                        remaining > 0
+                          ? "border-[#35a07a]/30 bg-gradient-to-b from-[#e9f5f0]/80 to-white"
+                          : "border-[#e6e9f2] bg-white"
+                      }`}
+                    >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <strong className="text-[15px] text-[#161b2e]">{s.label}</strong>
-                        <Badge variant={remaining > 0 ? "green" : "gray"}>剩餘 {remaining} 次</Badge>
+                        {remaining > 0 ? (
+                          <span className="rounded-full bg-gradient-to-br from-[#4cb896] to-[#2a9470] px-3 py-1 text-[12px] font-extrabold text-white shadow-[0_3px_10px_rgba(53,160,122,0.35)]">
+                            剩餘 {remaining} 次
+                          </span>
+                        ) : (
+                          <Badge variant="gray">未購套票</Badge>
+                        )}
                       </div>
                       <p className="mt-2 text-[13px] leading-[1.75] text-[#5d6b85]">{s.description}</p>
                       <ul className="mt-3 flex flex-col gap-1.5">
@@ -550,9 +619,14 @@ export default function BookingClient() {
                           </li>
                         ))}
                       </ul>
-                      <p className="mt-4 text-[12.5px] font-semibold text-[#8b95ad]">
-                        單次 HK${s.priceSingle} ・ 10 次套票 HK${s.pricePack10}
-                      </p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <span className="rounded-lg bg-black/[0.04] px-2.5 py-1 text-[12.5px] font-bold text-[#3d4763]">
+                          單次 HK${s.priceSingle}
+                        </span>
+                        <span className="rounded-lg bg-[#e9f5f0] px-2.5 py-1 text-[12.5px] font-extrabold text-[#2a8163]">
+                          10 次套票 HK${s.pricePack10}
+                        </span>
+                      </div>
                       <div className="mt-auto flex gap-2 pt-4">
                         <Button
                           variant="outline"
@@ -590,7 +664,7 @@ export default function BookingClient() {
                     return (
                       <li
                         key={b.order_no}
-                        className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-black/[0.06] bg-white/70 px-5 py-4 text-[13.5px]"
+                        className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-l-4 border-black/[0.06] bg-white px-5 py-4 text-[13.5px] shadow-[0_2px_10px_rgba(22,27,46,0.05)] ${ORDER_ACCENT[b.status] || ""}`}
                       >
                         <span className="font-bold text-[#161b2e]">{b.order_no}</span>
                         <span className="text-[#3d4763]">{b.service_label}</span>
@@ -675,8 +749,8 @@ export default function BookingClient() {
           {/* ============ 發起預約 ============ */}
           {tab === "book" && (
             <form onSubmit={onSubmit}>
-              <h2 className="mb-4 text-[16px] font-bold text-[#161b2e]">1. 選擇服務</h2>
-              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+              <StepHeading n="1" title="選擇服務" desc="選定後即可填寫資料" />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {SERVICES.map((s) => {
                   const selected = serviceKey === s.key;
                   const remaining = balances[s.key] || 0;
@@ -686,18 +760,33 @@ export default function BookingClient() {
                       type="button"
                       aria-pressed={selected}
                       onClick={() => setServiceKey(s.key)}
-                      className={`flex cursor-pointer flex-col gap-1.5 rounded-xl border-2 p-3.5 text-left transition-all duration-200 ${
+                      className={`flex cursor-pointer flex-col gap-1.5 rounded-2xl border-2 p-4 text-left transition-all duration-200 ${
                         selected
-                          ? "border-[#35a07a] bg-gradient-to-br from-[#4cb896]/[0.06] to-[#2a9470]/[0.06] shadow-[0_6px_16px_rgba(53,160,122,0.10)]"
-                          : "border-black/[0.07] bg-white/70 hover:border-[#35a07a]/40"
+                          ? "border-transparent bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-white shadow-[0_12px_28px_rgba(42,148,112,0.35)]"
+                          : "border-black/[0.07] bg-white hover:-translate-y-0.5 hover:border-[#35a07a]/50 hover:shadow-[0_8px_20px_rgba(42,148,112,0.12)]"
                       }`}
                     >
-                      <span className="text-[14px] leading-snug font-bold text-[#161b2e]">{s.label}</span>
-                      <Badge variant={remaining > 0 ? "green" : "gray"} className="w-fit">
+                      <span className={`text-[14.5px] leading-snug font-extrabold ${selected ? "text-white" : "text-[#161b2e]"}`}>
+                        {s.label}
+                      </span>
+                      <span
+                        className={`w-fit rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                          selected
+                            ? "bg-white/20 text-white"
+                            : remaining > 0
+                              ? "bg-[#e9f5f0] text-[#2a8163]"
+                              : "bg-black/[0.04] text-[#8b95ad]"
+                        }`}
+                      >
                         {remaining > 0 ? `剩餘 ${remaining} 次` : "未購套票"}
-                      </Badge>
-                      <span className="text-[12px] leading-[1.6] text-[#5d6b85]">{s.description}</span>
-                      <span className="text-[12.5px] font-bold text-[#2a8163]">HK${s.priceSingle}/次</span>
+                      </span>
+                      <span className={`text-[12px] leading-[1.6] ${selected ? "text-white/85" : "text-[#5d6b85]"}`}>
+                        {s.description}
+                      </span>
+                      <span className={`mt-auto pt-1 text-[15px] font-extrabold ${selected ? "text-white" : "text-[#2a8163]"}`}>
+                        HK${s.priceSingle}
+                        <span className={`ml-1 text-[11px] font-semibold ${selected ? "text-white/75" : "text-[#8b95ad]"}`}>/次</span>
+                      </span>
                     </button>
                   );
                 })}
@@ -705,7 +794,7 @@ export default function BookingClient() {
 
               {service && (
                 <>
-                  <div className="mt-5 rounded-2xl bg-[#e9f5f0]/70 px-5 py-4 text-[13px] leading-[1.8] text-[#3d4763]">
+                  <div className="mt-5 rounded-2xl border-l-4 border-[#35a07a] bg-gradient-to-r from-[#e9f5f0] to-white px-5 py-4 text-[13px] leading-[1.8] text-[#3d4763]">
                     <strong className="text-[#161b2e]">{service.label}包括：</strong>
                     <ul className="mt-1 list-disc pl-5">
                       {service.includes.map((item) => (
@@ -715,8 +804,8 @@ export default function BookingClient() {
                   </div>
 
                   {(balances[service.key] || 0) === 0 ? (
-                    <div className="mt-5 rounded-2xl border border-dashed border-[#35a07a]/40 bg-[#e9f5f0]/50 p-6 text-center">
-                      <p className="text-[13.5px] leading-[1.8] text-[#3d4763]">
+                    <div className="mt-5 rounded-2xl border border-amber-300/60 bg-gradient-to-r from-amber-50 to-white p-6 text-center">
+                      <p className="text-[13.5px] leading-[1.8] text-[#7a5b16]">
                         你未購買「{service.label}」套票，暫時不能填寫預約資料。
                         請先到「我的套票」分頁購買，或領取試用套票體驗流程。
                       </p>
@@ -726,7 +815,7 @@ export default function BookingClient() {
                     </div>
                   ) : (
                     <>
-                      <h2 className="mt-8 mb-4 text-[16px] font-bold text-[#161b2e]">2. 填寫資料</h2>
+                      <StepHeading n="2" title="填寫資料" />
 
                       {/* 護照自動識別 */}
                       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-[#35a07a]/35 bg-[#e9f5f0]/40 px-5 py-4">
@@ -828,14 +917,16 @@ export default function BookingClient() {
                         </Field>
                       </div>
 
-                      <h2 className="mt-8 mb-2 text-[16px] font-bold text-[#161b2e]">3. 上傳工人資料 *</h2>
+                      <StepHeading n="3" title="上傳工人資料" desc="必傳" />
                       <p className="mb-4 text-[12.5px] leading-[1.8] text-[#8b95ad]">
                         請上傳工人簽證、護照等資料（JPG / PNG / PDF，最多 {UPLOAD_LIMITS.maxFiles} 個，
                         單個及合計均不能超過 4MB，至少 1 個；手機相片太大可截圖後再上傳）
                       </p>
-                      <label className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-dashed border-[#35a07a]/35 bg-[#e9f5f0]/40 px-5 py-8 text-center transition-colors hover:border-[#35a07a]/60">
-                        <UploadCloud size={24} className="text-[#35a07a]" aria-hidden="true" />
-                        <span className="text-[13px] font-semibold text-[#2a8163]">點擊選擇檔案</span>
+                      <label className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-[#35a07a]/45 bg-gradient-to-b from-[#e9f5f0]/70 to-white px-5 py-9 text-center transition-all hover:border-[#35a07a]/70 hover:shadow-[0_8px_24px_rgba(42,148,112,0.12)]">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-white shadow-[0_6px_16px_rgba(53,160,122,0.35)]">
+                          <UploadCloud size={22} aria-hidden="true" />
+                        </span>
+                        <span className="text-[13.5px] font-bold text-[#2a8163]">點擊選擇檔案</span>
                         <span className="text-[11.5px] text-[#8b95ad]">JPG / PNG / PDF・合計 ≤ 4MB</span>
                         <input
                           ref={fileInputRef}
