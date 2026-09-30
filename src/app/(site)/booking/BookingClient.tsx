@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarPlus, Check, CircleCheck, Trash2, UploadCloud, Sparkles } from "lucide-react";
+import { CalendarPlus, Check, CircleCheck, MessageSquareText, Trash2, UploadCloud, Sparkles } from "lucide-react";
 import { Badge, Button, Field, Input, Modal, Tabs, Textarea } from "@/components/ui";
 import { SERVICES, UPLOAD_LIMITS, type ServiceItem } from "@/lib/booking/services";
 import { openLogin } from "@/components/auth/login-events";
@@ -9,10 +9,11 @@ import AdminTheme from "@/components/admin/AdminTheme";
 import ProfileOnboarding from "@/components/ProfileOnboarding";
 import AdminInterviews from "@/components/AdminInterviews";
 import AdminInterviewRecords from "@/components/AdminInterviewRecords";
+import BoardPanel from "@/components/BoardPanel";
 
 /** 預約工作台：頂層分組（服務預約 / AI 面試）+ 子分欄 */
-type BookingGroup = "booking" | "interview";
-type BookingTab = "book" | "passes" | "orders" | "questions" | "create" | "records";
+type BookingGroup = "booking" | "interview" | "board";
+type BookingTab = "book" | "passes" | "orders" | "questions" | "create" | "records" | "board";
 
 const GROUP_OF: Record<BookingTab, BookingGroup> = {
   book: "booking",
@@ -21,6 +22,7 @@ const GROUP_OF: Record<BookingTab, BookingGroup> = {
   questions: "interview",
   create: "interview",
   records: "interview",
+  board: "board",
 };
 
 type SubmitState =
@@ -495,7 +497,7 @@ export default function BookingClient() {
               variant="underline"
               className="flex-wrap"
               active={GROUP_OF[tab]}
-              onChange={(k) => switchTab(k === "booking" ? "book" : "questions")}
+              onChange={(k) => switchTab(k === "booking" ? "book" : k === "interview" ? "questions" : "board")}
               items={[
                 { key: "booking", label: "服務預約", icon: <CalendarPlus size={14} aria-hidden="true" /> },
                 {
@@ -510,6 +512,7 @@ export default function BookingClient() {
                   ),
                   icon: <Sparkles size={14} aria-hidden="true" />,
                 },
+                { key: "board", label: "資訊交流", icon: <MessageSquareText size={14} aria-hidden="true" /> },
               ]}
             />
           </div>
@@ -703,6 +706,9 @@ export default function BookingClient() {
               )}
             </div>
           )}
+
+          {/* ============ 資訊交流區 ============ */}
+          {tab === "board" && <BoardPanel />}
 
           {/* ============ AI 面試 · 題庫管理（按用戶隔離） ============ */}
           {tab === "questions" && (
