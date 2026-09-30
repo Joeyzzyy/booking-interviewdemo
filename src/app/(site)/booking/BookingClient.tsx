@@ -565,11 +565,13 @@ export default function BookingClient() {
                     { key: "passes", label: "我的套票" },
                     { key: "orders", label: "我的預約" },
                   ]
-                : [
-                    { key: "questions", label: "題庫管理" },
-                    { key: "create", label: "發起面試" },
-                    { key: "records", label: "面試記錄" },
-                  ]
+                : GROUP_OF[tab] === "interview"
+                  ? [
+                      { key: "questions", label: "題庫管理" },
+                      { key: "create", label: "發起面試" },
+                      { key: "records", label: "面試記錄" },
+                    ]
+                  : [{ key: "board", label: "資訊交流區" }]
             }
           />
 
