@@ -45,6 +45,8 @@ export async function createPassCheckoutSession(params: {
         },
       },
     ],
+    // 付款頁顯示優惠碼輸入框；折扣券在 Stripe Dashboard / API 管理，無需改代碼
+    allow_promotion_codes: true,
     // 賬戶可能只綁定了手機號：無電郵時交由 Stripe 於付款頁收集
     ...(customer.email ? { customer_email: customer.email } : {}),
     metadata: {
