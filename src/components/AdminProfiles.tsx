@@ -71,7 +71,11 @@ export default function AdminProfiles() {
         message.error(data.error || "操作失敗");
         return false;
       }
-      message.success(action === "approve" ? "已通過，用戶下次進入即可使用功能" : "已拒絕，原因會顯示給用戶");
+      message.success(
+        action === "approve"
+          ? `已通過${data.emailSent ? "，通知郵件已發送" : ""}`
+          : `已拒絕${data.emailSent ? "，通知郵件已發送" : ""}，原因會顯示給用戶`
+      );
       await load(status);
       return true;
     } catch {

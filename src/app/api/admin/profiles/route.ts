@@ -94,5 +94,25 @@ export async function POST(request: Request) {
     return Response.json({ error: "操作失敗，請稍後再試" }, { status: 500 });
   }
 
-  return Response.json({ ok: true });
+  // 審核結果郵件通知用戶（僅綁定電郵嘅賬戶；未配置郵件服務時靜默跳過）
+  let emailSent = false;
+  const { data: target } = await supabase
+    .from("customers")
+    .select("email, applicant_name")
+    .eq("id", customerId)
+    .maybeSingle();
+  if (target?.email) {
+    const { sendProfileReviewEmail } = await import("@/lib/booking/email");
+    emailSent = await sendProfileReviewEmail(
+      target.email,
+      target.applicant_name || "客戶",
+      action === "approve",
+      reason
+    ).catch((e) => {
+      console.error("[admin] 審核通知郵件失敗:", e);
+      return false;
+    });
+  }
+
+  return Response.json({ ok: true, emailSent });
 }

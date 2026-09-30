@@ -403,7 +403,10 @@ export default function BookingClient() {
         <div className="card relative w-full max-w-[480px] p-10 text-center">
           <h1 className="text-[22px] font-bold text-[#161b2e]">資料審核中</h1>
           <p className="mt-3 text-[14px] leading-[1.85] text-[#5d6b85]">
-            你的申請資料已提交，我們正在核實。審核通過後即可購買套票及提交預約，請稍後再回來查看。
+            你的申請資料已提交，我們正在核實。審核通過後即可購買套票及提交預約。
+            {account.email
+              ? `審核結果會以電郵通知你（${account.email}），請留意收件箱。`
+              : "請稍後再回來查看。"}
           </p>
         </div>
       </div>

@@ -105,6 +105,22 @@ export async function sendRejectedEmail(booking: Booking): Promise<boolean> {
   return send(booking.email, `【預約未能安排】${booking.service_label}（${booking.order_no}）`, html);
 }
 
+/** 註冊資料審核結果通知用戶（通過 / 拒絕都發） */
+export async function sendProfileReviewEmail(
+  to: string,
+  applicantName: string,
+  approved: boolean,
+  reason?: string
+): Promise<boolean> {
+  const title = approved ? "註冊資料審核已通過" : "註冊資料未通過審核";
+  const body = approved
+    ? `<p>${applicantName} 你好，你嘅註冊資料已通過審核，而家可以登入購買套票及提交預約。</p>`
+    : `<p>${applicantName} 你好，好抱歉你嘅註冊資料暫時未能通過審核。</p>
+       <p><strong>原因：${reason || "資料唔符合要求"}</strong></p>
+       <p>請登入後按上述原因修改資料並重新提交，我哋會盡快再審核。</p>`;
+  return send(to, `【${title}】${brand.nameCn}`, wrapHtml(title, body));
+}
+
 /** 下單成功後向管理員發新訂單提醒 */
 export async function sendNewOrderNotice(booking: Booking): Promise<boolean> {
   const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
