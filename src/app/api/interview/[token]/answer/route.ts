@@ -1,6 +1,7 @@
 import { getSupabase } from "@/lib/booking/db";
 import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
 import { transcribeVideo } from "@/lib/interview/ai";
+import { toUserMessage } from "@/lib/interview/ai-errors";
 import {
   currentQuestion,
   getActiveQuestionsForOwner,
@@ -64,12 +65,14 @@ export async function POST(
   }
   const videoBuffer = Buffer.from(await videoData.arrayBuffer());
 
-  // 轉寫（失敗唔阻流程：報告會標註無轉寫）
+  // 轉寫（失敗唔阻流程：報告會標註無轉寫；但要把友善+詳情的 warning 透出俾用戶截圖）
   let transcript = "";
+  let warning: string | undefined;
   try {
     transcript = await transcribeVideo(videoBuffer, videoPath.split("/").pop() || "answer.webm", videoData.type);
   } catch (e) {
     console.error("[interview] 轉寫失敗（仍接受作答）:", e);
+    warning = toUserMessage(e);
   }
 
   // 提交即通過：工人提交作答即接受（佢可自願重錄後再提交），唔做逐題 AI 門禁。
@@ -88,5 +91,5 @@ export async function POST(
     await supabase.from("interviews").update({ status: "in_progress" }).eq("id", interview.id);
   }
 
-  return Response.json({ passed: true, feedback: "", attempt });
+  return Response.json({ passed: true, feedback: "", attempt, ...(warning ? { warning } : {}) });
 }

@@ -115,6 +115,17 @@ export default function AdminInterviews({
   }, [load]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  /** 以彈窗展示錯誤/警告詳情（含上游返回原文，方便截圖診斷） */
+  const showDetailModal = (type: "error" | "warning", title: string, detail: string) => {
+    const content = (
+      <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap break-all text-[12px] leading-[1.7]">
+        {detail}
+      </pre>
+    );
+    if (type === "error") modal.error({ title, content, width: 560 });
+    else modal.warning({ title, content, width: 560 });
+  };
+
   const addQuestion = async () => {
     if (!newQ.question.trim()) return message.warning("請填寫問題");
     setAddingQ(true);
@@ -124,8 +135,14 @@ export default function AdminInterviews({
       body: JSON.stringify({ ...newQ, sortOrder: questions.length }),
     });
     setAddingQ(false);
-    if (!res.ok) return message.error((await res.json()).error || "新增失敗");
-    message.success("已新增問題");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return message.error(data.error || "新增失敗");
+    if (data.warning) {
+      message.warning("已新增問題，但譯文/語音生成有問題");
+      showDetailModal("warning", "譯文/語音生成警告", data.warning);
+    } else {
+      message.success("已新增問題");
+    }
     setNewQ({ question: "", focus: "" });
     void load();
   };
@@ -144,15 +161,22 @@ export default function AdminInterviews({
     setAudioBusy(key);
     try {
       const res = await fetch(`${apiBase}/interview/questions/${q.id}/audio`, { method: "POST" });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        message.error(data.error || "生成失敗");
+        message.error("語音生成失敗，請查看詳情");
+        showDetailModal("error", "語音生成失敗", data.error || "生成失敗");
         return;
       }
-      message.success("已生成 4 語言語音");
+      if (data.warnings?.length) {
+        message.warning("語音已生成，但部分語言失敗");
+        showDetailModal("warning", "部分語言語音生成失敗", data.warnings.join("\n\n"));
+      } else {
+        message.success("已生成 4 語言語音");
+      }
       void load();
-    } catch {
+    } catch (e) {
       message.error("生成失敗");
+      showDetailModal("error", "語音生成失敗", e instanceof Error ? e.message : String(e));
     } finally {
       setAudioBusy(null);
     }

@@ -1,6 +1,7 @@
 import { getSessionCustomer } from "@/lib/booking/auth";
 import { getSupabase } from "@/lib/booking/db";
 import { generateQuestionAssets } from "@/lib/interview/tts";
+import { toUserMessage } from "@/lib/interview/ai-errors";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -28,6 +29,13 @@ export async function POST(
     .maybeSingle();
   if (!q) return Response.json({ error: "題目不存在" }, { status: 404 });
 
-  const assets = await generateQuestionAssets(q.id, q.question);
+  let assets;
+  try {
+    assets = await generateQuestionAssets(q.id, q.question);
+  } catch (e) {
+    console.error("[interview] 語音生成失敗:", e);
+    // 友善提示 + 詳情（環節/狀態碼/上游原文），方便截圖診斷
+    return Response.json({ error: toUserMessage(e) }, { status: 502 });
+  }
   return Response.json({ ok: true, ...assets });
 }

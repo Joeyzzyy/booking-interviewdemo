@@ -7,6 +7,13 @@
  * 即：一個 GEMINI_API_KEY 可全包；全部未配置時降級（判斷自動通過、報告標註未啟用）。
  */
 
+import {
+  classifyHttpError,
+  missingKeyError,
+  networkError,
+  parseError,
+} from "./ai-errors";
+
 const STT_URL = process.env.STT_BASE_URL || "https://api.siliconflow.cn/v1/audio/transcriptions";
 const STT_MODEL = process.env.STT_MODEL || "FunAudioLLM/SenseVoiceSmall";
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
@@ -28,22 +35,24 @@ interface GeminiPart {
 
 async function geminiGenerate(parts: GeminiPart[], json: boolean): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("GEMINI_API_KEY 未配置");
-  const res = await fetch(`${GEMINI_URL}?key=${key}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts }],
-      generationConfig: {
-        temperature: 0.2,
-        ...(json ? { responseMimeType: "application/json" } : {}),
-      },
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Gemini 調用失敗（${res.status}）: ${text.slice(0, 200)}`);
+  if (!key) throw missingKeyError("Gemini");
+  let res: Response;
+  try {
+    res = await fetch(`${GEMINI_URL}?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts }],
+        generationConfig: {
+          temperature: 0.2,
+          ...(json ? { responseMimeType: "application/json" } : {}),
+        },
+      }),
+    });
+  } catch (e) {
+    throw networkError("Gemini", e, GEMINI_MODEL);
   }
+  if (!res.ok) throw classifyHttpError("Gemini", res.status, await res.text(), GEMINI_MODEL);
   const data = await res.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
@@ -61,15 +70,17 @@ export async function transcribeVideo(
     const form = new FormData();
     form.append("model", STT_MODEL);
     form.append("file", new Blob([new Uint8Array(videoBuffer)], { type: contentType }), filename);
-    const res = await fetch(STT_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.STT_API_KEY}` },
-      body: form,
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`轉寫失敗（${res.status}）: ${text.slice(0, 200)}`);
+    let res: Response;
+    try {
+      res = await fetch(STT_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${process.env.STT_API_KEY}` },
+        body: form,
+      });
+    } catch (e) {
+      throw networkError("語音轉寫（STT）", e, STT_MODEL);
     }
+    if (!res.ok) throw classifyHttpError("語音轉寫（STT）", res.status, await res.text(), STT_MODEL);
     const data = await res.json();
     return (data.text || "").trim();
   }
@@ -104,26 +115,28 @@ export async function transcribeVideo(
 
 async function llmJson(systemPrompt: string, userPrompt: string): Promise<string> {
   if (process.env.DEEPSEEK_API_KEY) {
-    const res = await fetch(DEEPSEEK_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-      }),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`DeepSeek 調用失敗（${res.status}）: ${text.slice(0, 200)}`);
+    let res: Response;
+    try {
+      res = await fetch(DEEPSEEK_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+        }),
+      });
+    } catch (e) {
+      throw networkError("DeepSeek", e);
     }
+    if (!res.ok) throw classifyHttpError("DeepSeek", res.status, await res.text());
     const data = await res.json();
     return data.choices?.[0]?.message?.content || "{}";
   }
@@ -133,7 +146,7 @@ async function llmJson(systemPrompt: string, userPrompt: string): Promise<string
       true
     );
   }
-  throw new Error("未配置文本分析 key（DEEPSEEK_API_KEY / GEMINI_API_KEY）");
+  throw missingKeyError("DeepSeek / Gemini（文本分析）");
 }
 
 export interface JudgeResult {
@@ -213,6 +226,6 @@ export async function generateReport(
       generatedBy: "ai",
     };
   } catch {
-    throw new Error("報告解析失敗");
+    throw parseError("DeepSeek / Gemini（報告生成）", raw);
   }
 }

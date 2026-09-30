@@ -2,6 +2,7 @@ import { getSessionCustomer } from "@/lib/booking/auth";
 import { getSupabase } from "@/lib/booking/db";
 import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
 import { generateQuestionAssets } from "@/lib/interview/tts";
+import { toUserMessage } from "@/lib/interview/ai-errors";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -71,16 +72,19 @@ export async function POST(request: Request) {
     .single();
   if (error) return Response.json({ error: "新增失敗" }, { status: 500 });
 
-  // 生成 5 語言譯文 + TTS 音頻（失敗唔影響題目使用）
+  // 生成 5 語言譯文 + TTS 音頻（失敗唔影響題目使用，但 warning 要透出俾用戶）
+  let warning: string | undefined;
   try {
-    await generateQuestionAssets(data.id, data.question);
+    const assets = await generateQuestionAssets(data.id, data.question);
+    if (assets.warnings.length) warning = assets.warnings.join("\n\n");
   } catch (e) {
     console.error("[questions] 翻譯/語音生成失敗（不影響新增）:", e);
+    warning = toUserMessage(e);
   }
   const { data: full } = await supabase
     .from("interview_questions")
     .select("*")
     .eq("id", data.id)
     .single();
-  return Response.json({ question: full || data }, { status: 201 });
+  return Response.json({ question: full || data, ...(warning ? { warning } : {}) }, { status: 201 });
 }

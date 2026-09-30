@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Logo from "@/components/brand/Logo";
 import VideoWithCover from "@/components/common/VideoWithCover";
+import { brandName } from "@/lib/brand";
 import {
   DEFAULT_LOCALE,
   LOCALES,
@@ -82,6 +83,8 @@ export default function InterviewClient({ token }: { token: string }) {
   const [phase, setPhase] = useState<Phase>({ name: "loading" });
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
+  /** AI 相關的非阻斷警告（轉寫/報告失敗等）：友善提示 + 詳情，供截圖診斷 */
+  const [warning, setWarning] = useState("");
   const [lang, setLang] = useState<LocaleKey>(DEFAULT_LOCALE);
   const [playing, setPlaying] = useState(false);
 
@@ -297,6 +300,7 @@ export default function InterviewClient({ token }: { token: string }) {
       });
       const ansData = await ansRes.json();
       if (!ansRes.ok) throw new Error(ansData.error || "分析失敗");
+      if (ansData.warning) setWarning(ansData.warning);
 
       // 提交即接受（唔做逐題 AI 門禁），直接進入下一題
       retake();
@@ -314,8 +318,13 @@ export default function InterviewClient({ token }: { token: string }) {
     setBusy(true);
     try {
       const res = await fetch(`/api/interview/${token}/finish`, { method: "POST" });
-      if (res.ok) setPhase({ name: "finished" });
-      else setError((await res.json()).error || "提交失敗");
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (data.warning) setWarning(data.warning);
+        setPhase({ name: "finished" });
+      } else {
+        setError(data.error || "提交失敗");
+      }
     } finally {
       setBusy(false);
     }
@@ -350,7 +359,7 @@ export default function InterviewClient({ token }: { token: string }) {
   const Shell = ({ children }: { children: React.ReactNode }) => (
     <div className="flex min-h-screen flex-col items-center bg-[#f8f9fc] px-4 py-8 sm:py-12">
       <div className="mb-6 flex items-center gap-2">
-        <Logo size={30} wordmarkSize={15} />
+        <Logo size={30} wordmarkSize={15} name={brandName(lang)} />
       </div>
       <div className="w-full max-w-[640px] rounded-2xl border border-[#e6e9f2] bg-white p-6 shadow-[0_2px_12px_rgba(22,27,46,0.05)] sm:p-8">
         {children}
@@ -410,6 +419,11 @@ export default function InterviewClient({ token }: { token: string }) {
           <p className="mt-2 rounded-full bg-[#e9f5f0] px-4 py-2 text-[13px] font-semibold text-[#2a8163]">
             {t("finishedClose")}
           </p>
+          {warning && (
+            <p className="mt-2 w-full max-w-[420px] whitespace-pre-wrap rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-[12.5px] leading-[1.7] text-amber-800">
+              ⚠️ {warning}
+            </p>
+          )}
         </div>
       </Shell>
     );
@@ -582,6 +596,11 @@ export default function InterviewClient({ token }: { token: string }) {
       {error && (
         <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-medium text-red-600">
           {error}
+        </p>
+      )}
+      {warning && (
+        <p className="mt-4 whitespace-pre-wrap rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-[12.5px] leading-[1.7] text-amber-800">
+          ⚠️ {warning}
         </p>
       )}
 

@@ -1,5 +1,6 @@
 import { getSupabase } from "@/lib/booking/db";
 import { generateReport } from "@/lib/interview/ai";
+import { toUserMessage } from "@/lib/interview/ai-errors";
 import {
   currentQuestion,
   getActiveQuestionsForOwner,
@@ -49,14 +50,17 @@ export async function POST(
 
   // 報告生成失敗唔好卡住成個面試：以 fallback 報告標記完成，
   // 否則狀態停在未完成，工人刷新/重開連結會閃回「面試開始」
+  //（錯誤詳情寫入報告 summary 並以 warning 透出，方便截圖診斷）
   let report;
+  let warning: string | undefined;
   try {
     report = await generateReport(interview.worker_name, interview.resume_text || "", qaList);
   } catch (e) {
     console.error("[interview] 報告生成失敗（以 fallback 標記完成）:", e);
+    warning = toUserMessage(e);
     report = {
       score: 0,
-      summary: "整體報告生成失敗（AI 服務暫時不可用），請聯絡管理員重新生成或參考逐題結果。",
+      summary: `整體報告生成失敗，請聯絡管理員重新生成或參考逐題結果。\n\n${warning}`,
       strengths: [],
       concerns: [],
       resumeMatch: "",
@@ -70,5 +74,5 @@ export async function POST(
     .update({ status: "completed", report, completed_at: new Date().toISOString() })
     .eq("id", interview.id);
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, ...(warning ? { warning } : {}) });
 }

@@ -1,6 +1,13 @@
 import { getSupabase } from "@/lib/booking/db";
 import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
 import { LOCALES, type LocaleKey } from "./i18n";
+import {
+  classifyHttpError,
+  missingKeyError,
+  networkError,
+  parseError,
+  toUserMessage,
+} from "./ai-errors";
 
 /**
  * 題目多語言化：一次生成 4 種語言嘅譯文 + TTS 音頻，存入 Supabase storage。
@@ -17,7 +24,7 @@ const GEMINI_BASE =
 
 function getKey(): string {
   const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("GEMINI_API_KEY 未配置");
+  if (!key) throw missingKeyError("Gemini");
   return key;
 }
 
@@ -42,33 +49,35 @@ function pcmToWav(pcm: Buffer, sampleRate: number, channels = 1, bits = 16): Buf
   return Buffer.concat([header, pcm]);
 }
 
-/** 將題目翻譯為 4 種語言（源語言：中文）。返回 { en, id, tl, zh } */
+/** 將題目翻譯為 4 種語言（源語言：中文）。返回 { en, id, tl, zh }。失敗拋 AiServiceError（由調用方決定如何提示） */
 export async function translateQuestion(question: string): Promise<Partial<Record<LocaleKey, string>>> {
   const key = getKey();
-  const res = await fetch(`${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${key}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                "你係專業翻譯。將下面呢條外傭面試問題翻譯成 5 種語言，保持原意、語氣自然、適合口頭朗讀。\n" +
-                "語言代碼：en=English, id=Bahasa Indonesia, tl=Filipino/Tagalog, zh=簡體中文（普通話用詞）。\n" +
-                `只輸出 JSON 物件，格式：{"en":"...","id":"...","tl":"...","zh":"..."}\n\n問題：${question}`,
-            },
-          ],
-        },
-      ],
-      generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
-    }),
-  });
-  if (!res.ok) {
-    console.error("[tts] 翻譯失敗:", res.status, (await res.text().catch(() => "")).slice(0, 200));
-    return {};
+  let res: Response;
+  try {
+    res = await fetch(`${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text:
+                  "你係專業翻譯。將下面呢條外傭面試問題翻譯成 5 種語言，保持原意、語氣自然、適合口頭朗讀。\n" +
+                  "語言代碼：en=English, id=Bahasa Indonesia, tl=Filipino/Tagalog, zh=簡體中文（普通話用詞）。\n" +
+                  `只輸出 JSON 物件，格式：{"en":"...","id":"...","tl":"...","zh":"..."}\n\n問題：${question}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
+      }),
+    });
+  } catch (e) {
+    throw networkError("Gemini（題目翻譯）", e, GEMINI_MODEL);
   }
+  if (!res.ok) throw classifyHttpError("Gemini（題目翻譯）", res.status, await res.text(), GEMINI_MODEL);
   const data = await res.json();
   const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
   try {
@@ -80,8 +89,7 @@ export async function translateQuestion(question: string): Promise<Partial<Recor
     }
     return out;
   } catch {
-    console.error("[tts] 翻譯結果解析失敗:", text.slice(0, 200));
-    return {};
+    throw parseError("Gemini（題目翻譯）", text, GEMINI_MODEL);
   }
 }
 
@@ -90,27 +98,29 @@ export async function synthesizeSpeech(text: string, lang: LocaleKey): Promise<B
   const def = LOCALES.find((l) => l.key === lang)!;
   if (!def.ttsCode) return null; // 模型不支持該語言（如粵語）
   const key = getKey();
-  const res = await fetch(`${GEMINI_BASE}/${GEMINI_TTS_MODEL}:generateContent?key=${key}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text }] }],
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          languageCode: def.ttsCode,
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: def.voice } },
+  let res: Response;
+  try {
+    res = await fetch(`${GEMINI_BASE}/${GEMINI_TTS_MODEL}:generateContent?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            languageCode: def.ttsCode,
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: def.voice } },
+          },
         },
-      },
-    }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`TTS 失敗（${res.status}）: ${body.slice(0, 200)}`);
+      }),
+    });
+  } catch (e) {
+    throw networkError("Gemini TTS", e, GEMINI_TTS_MODEL);
   }
+  if (!res.ok) throw classifyHttpError("Gemini TTS", res.status, await res.text(), GEMINI_TTS_MODEL);
   const data = await res.json();
   const inline = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-  if (!inline?.data) throw new Error("TTS 無音頻返回");
+  if (!inline?.data) throw parseError("Gemini TTS", JSON.stringify(data).slice(0, 300), GEMINI_TTS_MODEL);
   const raw = Buffer.from(inline.data, "base64");
   const mime: string = inline.mimeType || "";
   if (mime.includes("L16") || mime.includes("pcm")) {
@@ -127,7 +137,12 @@ export async function synthesizeSpeech(text: string, lang: LocaleKey): Promise<B
 export async function generateQuestionAssets(
   questionId: string,
   question: string
-): Promise<{ translations: Partial<Record<LocaleKey, string>>; audio: Partial<Record<LocaleKey, string>> }> {
+): Promise<{
+  translations: Partial<Record<LocaleKey, string>>;
+  audio: Partial<Record<LocaleKey, string>>;
+  /** 每種語言失敗的友善提示（含詳情），供前端展示 */
+  warnings: string[];
+}> {
   const supabase = getSupabase();
   if (!supabase) throw new Error("數據庫未配置");
 
@@ -136,6 +151,7 @@ export async function generateQuestionAssets(
   if (!translations.zh) translations.zh = question;
 
   const audio: Partial<Record<LocaleKey, string>> = {};
+  const warnings: string[] = [];
   await Promise.all(
     LOCALES.map(async (l) => {
       const text = translations[l.key];
@@ -149,11 +165,13 @@ export async function generateQuestionAssets(
           .upload(path, wav, { contentType: "audio/wav", upsert: true });
         if (error) {
           console.error(`[tts] 音頻上傳失敗（${l.key}）:`, error);
+          warnings.push(`【${l.key}】音頻上傳存儲失敗：${error.message}（題目仍可用，可稍後重新生成）`);
           return;
         }
         audio[l.key] = path;
       } catch (e) {
         console.error(`[tts] 音頻生成失敗（${l.key}）:`, e);
+        warnings.push(`【${l.key}】${toUserMessage(e)}`);
       }
     })
   );
@@ -163,5 +181,5 @@ export async function generateQuestionAssets(
     .update({ translations, audio })
     .eq("id", questionId);
 
-  return { translations, audio };
+  return { translations, audio, warnings };
 }

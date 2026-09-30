@@ -1,5 +1,6 @@
 import { getSupabase } from "@/lib/booking/db";
 import { generateQuestionAssets } from "@/lib/interview/tts";
+import { toUserMessage } from "@/lib/interview/ai-errors";
 import { adminUnauthorized, isAdminRequest } from "@/lib/booking/admin-auth";
 
 export const dynamic = "force-dynamic";
@@ -35,15 +36,18 @@ export async function PUT(
   const { error } = await supabase.from("interview_questions").update(update).eq("id", id);
   if (error) return Response.json({ error: "更新失敗" }, { status: 500 });
 
-  // 問題文字有變更 → 重新生成譯文 + 音頻
+  // 問題文字有變更 → 重新生成譯文 + 音頻（失敗唔影響更新，但 warning 要透出俾用戶）
+  let warning: string | undefined;
   if (body.question !== undefined) {
     try {
-      await generateQuestionAssets(id, update.question as string);
+      const assets = await generateQuestionAssets(id, update.question as string);
+      if (assets.warnings.length) warning = assets.warnings.join("\n\n");
     } catch (e) {
       console.error("[questions] 翻譯/語音生成失敗（不影響更新）:", e);
+      warning = toUserMessage(e);
     }
   }
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, ...(warning ? { warning } : {}) });
 }
 
 /** DELETE 刪除問題（硬刪除；已作答記錄有問題快照，不受影響） */
