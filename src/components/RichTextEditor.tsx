@@ -16,6 +16,7 @@ import {
   ImagePlus,
   Loader2,
 } from "lucide-react";
+import { useLanguage } from "@/lib/i18n";
 
 /** 工具列按鈕 */
 function ToolBtn({
@@ -63,6 +64,7 @@ export default function RichTextEditor({
   onChange: (html: string) => void;
   disabled?: boolean;
 }) {
+  const { t } = useLanguage();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -93,12 +95,12 @@ export default function RichTextEditor({
       const res = await fetch("/api/board/upload", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) {
-        setUploadError(data.error || "圖片上傳失敗");
+        setUploadError(data.error || t.workspace.editor.uploadFailed);
         return;
       }
       editor.chain().focus().setImage({ src: data.url }).run();
     } catch {
-      setUploadError("網絡錯誤，圖片上傳失敗");
+      setUploadError(t.workspace.editor.uploadNetworkError);
     } finally {
       setUploading(false);
     }
@@ -107,7 +109,7 @@ export default function RichTextEditor({
   const setLink = () => {
     if (!editor) return;
     const prev = editor.getAttributes("link").href as string | undefined;
-    const url = window.prompt("連結地址：", prev || "https://");
+    const url = window.prompt(t.workspace.editor.linkPrompt, prev || "https://");
     if (url === null) return;
     if (!url.trim()) {
       editor.chain().focus().unsetLink().run();
@@ -120,40 +122,40 @@ export default function RichTextEditor({
     <div className="rounded-xl border border-black/[0.08] bg-white focus-within:border-[#35a07a]/50">
       {/* 工具列 */}
       <div className="flex flex-wrap items-center gap-0.5 border-b border-black/[0.06] px-2 py-1.5">
-        <ToolBtn label="粗體" active={editor?.isActive("bold")} disabled={!editor || disabled}
+        <ToolBtn label={t.workspace.editor.bold} active={editor?.isActive("bold")} disabled={!editor || disabled}
           onClick={() => editor?.chain().focus().toggleBold().run()}>
           <Bold size={15} />
         </ToolBtn>
-        <ToolBtn label="斜體" active={editor?.isActive("italic")} disabled={!editor || disabled}
+        <ToolBtn label={t.workspace.editor.italic} active={editor?.isActive("italic")} disabled={!editor || disabled}
           onClick={() => editor?.chain().focus().toggleItalic().run()}>
           <Italic size={15} />
         </ToolBtn>
-        <ToolBtn label="底線" active={editor?.isActive("underline")} disabled={!editor || disabled}
+        <ToolBtn label={t.workspace.editor.underline} active={editor?.isActive("underline")} disabled={!editor || disabled}
           onClick={() => editor?.chain().focus().toggleUnderline().run()}>
           <UnderlineIcon size={15} />
         </ToolBtn>
-        <ToolBtn label="刪除線" active={editor?.isActive("strike")} disabled={!editor || disabled}
+        <ToolBtn label={t.workspace.editor.strike} active={editor?.isActive("strike")} disabled={!editor || disabled}
           onClick={() => editor?.chain().focus().toggleStrike().run()}>
           <Strikethrough size={15} />
         </ToolBtn>
         <span className="mx-1 h-5 w-px bg-black/[0.08]" aria-hidden="true" />
-        <ToolBtn label="點列" active={editor?.isActive("bulletList")} disabled={!editor || disabled}
+        <ToolBtn label={t.workspace.editor.bulletList} active={editor?.isActive("bulletList")} disabled={!editor || disabled}
           onClick={() => editor?.chain().focus().toggleBulletList().run()}>
           <List size={15} />
         </ToolBtn>
-        <ToolBtn label="數字列" active={editor?.isActive("orderedList")} disabled={!editor || disabled}
+        <ToolBtn label={t.workspace.editor.orderedList} active={editor?.isActive("orderedList")} disabled={!editor || disabled}
           onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
           <ListOrdered size={15} />
         </ToolBtn>
-        <ToolBtn label="引用" active={editor?.isActive("blockquote")} disabled={!editor || disabled}
+        <ToolBtn label={t.workspace.editor.quote} active={editor?.isActive("blockquote")} disabled={!editor || disabled}
           onClick={() => editor?.chain().focus().toggleBlockquote().run()}>
           <Quote size={15} />
         </ToolBtn>
         <span className="mx-1 h-5 w-px bg-black/[0.08]" aria-hidden="true" />
-        <ToolBtn label="連結" active={editor?.isActive("link")} disabled={!editor || disabled} onClick={setLink}>
+        <ToolBtn label={t.workspace.editor.link} active={editor?.isActive("link")} disabled={!editor || disabled} onClick={setLink}>
           <Link2 size={15} />
         </ToolBtn>
-        <ToolBtn label="插入圖片" disabled={!editor || disabled || uploading}
+        <ToolBtn label={t.workspace.editor.insertImage} disabled={!editor || disabled || uploading}
           onClick={() => imageInputRef.current?.click()}>
           {uploading ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />}
         </ToolBtn>

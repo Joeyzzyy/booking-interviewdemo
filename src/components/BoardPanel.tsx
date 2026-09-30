@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MessageSquareText, Send, Trash2 } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import RichTextEditor from "@/components/RichTextEditor";
+import { useLanguage, LOCALES } from "@/lib/i18n";
 
 interface BoardPost {
   id: string;
@@ -17,6 +18,9 @@ interface BoardPost {
 
 /** 資訊交流區：審核通過用戶可發帖分享資訊、刪除自己的帖子 */
 export default function BoardPanel() {
+  const { t, locale } = useLanguage();
+  /** 日期格式化語言標籤（zh-HK / zh-CN / en） */
+  const dateLocale = LOCALES.find((l) => l.key === locale)?.htmlLang ?? "zh-HK";
   const [posts, setPosts] = useState<BoardPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
@@ -57,7 +61,7 @@ export default function BoardPanel() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "發佈失敗，請稍後再試");
+        setError(data.error || t.workspace.board.publishFailed);
         return;
       }
       setTitle("");
@@ -65,7 +69,7 @@ export default function BoardPanel() {
       setComposerOpen(false); // 發佈後收起，直接睇帖子
       await load();
     } catch {
-      setError("網絡錯誤，請稍後再試");
+      setError(t.workspace.networkError);
     } finally {
       setPosting(false);
     }
@@ -96,14 +100,14 @@ export default function BoardPanel() {
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-white">
                 <MessageSquareText size={14} aria-hidden="true" />
               </span>
-              分享資訊
+              {t.workspace.board.composerTitle}
             </h2>
             <button
               type="button"
               onClick={() => setComposerOpen(false)}
               className="cursor-pointer text-[12.5px] font-semibold text-[#8b95ad] transition-colors hover:text-[#161b2e]"
             >
-              收起
+              {t.workspace.board.collapse}
             </button>
           </div>
         <div className="mt-4 flex flex-col gap-3">
@@ -112,10 +116,10 @@ export default function BoardPanel() {
             onChange={(e) => setTitle(e.target.value)}
             required
             maxLength={80}
-            placeholder="標題（例如：某診所驗身排期經驗分享）"
+            placeholder={t.workspace.board.titlePlaceholder}
           />
           <p className="-mb-1 text-[12px] text-[#8b95ad]">
-            內容支持粗體、列表、連結同圖片（圖片 ≤ 4MB）：
+            {t.workspace.board.contentHint}
           </p>
           <RichTextEditor value={content} onChange={setContent} disabled={posting} />
           {error && (
@@ -124,7 +128,7 @@ export default function BoardPanel() {
           <div className="flex justify-end">
             <Button type="submit" loading={posting}>
               <Send size={14} aria-hidden="true" />
-              發佈
+              {t.workspace.board.publish}
             </Button>
           </div>
         </div>
@@ -139,7 +143,7 @@ export default function BoardPanel() {
             <MessageSquareText size={16} aria-hidden="true" />
           </span>
           <span className="text-[13.5px] font-semibold text-[#8b95ad]">
-            有資訊想分享？點擊呢度發帖…
+            {t.workspace.board.openComposer}
           </span>
         </button>
       )}
@@ -147,10 +151,10 @@ export default function BoardPanel() {
       {/* 帖子列表 */}
       <div className="mt-7 flex flex-col gap-3">
         {loading ? (
-          <p className="py-10 text-center text-[13px] text-[#8b95ad]">載入中…</p>
+          <p className="py-10 text-center text-[13px] text-[#8b95ad]">{t.workspace.loading}</p>
         ) : posts.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-black/[0.1] px-5 py-10 text-center text-[13px] text-[#8b95ad]">
-            暫時未有帖子，做第一個分享嘅人啦！
+            {t.workspace.board.empty}
           </p>
         ) : (
           posts.map((p) => (
@@ -163,7 +167,7 @@ export default function BoardPanel() {
                 {p.own && (
                   <button
                     type="button"
-                    aria-label="刪除帖子"
+                    aria-label={t.workspace.board.deletePost}
                     disabled={deletingId === p.id}
                     onClick={() => void remove(p.id)}
                     className="ml-auto cursor-pointer text-[#8b95ad] transition-colors hover:text-red-600 disabled:opacity-50"
@@ -184,7 +188,7 @@ export default function BoardPanel() {
                 <span className="text-[#2a8163]">{p.authorName}</span>
                 {p.companyName ? ` · ${p.companyName}` : ""}
                 {" · "}
-                {new Date(p.createdAt).toLocaleString("zh-HK")}
+                {new Date(p.createdAt).toLocaleString(dateLocale)}
               </p>
             </article>
           ))
@@ -195,14 +199,14 @@ export default function BoardPanel() {
       {lightboxSrc && (
         <div
           role="button"
-          aria-label="關閉圖片預覽"
+          aria-label={t.workspace.board.closePreview}
           className="fixed inset-0 z-[1000] flex cursor-zoom-out items-center justify-center bg-black/85 p-4"
           onClick={() => setLightboxSrc(null)}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={lightboxSrc}
-            alt="帖子圖片"
+            alt={t.workspace.board.imageAlt}
             className="max-h-[92vh] max-w-[92vw] rounded-xl object-contain shadow-2xl"
           />
         </div>
