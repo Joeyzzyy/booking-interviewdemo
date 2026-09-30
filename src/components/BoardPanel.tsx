@@ -24,6 +24,7 @@ export default function BoardPanel() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -147,6 +148,10 @@ export default function BoardPanel() {
               </div>
               <div
                 className="tiptap tiptap-view mt-1.5"
+                onClick={(e) => {
+                  // 點擊圖片全屏查看
+                  if (e.target instanceof HTMLImageElement) setLightboxSrc(e.target.src);
+                }}
                 dangerouslySetInnerHTML={{ __html: p.content }}
               />
               <p className="mt-2.5 text-[12px] font-semibold text-[#8b95ad]">
@@ -159,6 +164,23 @@ export default function BoardPanel() {
           ))
         )}
       </div>
+
+      {/* 圖片全屏查看 */}
+      {lightboxSrc && (
+        <div
+          role="button"
+          aria-label="關閉圖片預覽"
+          className="fixed inset-0 z-[1000] flex cursor-zoom-out items-center justify-center bg-black/85 p-4"
+          onClick={() => setLightboxSrc(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxSrc}
+            alt="帖子圖片"
+            className="max-h-[92vh] max-w-[92vw] rounded-xl object-contain shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   );
 }

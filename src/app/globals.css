@@ -130,6 +130,20 @@ html {
 
 /* 帖子正文渲染（唯讀，無需 min-height） */
 .tiptap-view { min-height: 0; }
+/* 帖子圖片默認縮細展示，點擊放大全屏（編輯器內唔受限，方便拖拽調大小） */
+.tiptap-view img {
+  max-width: 300px;
+  max-height: 220px;
+  object-fit: cover;
+  cursor: zoom-in;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.tiptap-view img:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 18px rgba(22, 27, 46, 0.14);
+}
+.tiptap-view figure { margin: 0.5em 0; }
+.tiptap-view figure img { margin: 0; }
 
 /* ============ 回到頂部 ============ */
 

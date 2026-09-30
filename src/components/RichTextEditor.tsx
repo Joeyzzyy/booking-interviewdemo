@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
+import ImageResize from "tiptap-extension-resize-image";
 import {
   Bold,
   Italic,
@@ -71,7 +71,8 @@ export default function RichTextEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({ link: { openOnClick: false } }),
-      Image.configure({ inline: false }),
+      // 圖片可喺編輯器內拖拽調整大小（尺寸會寫入 HTML，發佈後保持）
+      ImageResize.configure({ inline: false }),
     ],
     content: value,
     editable: !disabled,
