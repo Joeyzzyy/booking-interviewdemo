@@ -21,6 +21,19 @@ export interface Customer {
   email: string | null;
   phone: string | null;
   created_at: string;
+  applicant_name?: string | null;
+  company_name?: string | null;
+  labour_reg_no?: string | null;
+  id_card_path?: string | null;
+}
+
+/** 常用查詢欄位（含資料補全欄位，見 supabase/customer-profile.sql） */
+const CUSTOMER_FIELDS =
+  "id, email, phone, created_at, applicant_name, company_name, labour_reg_no, id_card_path";
+
+/** 註冊資料是否已補全（申請人 / 公司 / 勞工處編號 / 身份證） */
+export function isProfileComplete(c: Customer): boolean {
+  return Boolean(c.applicant_name && c.company_name && c.labour_reg_no && c.id_card_path);
 }
 
 export function isChannel(v: unknown): v is Channel {
@@ -166,7 +179,7 @@ export async function findCustomerBy(
   if (!supabase) return null;
   const { data } = await supabase
     .from("customers")
-    .select("id, email, phone, created_at")
+    .select(CUSTOMER_FIELDS)
     .eq(channel, identifier)
     .limit(1)
     .maybeSingle();
@@ -188,7 +201,7 @@ export async function findOrCreateCustomer(
   const { data: created, error } = await supabase
     .from("customers")
     .insert(payload)
-    .select("id, email, phone, created_at")
+    .select(CUSTOMER_FIELDS)
     .single();
   if (error || !created) {
     console.error("[auth] 創建用戶失敗:", error);
@@ -202,7 +215,7 @@ export async function getCustomerById(id: string): Promise<Customer | null> {
   if (!supabase) return null;
   const { data } = await supabase
     .from("customers")
-    .select("id, email, phone, created_at")
+    .select(CUSTOMER_FIELDS)
     .eq("id", id)
     .maybeSingle();
   return (data as Customer) || null;
@@ -230,7 +243,7 @@ export async function bindChannel(
     .from("customers")
     .update(channel === "email" ? { email: identifier } : { phone: identifier })
     .eq("id", customerId)
-    .select("id, email, phone, created_at")
+    .select(CUSTOMER_FIELDS)
     .single();
   if (error || !data) {
     console.error("[auth] 綁定失敗:", error);
@@ -263,7 +276,7 @@ export async function unbindChannel(
     .from("customers")
     .update(channel === "email" ? { email: null } : { phone: null })
     .eq("id", customerId)
-    .select("id, email, phone, created_at")
+    .select(CUSTOMER_FIELDS)
     .single();
   if (error || !data) {
     console.error("[auth] 解綁失敗:", error);
@@ -307,7 +320,7 @@ export async function getSessionCustomer(request: Request): Promise<Customer | n
   if (!supabase) return null;
   const { data } = await supabase
     .from("customer_sessions")
-    .select("expires_at, customers(id, email, phone, created_at)")
+    .select(`expires_at, customers(${CUSTOMER_FIELDS})`)
     .eq("token", token)
     .limit(1)
     .maybeSingle();

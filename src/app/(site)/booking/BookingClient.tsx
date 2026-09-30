@@ -6,6 +6,7 @@ import { Badge, Button, Field, Input, Modal, Tabs, Textarea } from "@/components
 import { SERVICES, UPLOAD_LIMITS, type ServiceItem } from "@/lib/booking/services";
 import { openLogin } from "@/components/auth/login-events";
 import AdminTheme from "@/components/admin/AdminTheme";
+import ProfileOnboarding from "@/components/ProfileOnboarding";
 import AdminInterviews from "@/components/AdminInterviews";
 import AdminInterviewRecords from "@/components/AdminInterviewRecords";
 
@@ -49,6 +50,7 @@ interface PassBalance {
 interface AccountInfo {
   email: string | null;
   phone: string | null;
+  profileComplete: boolean;
 }
 
 const MY_STATUS: Record<string, { label: string; variant: "amber" | "green" | "red" | "gray" }> = {
@@ -130,7 +132,11 @@ export default function BookingClient() {
       const res = await fetch("/api/auth/me", { cache: "no-store" });
       const data = await res.json();
       if (data.customer) {
-        setAccount({ email: data.customer.email, phone: data.customer.phone });
+        setAccount({
+          email: data.customer.email,
+          phone: data.customer.phone,
+          profileComplete: Boolean(data.customer.profileComplete),
+        });
         await Promise.all([loadMyBookings(), loadBalances()]);
       } else {
         setAccount(null);
@@ -363,6 +369,11 @@ export default function BookingClient() {
         </Button>
       </div>
     );
+  }
+
+  /* ---------- 已登入但未補全註冊資料：擋在功能之前 ---------- */
+  if (!account.profileComplete) {
+    return <ProfileOnboarding onDone={() => void checkAuth()} />;
   }
 
   /* ---------- 提交成功 ---------- */

@@ -1,4 +1,4 @@
-import { getSessionCustomer } from "@/lib/booking/auth";
+import { getSessionCustomer, isProfileComplete } from "@/lib/booking/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +7,15 @@ export async function GET(request: Request) {
   const customer = await getSessionCustomer(request);
   return Response.json({
     customer: customer
-      ? { id: customer.id, email: customer.email, phone: customer.phone }
+      ? {
+          id: customer.id,
+          email: customer.email,
+          phone: customer.phone,
+          applicantName: customer.applicant_name || null,
+          companyName: customer.company_name || null,
+          labourRegNo: customer.labour_reg_no || null,
+          profileComplete: isProfileComplete(customer),
+        }
       : null,
   });
 }
