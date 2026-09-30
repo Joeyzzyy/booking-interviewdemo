@@ -25,15 +25,23 @@ export interface Customer {
   company_name?: string | null;
   labour_reg_no?: string | null;
   id_card_path?: string | null;
+  profile_status?: "pending" | "approved" | "rejected";
+  profile_reject_reason?: string | null;
+  profile_submitted_at?: string | null;
 }
 
 /** 常用查詢欄位（含資料補全欄位，見 supabase/customer-profile.sql） */
 const CUSTOMER_FIELDS =
-  "id, email, phone, created_at, applicant_name, company_name, labour_reg_no, id_card_path";
+  "id, email, phone, created_at, applicant_name, company_name, labour_reg_no, id_card_path, profile_status, profile_reject_reason, profile_submitted_at";
 
-/** 註冊資料是否已補全（申請人 / 公司 / 勞工處編號 / 身份證） */
+/** 註冊資料是否已提交（申請人 / 公司 / 勞工處編號 / 身份證） */
 export function isProfileComplete(c: Customer): boolean {
   return Boolean(c.applicant_name && c.company_name && c.labour_reg_no && c.id_card_path);
+}
+
+/** 是否已通過審核，可以使用功能 */
+export function isProfileApproved(c: Customer): boolean {
+  return isProfileComplete(c) && c.profile_status === "approved";
 }
 
 export function isChannel(v: unknown): v is Channel {

@@ -51,6 +51,11 @@ interface AccountInfo {
   email: string | null;
   phone: string | null;
   profileComplete: boolean;
+  profileStatus: "pending" | "approved" | "rejected";
+  profileRejectReason: string | null;
+  applicantName: string | null;
+  companyName: string | null;
+  labourRegNo: string | null;
 }
 
 const MY_STATUS: Record<string, { label: string; variant: "amber" | "green" | "red" | "gray" }> = {
@@ -136,6 +141,11 @@ export default function BookingClient() {
           email: data.customer.email,
           phone: data.customer.phone,
           profileComplete: Boolean(data.customer.profileComplete),
+          profileStatus: data.customer.profileStatus || "pending",
+          profileRejectReason: data.customer.profileRejectReason || null,
+          applicantName: data.customer.applicantName || null,
+          companyName: data.customer.companyName || null,
+          labourRegNo: data.customer.labourRegNo || null,
         });
         await Promise.all([loadMyBookings(), loadBalances()]);
       } else {
@@ -371,9 +381,33 @@ export default function BookingClient() {
     );
   }
 
-  /* ---------- 已登入但未補全註冊資料：擋在功能之前 ---------- */
-  if (!account.profileComplete) {
-    return <ProfileOnboarding onDone={() => void checkAuth()} />;
+  /* ---------- 未提交資料 或 審核被拒：顯示表單（被拒時頂部附原因） ---------- */
+  if (!account.profileComplete || account.profileStatus === "rejected") {
+    return (
+      <ProfileOnboarding
+        onDone={() => void checkAuth()}
+        rejectReason={account.profileStatus === "rejected" ? account.profileRejectReason : null}
+        initial={{
+          applicantName: account.applicantName,
+          companyName: account.companyName,
+          labourRegNo: account.labourRegNo,
+        }}
+      />
+    );
+  }
+
+  /* ---------- 已提交，等待審核 ---------- */
+  if (account.profileStatus !== "approved") {
+    return (
+      <div className="relative flex flex-1 items-center justify-center px-6 py-24">
+        <div className="card relative w-full max-w-[480px] p-10 text-center">
+          <h1 className="text-[22px] font-bold text-[#161b2e]">資料審核中</h1>
+          <p className="mt-3 text-[14px] leading-[1.85] text-[#5d6b85]">
+            你的申請資料已提交，我們正在核實。審核通過後即可購買套票及提交預約，請稍後再回來查看。
+          </p>
+        </div>
+      </div>
+    );
   }
 
   /* ---------- 提交成功 ---------- */

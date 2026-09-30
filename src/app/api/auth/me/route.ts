@@ -15,6 +15,8 @@ export async function GET(request: Request) {
           companyName: customer.company_name || null,
           labourRegNo: customer.labour_reg_no || null,
           profileComplete: isProfileComplete(customer),
+          profileStatus: customer.profile_status || "pending",
+          profileRejectReason: customer.profile_reject_reason || null,
         }
       : null,
   });

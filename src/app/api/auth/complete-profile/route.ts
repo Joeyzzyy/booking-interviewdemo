@@ -73,6 +73,10 @@ export async function POST(request: Request) {
       company_name: companyName,
       labour_reg_no: labourRegNo,
       id_card_path: path,
+      // 提交後重新進入待審核，清除上次拒絕原因
+      profile_status: "pending",
+      profile_reject_reason: null,
+      profile_submitted_at: new Date().toISOString(),
     })
     .eq("id", customer.id);
   if (updErr) {

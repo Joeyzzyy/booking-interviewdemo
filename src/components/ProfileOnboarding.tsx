@@ -8,7 +8,15 @@ import { Button, Field, Input } from "@/components/ui";
  * 註冊資料補全：申請人姓名 / 公司名稱 / 勞工處登記編號 / 身份證照片。
  * 登入後未補全時擋在功能頁之前，提交成功後調 onDone() 重新載入。
  */
-export default function ProfileOnboarding({ onDone }: { onDone: () => void }) {
+export default function ProfileOnboarding({
+  onDone,
+  rejectReason,
+  initial,
+}: {
+  onDone: () => void;
+  rejectReason?: string | null;
+  initial?: { applicantName?: string | null; companyName?: string | null; labourRegNo?: string | null };
+}) {
   const [idCard, setIdCard] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -59,14 +67,21 @@ export default function ProfileOnboarding({ onDone }: { onDone: () => void }) {
         </p>
 
         <form onSubmit={(e) => void onSubmit(e)} className="mt-6 flex flex-col gap-4">
+          {rejectReason && (
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-[13px] leading-[1.8] font-semibold text-red-600">
+              上次提交未通過審核：{rejectReason}
+              <br />
+              請按上述原因修改後重新提交。
+            </p>
+          )}
           <Field label="申請人姓名" required>
-            <Input name="applicantName" required placeholder="申請人全名" />
+            <Input name="applicantName" required placeholder="申請人全名" defaultValue={initial?.applicantName || ""} />
           </Field>
           <Field label="公司名稱" required>
-            <Input name="companyName" required placeholder="僱傭中心 / 公司全名" />
+            <Input name="companyName" required placeholder="僱傭中心 / 公司全名" defaultValue={initial?.companyName || ""} />
           </Field>
           <Field label="勞工處登記編號" required>
-            <Input name="labourRegNo" required placeholder="例如：12345" />
+            <Input name="labourRegNo" required placeholder="例如：12345" defaultValue={initial?.labourRegNo || ""} />
           </Field>
 
           <Field label="身份證照片" required hint="JPG / PNG / PDF，≤ 4MB">
