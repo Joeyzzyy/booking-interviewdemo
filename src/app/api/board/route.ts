@@ -1,5 +1,26 @@
 import { getSessionCustomer, isProfileApproved } from "@/lib/booking/auth";
 import { getSupabase } from "@/lib/booking/db";
+import sanitizeHtml from "sanitize-html";
+
+/** 帖子內容白名單：只保留排版標籤 + 連結 + 圖片（防 XSS） */
+function sanitizePostHtml(html: string): string {
+  return sanitizeHtml(html, {
+    allowedTags: ["p", "br", "strong", "b", "em", "i", "u", "s", "ul", "ol", "li", "blockquote", "a", "img"],
+    allowedAttributes: {
+      a: ["href", "target", "rel"],
+      img: ["src", "alt"],
+    },
+    allowedSchemes: ["https", "http"],
+    transformTags: {
+      a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer", target: "_blank" }),
+    },
+  });
+}
+
+/** 去標籤取純文本（長度校驗用） */
+function plainText(html: string): string {
+  return sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} }).trim();
+}
 
 export const dynamic = "force-dynamic";
 
@@ -60,14 +81,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "請求格式錯誤" }, { status: 400 });
   }
   const title = (body.title || "").trim();
-  const content = (body.content || "").trim();
-  if (!title || !content) {
+  const content = sanitizePostHtml(body.content || "");
+  if (!title || !plainText(content)) {
     return Response.json({ error: "請填寫標題及內容" }, { status: 400 });
   }
   if (title.length > 80) {
     return Response.json({ error: "標題最長 80 字" }, { status: 400 });
   }
-  if (content.length > 2000) {
+  if (plainText(content).length > 2000) {
     return Response.json({ error: "內容最長 2000 字" }, { status: 400 });
   }
 

@@ -12,3 +12,8 @@ create table if not exists board_posts (
 );
 
 create index if not exists board_posts_created_idx on board_posts(created_at desc);
+
+-- 帖子圖片公共桶（富文本內嵌圖片需要長期可訪問的 URL，私有桶 signed URL 會過期）
+insert into storage.buckets (id, name, public)
+values ('board-images', 'board-images', true)
+on conflict (id) do nothing;

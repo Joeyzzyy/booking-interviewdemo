@@ -102,6 +102,35 @@ html {
   transform: translateY(-1px);
 }
 
+/* ============ 富文本（資訊交流區 TipTap 編輯器 + 帖子渲染共用） ============ */
+
+.tiptap {
+  outline: none;
+  min-height: 120px;
+  font-size: 13.5px;
+  line-height: 1.8;
+  color: #3d4763;
+}
+.tiptap p { margin: 0 0 0.5em; }
+.tiptap ul, .tiptap ol { padding-left: 1.25em; margin: 0 0 0.5em; }
+.tiptap ul { list-style: disc; }
+.tiptap ol { list-style: decimal; }
+.tiptap blockquote {
+  border-left: 3px solid #35a07a;
+  padding-left: 12px;
+  color: #5d6b85;
+  margin: 0.5em 0;
+}
+.tiptap img {
+  max-width: 100%;
+  border-radius: 12px;
+  margin: 0.5em 0;
+}
+.tiptap a { color: #2a8163; text-decoration: underline; }
+
+/* 帖子正文渲染（唯讀，無需 min-height） */
+.tiptap-view { min-height: 0; }
+
 /* ============ 回到頂部 ============ */
 
 .scrollup {

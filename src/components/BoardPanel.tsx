@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { MessageSquareText, Send, Trash2 } from "lucide-react";
-import { Button, Input, Textarea } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
+import RichTextEditor from "@/components/RichTextEditor";
 
 interface BoardPost {
   id: string;
@@ -36,9 +37,11 @@ export default function BoardPanel() {
     }
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     void load();
   }, [load]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,14 +101,10 @@ export default function BoardPanel() {
             maxLength={80}
             placeholder="標題（例如：某診所驗身排期經驗分享）"
           />
-          <Textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            required
-            maxLength={2000}
-            rows={4}
-            placeholder="內容：同其他僱傭中心分享你嘅資訊、經驗或提醒…"
-          />
+          <p className="-mb-1 text-[12px] text-[#8b95ad]">
+            內容支持粗體、列表、連結同圖片（圖片 ≤ 4MB）：
+          </p>
+          <RichTextEditor value={content} onChange={setContent} disabled={posting} />
           {error && (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-600">{error}</p>
           )}
@@ -146,9 +145,10 @@ export default function BoardPanel() {
                   </button>
                 )}
               </div>
-              <p className="mt-1.5 text-[13.5px] leading-[1.8] whitespace-pre-wrap text-[#3d4763]">
-                {p.content}
-              </p>
+              <div
+                className="tiptap tiptap-view mt-1.5"
+                dangerouslySetInnerHTML={{ __html: p.content }}
+              />
               <p className="mt-2.5 text-[12px] font-semibold text-[#8b95ad]">
                 <span className="text-[#2a8163]">{p.authorName}</span>
                 {p.companyName ? ` · ${p.companyName}` : ""}
