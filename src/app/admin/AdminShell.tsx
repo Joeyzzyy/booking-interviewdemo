@@ -109,7 +109,7 @@ function AdminShellInner() {
               N
             </div>
             <Typography.Title level={4} style={{ margin: 0 }}>
-              NEXUSLINK 管理後台
+              傭易做 管理後台
             </Typography.Title>
           </div>
           <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 8 }}>
@@ -173,7 +173,7 @@ function AdminShellInner() {
             N
           </div>
           <Typography.Title level={4} style={{ margin: 0 }}>
-            NEXUSLINK 管理後台
+            傭易做 管理後台
           </Typography.Title>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>

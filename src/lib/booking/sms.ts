@@ -30,7 +30,7 @@ export async function sendVerificationCodeSms(to: string, code: string): Promise
   const body = new URLSearchParams({
     To: to,
     From: cfg.from,
-    Body: `【${brand.name}】你的驗證碼是 ${code}，10 分鐘內有效。請勿轉發他人。`,
+    Body: `【${brand.nameCn}】你的驗證碼是 ${code}，10 分鐘內有效。請勿轉發他人。`,
   });
 
   try {

@@ -3,14 +3,14 @@
 import { Compass, Target, Rocket, ShieldCheck, HeartHandshake } from "lucide-react";
 import SectionHeader from "@/components/brand/SectionHeader";
 import Reveal from "@/components/brand/Reveal";
-import { brand } from "@/lib/brand";
+import { brandName } from "@/lib/brand";
 import { useLanguage } from "@/lib/i18n";
 
 const VALUE_ICONS = [Rocket, ShieldCheck, HeartHandshake] as const;
 
 /** 關於我們：品牌口號 + 願景 / 使命 / 核心價值（簡約版） */
 export default function AboutSection() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
 
   return (
     <section id="about" className="bg-[#f8f9fc] px-6 py-20 sm:px-10 sm:py-28">
@@ -18,7 +18,7 @@ export default function AboutSection() {
         <SectionHeader
           eyebrow={t.about.eyebrow}
           title={t.about.title}
-          subtitle={t.about.subtitle(brand.nameFull)}
+          subtitle={t.about.subtitle(brandName(locale))}
         />
 
         <div className="grid gap-5 sm:grid-cols-2">

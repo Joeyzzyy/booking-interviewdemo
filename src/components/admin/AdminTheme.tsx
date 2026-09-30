@@ -4,7 +4,7 @@ import { App, ConfigProvider, theme } from "antd";
 import zhHK from "antd/locale/zh_HK";
 
 /**
- * 管理後台 antd 主題：NEXUSLINK 品牌靛藍系（#35a07a 主色）。
+ * 管理後台 antd 主題：傭易做品牌靛藍系（#35a07a 主色）。
  * antd App 組件提供 message / modal 上下文（所有提示與彈窗走這套，不用瀏覽器原生）。
  */
 export default function AdminTheme({ children }: { children: React.ReactNode }) {

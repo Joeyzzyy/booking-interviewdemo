@@ -13,7 +13,7 @@ function getResend(): Resend | null {
   return new Resend(key);
 }
 
-const FROM = process.env.EMAIL_FROM || `${brand.nameFull} <onboarding@resend.dev>`;
+const FROM = process.env.EMAIL_FROM || `${brand.nameCn} <onboarding@resend.dev>`;
 
 const STATUS_TEXT: Record<Booking["status"], string> = {
   pending: "待確認",
@@ -43,7 +43,7 @@ function detailRows(booking: Booking): string {
 function wrapHtml(title: string, body: string): string {
   return `<!doctype html><html><body style="font-family:'Helvetica Neue',Helvetica,Arial,'PingFang HK',sans-serif;background:#f6f7fc;padding:24px">
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e3e7f1">
-    <div style="background:linear-gradient(120deg,#4cb896,#2a9470);padding:16px 24px;font-weight:700;color:#fff;letter-spacing:0.04em">${brand.name} — 服務預約通知</div>
+    <div style="background:linear-gradient(120deg,#4cb896,#2a9470);padding:16px 24px;font-weight:700;color:#fff;letter-spacing:0.04em">${brand.nameCn} — 服務預約通知</div>
     <div style="padding:24px">
       <h2 style="margin:0 0 16px;color:#161b2e">${title}</h2>
       ${body}

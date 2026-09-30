@@ -9,6 +9,7 @@ import Logo from "./Logo";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { openLogin } from "@/components/auth/login-events";
 import { Button, Modal } from "@/components/ui";
+import { brandName } from "@/lib/brand";
 import { useLanguage } from "@/lib/i18n";
 
 /** 導航項（href 固定，標籤隨語言切換） */
@@ -21,7 +22,7 @@ const NAV_HREFS = [
 
 /** 站點頂部導航（簡約版）：固定白色細邊；登入後顯示郵箱，點擊展開下拉菜單（賬號中心 / 登出） */
 export default function SiteHeader() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [account, setAccount] = useState<string | null>(null);
@@ -103,8 +104,8 @@ export default function SiteHeader() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-[#e6e9f2] bg-white/95 backdrop-blur-sm">
       <div className="mx-auto flex h-[64px] max-w-[1200px] items-center justify-between px-4 sm:px-8">
-        <Link href="/" aria-label="NEXUSLINK 首頁" className="shrink-0">
-          <Logo size={34} wordmarkSize={17} />
+        <Link href="/" aria-label="傭易做 首頁" className="shrink-0">
+          <Logo size={34} wordmarkSize={17} name={brandName(locale)} />
         </Link>
 
         {/* 桌面導航（僅首頁顯示，登入與否都展示） */}

@@ -1,4 +1,4 @@
-/** NEXUSLINK 公共 UI 組件統一出口 */
+/** 傭易做 公共 UI 組件統一出口 */
 export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from "./button";
 export {
   Input,

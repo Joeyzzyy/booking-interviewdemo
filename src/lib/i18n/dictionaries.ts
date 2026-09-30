@@ -28,7 +28,7 @@ const yue = {
     language: "語言",
   },
   hero: {
-    badge: "NEXUSLINK SERVICES LIMITED",
+    badge: "傭易做",
     title1: "前線交給你，",
     title2: "後勤交給我。",
     subtitle: "全方位支援僱傭中心，助您業務輕鬆起航——網上提交預約，專人確認跟進，訂單狀態全程透明。",
@@ -189,7 +189,7 @@ const cmn: Messages = {
     language: "语言",
   },
   hero: {
-    badge: "NEXUSLINK SERVICES LIMITED",
+    badge: "傭易做",
     title1: "前线交给你，",
     title2: "后勤交给我。",
     subtitle: "全方位支援雇佣中心，助您业务轻松起航——网上提交预约，专人确认跟进，订单状态全程透明。",

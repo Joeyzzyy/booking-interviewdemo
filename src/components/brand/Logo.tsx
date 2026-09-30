@@ -1,7 +1,7 @@
 import { brand } from "@/lib/brand";
 
 /**
- * NEXUSLINK logo：圓角方形綠色漸變底 + 白色「雙環相扣」圖形。
+ * 傭易做 logo：圓角方形綠色漸變底 + 白色「雙環相扣」圖形。
  * 僅顯示品牌名（無 slogan）。
  */
 export default function Logo({
@@ -10,6 +10,8 @@ export default function Logo({
   wordmarkSize = 20,
   wordmarkClass = "text-[#161b2e]",
   light = false,
+  /** 文字商標：默認 NEXUSLINK；中文界面傳「傭易做」 */
+  name = brand.name,
 }: {
   size?: number;
   withWordmark?: boolean;
@@ -17,6 +19,7 @@ export default function Logo({
   wordmarkClass?: string;
   /** 深底上使用（wordmark 轉白） */
   light?: boolean;
+  name?: string;
 }) {
   return (
     <span className="inline-flex items-center gap-2.5">
@@ -25,7 +28,7 @@ export default function Logo({
         height={size}
         viewBox="0 0 96 96"
         role="img"
-        aria-label={brand.name}
+        aria-label={name}
         className="shrink-0 drop-shadow-[0_4px_10px_rgba(53,160,122,0.28)]"
       >
         <defs>
@@ -53,7 +56,7 @@ export default function Logo({
           className={`font-extrabold ${light ? "text-white" : wordmarkClass}`}
           style={{ fontSize: wordmarkSize, letterSpacing: "0.02em" }}
         >
-          {brand.name}
+          {name}
         </span>
       )}
     </span>

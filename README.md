@@ -1,4 +1,4 @@
-# NEXUSLINK SERVICES LIMITED — 服務預約 + AI 視頻面試平台
+# 傭易做 — 服務預約 + AI 視頻面試平台
 
 品牌概念：**Link・連結**（靛藍 `#4f46e5` → 青 `#06b6d4` 漸變，雙環相扣 logo）。
 

@@ -155,7 +155,7 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
   zh: {
     loading: "加载中…",
     reload: "重新加载",
-    footer: "本页面由 NEXUSLINK 提供技术支持",
+    footer: "本页面由傭易做提供技术支持",
     title: "视频面试",
     hello: "{name}，你好",
     welcome: "欢迎参加本次视频面试，请先阅读以下事项再开始。",
