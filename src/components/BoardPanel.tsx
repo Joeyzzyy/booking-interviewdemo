@@ -25,6 +25,7 @@ export default function BoardPanel() {
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [composerOpen, setComposerOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -61,6 +62,7 @@ export default function BoardPanel() {
       }
       setTitle("");
       setContent("");
+      setComposerOpen(false); // 發佈後收起，直接睇帖子
       await load();
     } catch {
       setError("網絡錯誤，請稍後再試");
@@ -83,17 +85,27 @@ export default function BoardPanel() {
 
   return (
     <div>
-      {/* 發帖區 */}
-      <form
-        onSubmit={(e) => void submit(e)}
-        className="rounded-3xl border border-[#35a07a]/25 bg-gradient-to-b from-[#e9f5f0]/70 to-white p-5 sm:p-6"
-      >
-        <h2 className="flex items-center gap-2 text-[16px] font-extrabold text-[#161b2e]">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-white">
-            <MessageSquareText size={14} aria-hidden="true" />
-          </span>
-          分享資訊
-        </h2>
+      {/* 發帖區（默認摺起，點擊展開先寫） */}
+      {composerOpen ? (
+        <form
+          onSubmit={(e) => void submit(e)}
+          className="rounded-3xl border border-[#35a07a]/25 bg-gradient-to-b from-[#e9f5f0]/70 to-white p-5 sm:p-6"
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-[16px] font-extrabold text-[#161b2e]">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-white">
+                <MessageSquareText size={14} aria-hidden="true" />
+              </span>
+              分享資訊
+            </h2>
+            <button
+              type="button"
+              onClick={() => setComposerOpen(false)}
+              className="cursor-pointer text-[12.5px] font-semibold text-[#8b95ad] transition-colors hover:text-[#161b2e]"
+            >
+              收起
+            </button>
+          </div>
         <div className="mt-4 flex flex-col gap-3">
           <Input
             value={title}
@@ -117,6 +129,20 @@ export default function BoardPanel() {
           </div>
         </div>
       </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setComposerOpen(true)}
+          className="flex w-full cursor-pointer items-center gap-3 rounded-3xl border border-dashed border-[#35a07a]/40 bg-gradient-to-b from-[#e9f5f0]/50 to-white px-5 py-4 text-left transition-all hover:border-[#35a07a]/70 hover:shadow-[0_8px_24px_rgba(42,148,112,0.12)]"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-white shadow-[0_4px_12px_rgba(53,160,122,0.35)]">
+            <MessageSquareText size={16} aria-hidden="true" />
+          </span>
+          <span className="text-[13.5px] font-semibold text-[#8b95ad]">
+            有資訊想分享？點擊呢度發帖…
+          </span>
+        </button>
+      )}
 
       {/* 帖子列表 */}
       <div className="mt-7 flex flex-col gap-3">
