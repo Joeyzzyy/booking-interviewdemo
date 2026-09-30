@@ -113,7 +113,7 @@ export default function AdminProfiles() {
       ),
     },
     {
-      title: "身份證",
+      title: "名片",
       width: 100,
       render: (_, p) =>
         p.id_card_url ? (
@@ -220,7 +220,7 @@ export default function AdminProfiles() {
           rows={3}
           value={rejectReason}
           onChange={(e) => setRejectReason(e.target.value)}
-          placeholder="例如：身份證照片模糊，請重新上傳清晰照片"
+          placeholder="例如：名片照片模糊，請重新上傳清晰照片"
         />
       </Modal>
     </>

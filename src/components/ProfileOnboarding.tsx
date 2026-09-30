@@ -6,7 +6,7 @@ import { Button, Field, Input } from "@/components/ui";
 import { useLanguage } from "@/lib/i18n";
 
 /**
- * 註冊資料補全：申請人姓名 / 公司名稱 / 勞工處登記編號 / 身份證照片。
+ * 註冊資料補全：申請人姓名 / 公司名稱 / 勞工處登記編號 / 公司名片照片。
  * 登入後未補全時擋在功能頁之前，提交成功後調 onDone() 重新載入。
  */
 export default function ProfileOnboarding({

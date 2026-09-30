@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/admin/profiles?status=pending|approved|rejected|all
- * 已提交註冊資料的用戶列表（審核區）。身份證附 1 小時 signed URL。
+ * 已提交註冊資料的用戶列表（審核區）。名片附 1 小時 signed URL。
  */
 export async function GET(request: Request) {
   if (!isAdminRequest(request)) return adminUnauthorized();
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   }
   const profiles = data || [];
 
-  // 身份證批量生成 signed URL（1 小時有效）
+  // 名片批量生成 signed URL（1 小時有效）
   const paths = profiles.map((p) => p.id_card_path).filter(Boolean) as string[];
   const urlMap = new Map<string, string>();
   if (paths.length > 0) {

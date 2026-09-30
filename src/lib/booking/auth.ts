@@ -34,7 +34,7 @@ export interface Customer {
 const CUSTOMER_FIELDS =
   "id, email, phone, created_at, applicant_name, company_name, labour_reg_no, id_card_path, profile_status, profile_reject_reason, profile_submitted_at";
 
-/** 註冊資料是否已提交（申請人 / 公司 / 勞工處編號 / 身份證） */
+/** 註冊資料是否已提交（申請人 / 公司 / 勞工處編號 / 公司名片） */
 export function isProfileComplete(c: Customer): boolean {
   return Boolean(c.applicant_name && c.company_name && c.labour_reg_no && c.id_card_path);
 }

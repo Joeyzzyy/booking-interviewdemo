@@ -47,22 +47,22 @@ export async function POST(request: Request) {
 
   const idCard = form.get("idCard");
   if (!(idCard instanceof File) || idCard.size === 0) {
-    return Response.json({ error: "請上傳身份證照片" }, { status: 400 });
+    return Response.json({ error: "請上傳公司名片照片" }, { status: 400 });
   }
   if (!ACCEPT.includes(idCard.type)) {
-    return Response.json({ error: "身份證格式不支持（僅限 JPG/PNG/PDF）" }, { status: 400 });
+    return Response.json({ error: "名片格式不支持（僅限 JPG/PNG/PDF）" }, { status: 400 });
   }
   if (idCard.size > 4 * 1024 * 1024) {
-    return Response.json({ error: "身份證檔案超過 4MB 上限，請壓縮後再上傳" }, { status: 400 });
+    return Response.json({ error: "名片檔案超過 4MB 上限，請壓縮後再上傳" }, { status: 400 });
   }
 
-  // 上傳身份證到私有桶
+  // 上傳名片到私有桶
   const path = `id-cards/${customer.id}/${Date.now()}-${sanitizeFilename(idCard.name)}`;
   const { error: upErr } = await supabase.storage
     .from(STORAGE_BUCKET)
     .upload(path, Buffer.from(await idCard.arrayBuffer()), { contentType: idCard.type });
   if (upErr) {
-    console.error("[complete-profile] 身份證上傳失敗:", upErr);
+    console.error("[complete-profile] 名片上傳失敗:", upErr);
     return Response.json({ error: "上傳失敗，請稍後再試" }, { status: 500 });
   }
 
