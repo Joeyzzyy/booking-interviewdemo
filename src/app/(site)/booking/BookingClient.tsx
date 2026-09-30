@@ -76,14 +76,27 @@ export default function BookingClient() {
   const [copied, setCopied] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState("");
+  const [workerName, setWorkerName] = useState("");
+  const [passport, setPassport] = useState("");
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrMsg, setOcrMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [ticket, setTicket] = useState<File | null>(null);
   const [state, setState] = useState<SubmitState>({ phase: "idle" });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const passportInputRef = useRef<HTMLInputElement>(null);
+  const ticketInputRef = useRef<HTMLInputElement>(null);
 
-  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+  const totalSize = files.reduce((sum, f) => sum + f.size, 0) + (ticket?.size || 0);
 
   const service: ServiceItem | undefined = useMemo(
     () => SERVICES.find((s) => s.key === serviceKey),
     [serviceKey]
+  );
+
+  /** 接機類服務（有航班編號欄位）必須上傳機票 */
+  const needsTicket = useMemo(
+    () => Boolean(service?.fields.some((f) => f.key === "flightNo")),
+    [service]
   );
 
   const loadMyBookings = useCallback(async () => {
@@ -224,31 +237,79 @@ export default function BookingClient() {
     }
   };
 
-  const onPickFiles = (list: FileList | null) => {
-    if (!list) return;
-    const next = [...files, ...Array.from(list)].slice(0, UPLOAD_LIMITS.maxFiles);
+  /** 共用校驗後追加檔案（工人資料 / 護照 OCR 檔案都走呢度） */
+  const addFiles = useCallback((incoming: File[]) => {
+    const next = [...files, ...incoming].slice(0, UPLOAD_LIMITS.maxFiles);
     const oversized = next.find((f) => f.size > UPLOAD_LIMITS.maxFileSize);
     if (oversized) {
       setUploadError(`「${oversized.name}」超過 4MB，請壓縮或截圖後再上傳`);
-      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
     const total = next.reduce((sum, f) => sum + f.size, 0);
     if (total > UPLOAD_LIMITS.maxTotalSize) {
       setUploadError("所有檔案合計不能超過 4MB，請減少或壓縮檔案");
-      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
     setUploadError("");
     setFiles(next);
+  }, [files]);
+
+  const onPickFiles = (list: FileList | null) => {
+    if (!list) return;
+    addFiles(Array.from(list));
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  /** 護照 OCR：上傳 → /api/bookings/parse-passport → 回填姓名 + 護照號；檔案一併加入上傳清單 */
+  const onPickPassport = async (f: File | null) => {
+    if (passportInputRef.current) passportInputRef.current.value = "";
+    if (!f) return;
+    setOcrLoading(true);
+    setOcrMsg(null);
+    try {
+      const form = new FormData();
+      form.append("file", f);
+      const res = await fetch("/api/bookings/parse-passport", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) {
+        setOcrMsg({ ok: false, text: data.error || "識別失敗，請手動輸入" });
+        return;
+      }
+      if (data.workerName) setWorkerName(data.workerName);
+      if (data.passportNo) setPassport(data.passportNo);
+      addFiles([f]);
+      setOcrMsg({ ok: true, text: "已識別護照資料並加入上傳清單，請核對無誤後提交" });
+    } catch {
+      setOcrMsg({ ok: false, text: "網絡錯誤，請手動輸入" });
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
+  const onPickTicket = (f: File | null) => {
+    if (ticketInputRef.current) ticketInputRef.current.value = "";
+    if (!f) return;
+    if (f.size > UPLOAD_LIMITS.maxFileSize) {
+      setUploadError(`機票「${f.name}」超過 4MB，請壓縮或截圖後再上傳`);
+      return;
+    }
+    if (f.size + files.reduce((sum, x) => sum + x.size, 0) > UPLOAD_LIMITS.maxTotalSize) {
+      setUploadError("所有檔案合計不能超過 4MB，請減少或壓縮檔案");
+      return;
+    }
+    setUploadError("");
+    setTicket(f);
   };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!service) return;
     if (files.length === 0) {
-      setState({ phase: "error", message: "請上傳工人資料（簽證、護照或機票行程單）" });
+      setState({ phase: "error", message: "請上傳工人資料（簽證、護照等）" });
+      return;
+    }
+    if (needsTicket && !ticket) {
+      setState({ phase: "error", message: "請上傳機票或行程單" });
       return;
     }
     setState({ phase: "submitting" });
@@ -257,6 +318,7 @@ export default function BookingClient() {
     form.set("serviceKey", service.key);
     if (waSame) form.set("whatsapp", (form.get("phone") as string) || "");
     for (const f of files) form.append("files", f);
+    if (ticket) form.set("flightTicket", ticket);
 
     try {
       const res = await fetch("/api/bookings", { method: "POST", body: form });
@@ -323,6 +385,10 @@ export default function BookingClient() {
                 setState({ phase: "idle" });
                 setServiceKey("");
                 setFiles([]);
+                setTicket(null);
+                setWorkerName("");
+                setPassport("");
+                setOcrMsg(null);
                 switchTab("book");
               }}
             >
@@ -335,6 +401,10 @@ export default function BookingClient() {
                 setState({ phase: "idle" });
                 setServiceKey("");
                 setFiles([]);
+                setTicket(null);
+                setWorkerName("");
+                setPassport("");
+                setOcrMsg(null);
                 switchTab("orders");
               }}
             >
@@ -609,9 +679,46 @@ export default function BookingClient() {
                   ) : (
                     <>
                       <h2 className="mt-8 mb-4 text-[16px] font-bold text-[#161b2e]">2. 填寫資料</h2>
+
+                      {/* 護照自動識別 */}
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-[#35a07a]/35 bg-[#e9f5f0]/40 px-5 py-4">
+                        <div>
+                          <p className="text-[13.5px] font-semibold text-[#161b2e]">
+                            上傳工人護照，自動填寫姓名及護照號碼
+                          </p>
+                          <p className="mt-0.5 text-[12px] text-[#8b95ad]">
+                            JPG / PNG / PDF ≤ 4MB，識別後仍可手動修改，檔案會一併提交
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          loading={ocrLoading}
+                          onClick={() => passportInputRef.current?.click()}
+                        >
+                          {ocrLoading ? "識別中…" : "選擇護照檔案"}
+                        </Button>
+                        <input
+                          ref={passportInputRef}
+                          type="file"
+                          accept={UPLOAD_LIMITS.accept}
+                          className="hidden"
+                          onChange={(e) => void onPickPassport(e.target.files?.[0] || null)}
+                        />
+                      </div>
+                      {ocrMsg && (
+                        <p
+                          className={`mb-4 rounded-xl px-4 py-3 text-[13px] font-medium ${
+                            ocrMsg.ok ? "bg-[#e9f5f0] text-[#2a8163]" : "bg-red-50 text-red-600"
+                          }`}
+                        >
+                          {ocrMsg.text}
+                        </p>
+                      )}
+
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="僱主姓名" required>
-                          <Input name="employerName" required />
+                        <Field label="僱主姓名">
+                          <Input name="employerName" placeholder="選填" />
                         </Field>
                         <Field label="聯絡電話" required>
                           <Input name="phone" type="tel" required placeholder="例如：9123 4567" />
@@ -629,10 +736,21 @@ export default function BookingClient() {
                           {!waSame && <Input name="whatsapp" type="tel" required placeholder="WhatsApp 號碼" />}
                         </Field>
                         <Field label="工人姓名" required>
-                          <Input name="workerName" required />
+                          <Input
+                            name="workerName"
+                            required
+                            value={workerName}
+                            onChange={(e) => setWorkerName(e.target.value)}
+                          />
                         </Field>
                         <Field label="工人護照號碼" required>
-                          <Input name="passport" required placeholder="Passport No." />
+                          <Input
+                            name="passport"
+                            required
+                            placeholder="Passport No."
+                            value={passport}
+                            onChange={(e) => setPassport(e.target.value)}
+                          />
                         </Field>
                         {!account.email && (
                           <Field
@@ -664,7 +782,7 @@ export default function BookingClient() {
 
                       <h2 className="mt-8 mb-2 text-[16px] font-bold text-[#161b2e]">3. 上傳工人資料 *</h2>
                       <p className="mb-4 text-[12.5px] leading-[1.8] text-[#8b95ad]">
-                        請上傳工人簽證、護照、機票行程單等資料（JPG / PNG / PDF，最多 {UPLOAD_LIMITS.maxFiles} 個，
+                        請上傳工人簽證、護照等資料（JPG / PNG / PDF，最多 {UPLOAD_LIMITS.maxFiles} 個，
                         單個及合計均不能超過 4MB，至少 1 個；手機相片太大可截圖後再上傳）
                       </p>
                       <label className="flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-dashed border-[#35a07a]/35 bg-[#e9f5f0]/40 px-5 py-8 text-center transition-colors hover:border-[#35a07a]/60">
@@ -706,6 +824,40 @@ export default function BookingClient() {
                             合計 {(totalSize / 1024 / 1024).toFixed(1)}MB / 4MB
                           </li>
                         </ul>
+                      )}
+
+                      {/* 機票 / 行程單（接機類服務必傳） */}
+                      {needsTicket && (
+                        <div className="mt-5">
+                          <h3 className="mb-2 text-[14px] font-bold text-[#161b2e]">機票 / 行程單 *</h3>
+                          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-dashed border-[#35a07a]/35 bg-[#e9f5f0]/40 px-5 py-4 transition-colors hover:border-[#35a07a]/60">
+                            <span className="min-w-0 truncate text-[13px] text-[#3d4763]">
+                              {ticket ? ticket.name : "點擊上傳機票或行程單（JPG / PNG / PDF ≤ 4MB）"}
+                            </span>
+                            {ticket ? (
+                              <button
+                                type="button"
+                                aria-label="移除機票"
+                                className="shrink-0 cursor-pointer text-[#8b95ad] transition-colors hover:text-red-600"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setTicket(null);
+                                }}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            ) : (
+                              <UploadCloud size={20} className="shrink-0 text-[#35a07a]" aria-hidden="true" />
+                            )}
+                            <input
+                              ref={ticketInputRef}
+                              type="file"
+                              accept={UPLOAD_LIMITS.accept}
+                              className="hidden"
+                              onChange={(e) => onPickTicket(e.target.files?.[0] || null)}
+                            />
+                          </label>
+                        </div>
                       )}
 
                       {state.phase === "error" && (

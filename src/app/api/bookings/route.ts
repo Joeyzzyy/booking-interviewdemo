@@ -56,9 +56,9 @@ export async function POST(request: Request) {
   const workerName = get("workerName");
   const passport = get("passport");
   const email = customer.email || get("contactEmail");
-  if (!employerName || !phone || !whatsapp || !workerName || !passport) {
+  if (!phone || !whatsapp || !workerName || !passport) {
     return Response.json(
-      { error: "請填寫僱主姓名、聯絡電話、WhatsApp、工人姓名及護照號碼" },
+      { error: "請填寫聯絡電話、WhatsApp、工人姓名及護照號碼" },
       { status: 400 }
     );
   }
@@ -82,16 +82,26 @@ export async function POST(request: Request) {
   // 文件校驗（工人資料必傳）
   const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
   if (files.length === 0) {
-    return Response.json({ error: "請上傳工人資料（簽證、護照或機票行程單）" }, { status: 400 });
+    return Response.json({ error: "請上傳工人資料（簽證、護照等）" }, { status: 400 });
   }
   if (files.length > UPLOAD_LIMITS.maxFiles) {
     return Response.json({ error: `最多上傳 ${UPLOAD_LIMITS.maxFiles} 個文件` }, { status: 400 });
   }
-  const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+
+  // 機票 / 行程單：接機類服務（有航班編號欄位）必傳，獨立欄位上傳
+  const needsTicket = service.fields.some((f) => f.key === "flightNo");
+  const ticketRaw = form.get("flightTicket");
+  const ticket = ticketRaw instanceof File && ticketRaw.size > 0 ? ticketRaw : null;
+  if (needsTicket && !ticket) {
+    return Response.json({ error: "請上傳機票或行程單" }, { status: 400 });
+  }
+  const allFiles = ticket ? [ticket, ...files] : files;
+
+  const totalSize = allFiles.reduce((sum, f) => sum + f.size, 0);
   if (totalSize > UPLOAD_LIMITS.maxTotalSize) {
     return Response.json({ error: "檔案合計不能超過 4MB" }, { status: 400 });
   }
-  for (const f of files) {
+  for (const f of allFiles) {
     if (f.size > UPLOAD_LIMITS.maxFileSize) {
       return Response.json({ error: `文件「${f.name}」超過 4MB 上限` }, { status: 400 });
     }
@@ -140,7 +150,7 @@ export async function POST(request: Request) {
 
   // 3) 上傳文件到 Storage（失敗不阻塞訂單，記錄即可）
   const uploaded: Booking["files"] = [];
-  for (const f of files) {
+  for (const f of allFiles) {
     const path = `${booking.id}/${Date.now()}-${sanitizeFilename(f.name)}`;
     const { error: upErr } = await supabase.storage
       .from(STORAGE_BUCKET)
