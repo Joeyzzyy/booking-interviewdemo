@@ -552,28 +552,28 @@ export default function BookingClient() {
             </div>
           )}
 
-          {/* 子分欄 */}
-          <Tabs
-            variant="underline"
-            className="mb-8 flex-wrap"
-            active={tab}
-            onChange={(k) => switchTab(k as BookingTab)}
-            items={
-              GROUP_OF[tab] === "booking"
-                ? [
-                    { key: "book", label: "發起預約" },
-                    { key: "passes", label: "我的套票" },
-                    { key: "orders", label: "我的預約" },
-                  ]
-                : GROUP_OF[tab] === "interview"
+          {/* 子分欄（資訊交流區只有一頁，唔需要子分欄） */}
+          {GROUP_OF[tab] !== "board" && (
+            <Tabs
+              variant="underline"
+              className="mb-8 flex-wrap"
+              active={tab}
+              onChange={(k) => switchTab(k as BookingTab)}
+              items={
+                GROUP_OF[tab] === "booking"
                   ? [
+                      { key: "book", label: "發起預約" },
+                      { key: "passes", label: "我的套票" },
+                      { key: "orders", label: "我的預約" },
+                    ]
+                  : [
                       { key: "questions", label: "題庫管理" },
                       { key: "create", label: "發起面試" },
                       { key: "records", label: "面試記錄" },
                     ]
-                  : [{ key: "board", label: "資訊交流區" }]
-            }
-          />
+              }
+            />
+          )}
 
           {/* ============ 我的套票（餘額 + 購買） ============ */}
           {tab === "passes" && (
@@ -709,8 +709,12 @@ export default function BookingClient() {
             </div>
           )}
 
-          {/* ============ 資訊交流區 ============ */}
-          {tab === "board" && <BoardPanel />}
+          {/* ============ 資訊交流區（無子分欄，加返間距） ============ */}
+          {tab === "board" && (
+            <div className="mt-6">
+              <BoardPanel />
+            </div>
+          )}
 
           {/* ============ AI 面試 · 題庫管理（按用戶隔離） ============ */}
           {tab === "questions" && (
