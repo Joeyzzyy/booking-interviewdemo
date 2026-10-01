@@ -14,7 +14,7 @@ const yue = {
       about: "關於我們",
     },
     login: "登入 / 註冊",
-    bookNow: "立即預約",
+    bookNow: "進入工作台",
     account: "賬號中心",
     logout: "登出",
     logoutTitle: "登出？",
@@ -32,7 +32,7 @@ const yue = {
     title1: "前線交給你，",
     title2: "後勤交給我。",
     subtitle: "全方位支援僱傭中心，助您業務輕鬆起航——網上提交預約，專人確認跟進，訂單狀態全程透明。",
-    ctaBook: "立即預約服務",
+    ctaBook: "進入工作台",
     ctaServices: "了解服務項目",
     trust: ["套票制透明收費", "訂單全程可跟進", "電郵 + 短訊雙通道登入", "專人確認安排"],
     imgAlt: "兩個人透過流線與節點彼此連結的品牌插畫",
@@ -43,7 +43,7 @@ const yue = {
     subtitle: "由工人抵埗第一刻開始，接機、驗身、入屋跟進，每項服務都有專人對接，僱主全程掌握進度。",
     perTime: "/ 次",
     pack: (price: number) => `10 次套票 HK$${price}`,
-    bookNow: "立即預約",
+    bookNow: "進入工作台",
     items: {
       medical: {
         label: "陪同驗身",
@@ -389,7 +389,7 @@ const cmn: Messages = {
       about: "关于我们",
     },
     login: "登录 / 注册",
-    bookNow: "立即预约",
+    bookNow: "进入工作台",
     account: "账号中心",
     logout: "退出登录",
     logoutTitle: "退出登录？",
@@ -407,7 +407,7 @@ const cmn: Messages = {
     title1: "前线交给你，",
     title2: "后勤交给我。",
     subtitle: "全方位支援雇佣中心，助您业务轻松起航——网上提交预约，专人确认跟进，订单状态全程透明。",
-    ctaBook: "立即预约服务",
+    ctaBook: "进入工作台",
     ctaServices: "了解服务项目",
     trust: ["套票制透明收费", "订单全程可跟进", "邮箱 + 短信双通道登录", "专人确认安排"],
     imgAlt: "两个人通过流线与节点彼此连结的品牌插画",
@@ -418,7 +418,7 @@ const cmn: Messages = {
     subtitle: "从工人抵达第一刻开始，接机、验身、入户跟进，每项服务都有专人对接，雇主全程掌握进度。",
     perTime: "/ 次",
     pack: (price: number) => `10 次套票 HK$${price}`,
-    bookNow: "立即预约",
+    bookNow: "进入工作台",
     items: {
       medical: {
         label: "陪同验身",
@@ -763,7 +763,7 @@ const en: Messages = {
       about: "About us",
     },
     login: "Log in / Sign up",
-    bookNow: "Book now",
+    bookNow: "Go to Workspace",
     account: "Account",
     logout: "Log out",
     logoutTitle: "Log out?",
@@ -782,7 +782,7 @@ const en: Messages = {
     title2: "We handle the back office.",
     subtitle:
       "End-to-end support for employment agencies—book online, get personal confirmation and follow-up, and track every order with full transparency.",
-    ctaBook: "Book a service now",
+    ctaBook: "Go to Workspace",
     ctaServices: "Explore services",
     trust: [
       "Transparent pass-pack pricing",
@@ -799,7 +799,7 @@ const en: Messages = {
       "From the moment your helper arrives—airport pickup, medical check-ups and home settling-in—every service comes with a dedicated coordinator, and employers stay informed throughout.",
     perTime: "/ session",
     pack: (price: number) => `10-session pack HK$${price}`,
-    bookNow: "Book now",
+    bookNow: "Go to Workspace",
     items: {
       medical: {
         label: "Accompanied medical exam",
@@ -925,7 +925,7 @@ const en: Messages = {
     title: "Back office ready. Ready to set sail.",
     subtitle:
       "Opening an account takes just one verification code. Once logged in, you can buy pass packs and submit bookings—let us handle all the back-office arrangements for your employment agency.",
-    bookNow: "Book a service now",
+    bookNow: "Go to Workspace",
     login: "Log in / Sign up",
     imgAlt: "Brand illustration of interlocking rings",
   },
