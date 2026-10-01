@@ -17,6 +17,7 @@ export async function GET(request: Request) {
           profileComplete: isProfileComplete(customer),
           profileStatus: customer.profile_status || "pending",
           profileRejectReason: customer.profile_reject_reason || null,
+          isAdmin: Boolean(customer.is_admin),
         }
       : null,
   });

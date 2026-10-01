@@ -28,11 +28,13 @@ export interface Customer {
   profile_status?: "pending" | "approved" | "rejected";
   profile_reject_reason?: string | null;
   profile_submitted_at?: string | null;
+  /** 管理員標記（見 supabase/forum-admin.sql）：可置頂/刪除任何帖子 */
+  is_admin?: boolean;
 }
 
 /** 常用查詢欄位（含資料補全欄位，見 supabase/customer-profile.sql） */
 const CUSTOMER_FIELDS =
-  "id, email, phone, created_at, applicant_name, company_name, labour_reg_no, id_card_path, profile_status, profile_reject_reason, profile_submitted_at";
+  "id, email, phone, created_at, applicant_name, company_name, labour_reg_no, id_card_path, profile_status, profile_reject_reason, profile_submitted_at, is_admin";
 
 /** 註冊資料是否已提交（申請人 / 公司 / 勞工處編號 / 公司名片） */
 export function isProfileComplete(c: Customer): boolean {

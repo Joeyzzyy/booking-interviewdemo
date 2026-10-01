@@ -13,13 +13,15 @@ export interface ModalProps {
   footer?: ReactNode;
   /** 面板最大寬度類名 */
   widthClassName?: string;
+  /** 右上角關閉按鈕 aria-label（默認「關閉」） */
+  closeLabel?: string;
   onClose: () => void;
   className?: string;
   children?: ReactNode;
 }
 
 /** 居中彈窗：AnimatePresence 淡入縮放，支持 ESC / 點擊遮罩關閉 */
-export function Modal({ open, title, footer, widthClassName = "max-w-[420px]", onClose, className, children }: ModalProps) {
+export function Modal({ open, title, footer, widthClassName = "max-w-[420px]", closeLabel = "關閉", onClose, className, children }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -59,7 +61,7 @@ export function Modal({ open, title, footer, widthClassName = "max-w-[420px]", o
                 <button
                   type="button"
                   onClick={onClose}
-                  aria-label="關閉"
+                  aria-label={closeLabel}
                   className="cursor-pointer rounded-full border border-black/[0.08] p-1.5 text-[#8b95ad] transition-colors hover:text-[#161b2e]"
                 >
                   <X size={15} aria-hidden="true" />

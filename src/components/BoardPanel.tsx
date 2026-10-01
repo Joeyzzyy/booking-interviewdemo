@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { MessageSquareText, Send, Trash2 } from "lucide-react";
-import { Button, Input } from "@/components/ui";
+import { MessageSquareText, Pin, PinOff, Send, SquarePen, Trash2 } from "lucide-react";
+import { Button, Input, Modal } from "@/components/ui";
 import RichTextEditor from "@/components/RichTextEditor";
 import { useLanguage, LOCALES } from "@/lib/i18n";
 
@@ -12,30 +12,50 @@ interface BoardPost {
   content: string;
   createdAt: string;
   own: boolean;
+  pinned: boolean;
   authorName: string;
   companyName: string;
 }
 
-/** 資訊交流區：審核通過用戶可發帖分享資訊、刪除自己的帖子 */
+/** 去 HTML 標籤取純文本（置頂卡摘要用） */
+function plainExcerpt(html: string, max = 50): string {
+  if (typeof document === "undefined") return "";
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  const text = (div.textContent || "").replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/**
+ * 資訊交流區：審核通過用戶可發帖分享資訊、刪除自己的帖子（需確認）。
+ * 管理員（canManage）可置頂 / 取消置頂及刪除任何帖子；置頂帖以卡片形式置頂展示。
+ */
 export default function BoardPanel() {
   const { t, locale } = useLanguage();
   /** 日期格式化語言標籤（zh-HK / zh-CN / en） */
   const dateLocale = LOCALES.find((l) => l.key === locale)?.htmlLang ?? "zh-HK";
   const [posts, setPosts] = useState<BoardPost[]>([]);
+  const [canManage, setCanManage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pinningId, setPinningId] = useState<string | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [viewPost, setViewPost] = useState<BoardPost | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<BoardPost | null>(null);
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/board", { cache: "no-store" });
       const data = await res.json();
-      if (res.ok) setPosts(data.posts);
+      if (res.ok) {
+        setPosts(data.posts);
+        setCanManage(Boolean(data.canManage));
+      }
     } catch {
       /* 列表失敗唔阻住發帖 */
     } finally {
@@ -75,11 +95,17 @@ export default function BoardPanel() {
     }
   };
 
-  const remove = async (id: string) => {
-    setDeletingId(id);
+  /** 確認刪除（自己嘅帖或管理員刪任何帖都行呢度） */
+  const remove = async () => {
+    if (!deleteTarget) return;
+    setDeletingId(deleteTarget.id);
     try {
-      const res = await fetch(`/api/board/${id}`, { method: "DELETE" });
-      if (res.ok) setPosts((prev) => prev.filter((p) => p.id !== id));
+      const res = await fetch(`/api/board/${deleteTarget.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setPosts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+        if (viewPost?.id === deleteTarget.id) setViewPost(null);
+        setDeleteTarget(null);
+      }
     } catch {
       /* 忽略 */
     } finally {
@@ -87,30 +113,157 @@ export default function BoardPanel() {
     }
   };
 
+  /** 置頂 / 取消置頂（僅管理員，前端冇確認直接生效） */
+  const togglePin = async (p: BoardPost) => {
+    setPinningId(p.id);
+    try {
+      const res = await fetch(`/api/board/${p.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: p.pinned ? "unpin" : "pin" }),
+      });
+      if (res.ok) await load();
+    } catch {
+      /* 忽略 */
+    } finally {
+      setPinningId(null);
+    }
+  };
+
+  /** 點擊帖子內容圖片全屏查看（列表 + 詳情彈窗共用） */
+  const onContentClick = (e: React.MouseEvent) => {
+    if (e.target instanceof HTMLImageElement) setLightboxSrc(e.target.src);
+  };
+
+  const authorLine = (p: BoardPost) => (
+    <>
+      <span className="text-[#2a8163]">{p.authorName}</span>
+      {p.companyName ? ` · ${p.companyName}` : ""}
+      {" · "}
+      {new Date(p.createdAt).toLocaleString(dateLocale)}
+    </>
+  );
+
+  /** 帖子操作按鈕（管理員：置頂 + 刪除；作者：刪除） */
+  const postActions = (p: BoardPost) => (
+    <>
+      {canManage && (
+        <button
+          type="button"
+          aria-label={p.pinned ? t.workspace.board.unpin : t.workspace.board.pin}
+          title={p.pinned ? t.workspace.board.unpin : t.workspace.board.pin}
+          disabled={pinningId === p.id}
+          onClick={(e) => {
+            e.stopPropagation();
+            void togglePin(p);
+          }}
+          className={`cursor-pointer transition-colors disabled:opacity-50 ${
+            p.pinned ? "text-[#2a8163] hover:text-[#8b95ad]" : "text-[#8b95ad] hover:text-[#2a8163]"
+          }`}
+        >
+          {p.pinned ? <PinOff size={15} /> : <Pin size={15} />}
+        </button>
+      )}
+      {(canManage || p.own) && (
+        <button
+          type="button"
+          aria-label={t.workspace.board.deletePost}
+          disabled={deletingId === p.id}
+          onClick={(e) => {
+            e.stopPropagation();
+            setDeleteTarget(p);
+          }}
+          className="cursor-pointer text-[#8b95ad] transition-colors hover:text-red-600 disabled:opacity-50"
+        >
+          <Trash2 size={15} />
+        </button>
+      )}
+    </>
+  );
+
+  const pinnedPosts = posts.filter((p) => p.pinned);
+  const regularPosts = posts.filter((p) => !p.pinned);
+
   return (
     <div>
-      {/* 發帖區（默認摺起，點擊展開先寫） */}
-      {composerOpen ? (
-        <form
-          onSubmit={(e) => void submit(e)}
-          className="rounded-3xl border border-[#35a07a]/25 bg-gradient-to-b from-[#e9f5f0]/70 to-white p-5 sm:p-6"
-        >
-          <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-[16px] font-extrabold text-[#161b2e]">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-white">
-                <MessageSquareText size={14} aria-hidden="true" />
-              </span>
-              {t.workspace.board.composerTitle}
-            </h2>
-            <button
-              type="button"
-              onClick={() => setComposerOpen(false)}
-              className="cursor-pointer text-[12.5px] font-semibold text-[#8b95ad] transition-colors hover:text-[#161b2e]"
-            >
-              {t.workspace.board.collapse}
-            </button>
+      {/* 發帖入口：按鈕 + 大彈窗 */}
+      <div className="flex justify-end">
+        <Button onClick={() => setComposerOpen(true)}>
+          <SquarePen size={14} aria-hidden="true" />
+          {t.workspace.board.publishNew}
+        </Button>
+      </div>
+
+      {/* 置頂帖子區 */}
+      {pinnedPosts.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 text-[14px] font-extrabold text-[#161b2e]">{t.workspace.board.pinnedSection}</h2>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {pinnedPosts.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setViewPost(p)}
+                className="flex cursor-pointer flex-col gap-1.5 rounded-2xl border border-[#35a07a]/25 bg-gradient-to-b from-[#e9f5f0]/70 to-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-[#35a07a]/60 hover:shadow-[0_8px_20px_rgba(42,148,112,0.14)]"
+              >
+                <span className="flex items-start gap-1.5">
+                  <Pin size={13} className="mt-0.5 shrink-0 text-[#2a8163]" aria-hidden="true" />
+                  <span className="line-clamp-2 text-[13.5px] font-bold text-[#161b2e]">{p.title}</span>
+                </span>
+                <span className="line-clamp-2 text-[12px] leading-[1.6] text-[#5d6b85]">{plainExcerpt(p.content)}</span>
+                <span className="mt-auto pt-1 text-[11px] font-semibold text-[#8b95ad]">
+                  {p.authorName} · {new Date(p.createdAt).toLocaleDateString(dateLocale)}
+                </span>
+              </button>
+            ))}
           </div>
-        <div className="mt-4 flex flex-col gap-3">
+        </div>
+      )}
+
+      {/* 帖子列表（非置頂，完整卡片） */}
+      <div className="mt-7 flex flex-col gap-3">
+        {loading ? (
+          <p className="py-10 text-center text-[13px] text-[#8b95ad]">{t.workspace.loading}</p>
+        ) : posts.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-black/[0.1] px-5 py-10 text-center text-[13px] text-[#8b95ad]">
+            {t.workspace.board.empty}
+          </p>
+        ) : (
+          regularPosts.map((p) => (
+            <article
+              key={p.id}
+              className="rounded-2xl border border-black/[0.06] border-l-4 border-l-[#35a07a] bg-white px-5 py-4 shadow-[0_2px_10px_rgba(22,27,46,0.05)]"
+            >
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h3 className="text-[15px] font-extrabold text-[#161b2e]">{p.title}</h3>
+                <span className="ml-auto flex items-center gap-2.5">{postActions(p)}</span>
+              </div>
+              <div
+                className="tiptap tiptap-view mt-1.5"
+                onClick={onContentClick}
+                dangerouslySetInnerHTML={{ __html: p.content }}
+              />
+              <p className="mt-2.5 text-[12px] font-semibold text-[#8b95ad]">{authorLine(p)}</p>
+            </article>
+          ))
+        )}
+      </div>
+
+      {/* 發帖大彈窗 */}
+      <Modal
+        open={composerOpen}
+        onClose={() => !posting && setComposerOpen(false)}
+        title={
+          <span className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-white">
+              <MessageSquareText size={14} aria-hidden="true" />
+            </span>
+            {t.workspace.board.composerTitle}
+          </span>
+        }
+        widthClassName="max-w-2xl"
+      >
+        <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -118,9 +271,7 @@ export default function BoardPanel() {
             maxLength={80}
             placeholder={t.workspace.board.titlePlaceholder}
           />
-          <p className="-mb-1 text-[12px] text-[#8b95ad]">
-            {t.workspace.board.contentHint}
-          </p>
+          <p className="-mb-1 text-[12px] text-[#8b95ad]">{t.workspace.board.contentHint}</p>
           <RichTextEditor value={content} onChange={setContent} disabled={posting} />
           {error && (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-600">{error}</p>
@@ -131,69 +282,52 @@ export default function BoardPanel() {
               {t.workspace.board.publish}
             </Button>
           </div>
-        </div>
-      </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setComposerOpen(true)}
-          className="flex w-full cursor-pointer items-center gap-3 rounded-3xl border border-dashed border-[#35a07a]/40 bg-gradient-to-b from-[#e9f5f0]/50 to-white px-5 py-4 text-left transition-all hover:border-[#35a07a]/70 hover:shadow-[0_8px_24px_rgba(42,148,112,0.12)]"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-white shadow-[0_4px_12px_rgba(53,160,122,0.35)]">
-            <MessageSquareText size={16} aria-hidden="true" />
-          </span>
-          <span className="text-[13.5px] font-semibold text-[#8b95ad]">
-            {t.workspace.board.openComposer}
-          </span>
-        </button>
-      )}
+        </form>
+      </Modal>
 
-      {/* 帖子列表 */}
-      <div className="mt-7 flex flex-col gap-3">
-        {loading ? (
-          <p className="py-10 text-center text-[13px] text-[#8b95ad]">{t.workspace.loading}</p>
-        ) : posts.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-black/[0.1] px-5 py-10 text-center text-[13px] text-[#8b95ad]">
-            {t.workspace.board.empty}
-          </p>
-        ) : (
-          posts.map((p) => (
-            <article
-              key={p.id}
-              className="rounded-2xl border border-black/[0.06] border-l-4 border-l-[#35a07a] bg-white px-5 py-4 shadow-[0_2px_10px_rgba(22,27,46,0.05)]"
-            >
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h3 className="text-[15px] font-extrabold text-[#161b2e]">{p.title}</h3>
-                {p.own && (
-                  <button
-                    type="button"
-                    aria-label={t.workspace.board.deletePost}
-                    disabled={deletingId === p.id}
-                    onClick={() => void remove(p.id)}
-                    className="ml-auto cursor-pointer text-[#8b95ad] transition-colors hover:text-red-600 disabled:opacity-50"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                )}
-              </div>
-              <div
-                className="tiptap tiptap-view mt-1.5"
-                onClick={(e) => {
-                  // 點擊圖片全屏查看
-                  if (e.target instanceof HTMLImageElement) setLightboxSrc(e.target.src);
-                }}
-                dangerouslySetInnerHTML={{ __html: p.content }}
-              />
-              <p className="mt-2.5 text-[12px] font-semibold text-[#8b95ad]">
-                <span className="text-[#2a8163]">{p.authorName}</span>
-                {p.companyName ? ` · ${p.companyName}` : ""}
-                {" · "}
-                {new Date(p.createdAt).toLocaleString(dateLocale)}
-              </p>
-            </article>
-          ))
+      {/* 置頂帖全文彈窗 */}
+      <Modal
+        open={viewPost !== null}
+        onClose={() => setViewPost(null)}
+        title={viewPost?.title}
+        widthClassName="max-w-2xl"
+        closeLabel={t.workspace.board.closePostDetail}
+      >
+        {viewPost && (
+          <>
+            <div
+              className="tiptap tiptap-view"
+              onClick={onContentClick}
+              dangerouslySetInnerHTML={{ __html: viewPost.content }}
+            />
+            <p className="mt-4 text-[12px] font-semibold text-[#8b95ad]">{authorLine(viewPost)}</p>
+          </>
         )}
-      </div>
+      </Modal>
+
+      {/* 刪除確認彈窗（自己嘅帖 / 管理員刪任何帖共用） */}
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => deletingId === null && setDeleteTarget(null)}
+        title={t.workspace.board.deleteConfirmTitle}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)} disabled={deletingId !== null}>
+              {t.workspace.board.cancel}
+            </Button>
+            <Button variant="danger" onClick={() => void remove()} loading={deletingId !== null}>
+              {t.workspace.board.confirmDelete}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[14px] leading-[1.8] text-[#5d6b85]">{t.workspace.board.deleteConfirmBody}</p>
+        {deleteTarget && (
+          <p className="mt-3 rounded-xl bg-black/[0.03] px-4 py-2.5 text-[13px] font-semibold text-[#3d4763]">
+            {deleteTarget.title}
+          </p>
+        )}
+      </Modal>
 
       {/* 圖片全屏查看 */}
       {lightboxSrc && (

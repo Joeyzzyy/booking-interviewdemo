@@ -36,7 +36,8 @@ function plainText(html: string): string {
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/board — 資訊交流區帖子列表（新到舊，最多 100 條）
+ * GET /api/board — 資訊交流區帖子列表（置頂優先，再按新到舊，最多 100 條）
+ *   響應含 canManage：當前用戶係管理員時前端顯示置頂 / 刪除任何帖子嘅操作
  * POST /api/board — 發帖 { title, content }
  * 均需登入且註冊資料審核通過。
  */
@@ -52,7 +53,8 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from("board_posts")
-    .select("id, title, content, created_at, customer_id, customers(applicant_name, company_name)")
+    .select("id, title, content, created_at, pinned, customer_id, customers(applicant_name, company_name)")
+    .order("pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(100);
   if (error) {
@@ -68,11 +70,12 @@ export async function GET(request: Request) {
       content: p.content as string,
       createdAt: p.created_at as string,
       own: p.customer_id === customer.id,
+      pinned: Boolean(p.pinned),
       authorName: author?.applicant_name || "用戶",
       companyName: author?.company_name || "",
     };
   });
-  return Response.json({ posts });
+  return Response.json({ posts, canManage: Boolean(customer.is_admin) });
 }
 
 export async function POST(request: Request) {

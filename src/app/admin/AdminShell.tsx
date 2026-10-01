@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Button, Card, Input, Layout, Spin, Tabs, Typography, App } from "antd";
+import { Button, Card, Input, Layout, Spin, Tabs, Tag, Typography, App } from "antd";
 import AdminTheme from "@/components/admin/AdminTheme";
 import AdminBookings from "@/components/AdminBookings";
 import AdminProfiles from "@/components/AdminProfiles";
+import AdminUsers from "@/components/AdminUsers";
 
 /**
  * 管理後台：僅預約訂單管理。
@@ -178,6 +179,9 @@ function AdminShellInner() {
           </Typography.Title>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <Tag color="green" style={{ marginInlineEnd: 0 }}>
+            當前賬號：管理員（密碼登入）
+          </Tag>
           <Link href="/" style={{ fontSize: 13, fontWeight: 600, color: "#35a07a" }}>
             返回網站
           </Link>
@@ -193,6 +197,7 @@ function AdminShellInner() {
           items={[
             { key: "bookings", label: "預約訂單管理", children: <AdminBookings /> },
             { key: "profiles", label: "用戶審核", children: <AdminProfiles /> },
+            { key: "users", label: "用戶管理", children: <AdminUsers /> },
           ]}
         />
       </Layout.Content>

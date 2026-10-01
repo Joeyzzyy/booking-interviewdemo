@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 
 /**
  * 管理後台密碼門禁（僅服務端）。
- * - 密碼來自環境變量 ADMIN_PASSWORD（未配置時默認 admin@2026，演示用，上線務必修改）
+ * - 密碼來自環境變量 ADMIN_PASSWORD（未配置時默認 NexusLink@2026，演示用，上線務必修改）
  * - 驗證通過後簽發 HMAC 簽名 token 存 httpOnly cookie（12 小時有效）
  * - token 簽名材料含密碼本身：改密碼後所有已簽發 token 即失效
  */
@@ -11,7 +11,7 @@ export const ADMIN_COOKIE = "nl_admin";
 const TOKEN_TTL_SECONDS = 12 * 60 * 60; // 12 小時
 
 export function adminPassword(): string {
-  return process.env.ADMIN_PASSWORD || "admin@2026";
+  return process.env.ADMIN_PASSWORD || "NexusLink@2026";
 }
 
 function signingSecret(): string {
