@@ -5,7 +5,7 @@
  * - bcp47：瀏覽器 SpeechSynthesis 降級時用
  */
 
-export type LocaleKey = "en" | "id" | "tl" | "zh";
+export type LocaleKey = "en" | "id" | "tl" | "zh" | "yue";
 
 export interface LocaleDef {
   key: LocaleKey;
@@ -21,6 +21,8 @@ export const LOCALES: LocaleDef[] = [
   { key: "id", label: "Indonesia", ttsCode: "id-ID", bcp47: "id-ID", voice: "Kore" },
   { key: "tl", label: "Filipino", ttsCode: "fil-PH", bcp47: "fil-PH", voice: "Kore" },
   { key: "zh", label: "普通话", ttsCode: "cmn-CN", bcp47: "zh-CN", voice: "Kore" },
+  // 粵語需要 gemini-3.8-flash-tts（2.5 preview 只有 24 語言，唔含粵語）
+  { key: "yue", label: "廣東話", ttsCode: "yue-HK", bcp47: "zh-HK", voice: "Kore" },
 ];
 
 export const DEFAULT_LOCALE: LocaleKey = "en";
@@ -189,5 +191,43 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
     replayQuestion: "重播",
     langLabel: "语言",
     errCamera: "无法开启摄像头/麦克风，请检查浏览器权限后重试。",
+  },
+  yue: {
+    loading: "載入中…",
+    reload: "重新載入",
+    footer: "本頁面由傭易做提供技術支持",
+    title: "視頻面試",
+    hello: "{name}，你好",
+    welcome: "歡迎參加今次視頻面試，開始之前請先睇吓以下事項。",
+    ruleCount: "一共有 {n} 條問題，請逐條用廣東話、普通話、英語、印尼話或者菲律賓話大聲回答。",
+    ruleSeconds: "每條問題錄製上限 {max} 秒，提交之前可以無限次重錄。",
+    ruleAi: "回答會由 AI 即時分析，通過之後先會進入下一題。",
+    ruleEnv: "請喺安靜、光線充足嘅環境作答，並允許瀏覽器使用鏡頭同咪高峰。",
+    privacy: "私隱聲明：你錄製嘅視頻只用於今次招聘評估，我哋會按《個人資料（私隱）條例》妥善保存同處理。",
+    agreeStart: "同意並開始",
+    finished: "面試已完成",
+    finishedDesc: "唔該晒你完成視頻面試，{name}。我哋會盡快通知你結果。",
+    finishedClose: "你可以閂咗呢個頁面啦。",
+    allDone: "全部問題已完成",
+    allDoneDesc: "請撳下面嘅掣提交面試，系統會生成整體評估報告。",
+    finishSubmit: "完成並提交面試",
+    submitting: "提交中…",
+    progressOf: "第 {x} / {n} 題",
+    attemptsLeft: "呢條題目仲剩 {n} 次機會",
+    analyzing: "AI 分析緊，唔該等吓…",
+    analyzingHint: "大約需要 10 秒，請唔好閂咗呢個頁面。",
+    stepUpload: "上傳緊視頻",
+    stepAnalyze: "AI 分析緊你嘅回答",
+    startRecord: "開始錄製回答",
+    recordHint: "準備好之後撳下面嘅掣，對住鏡頭回答呢條題目。",
+    recordingLeft: "錄製中… 仲剩 {s} 秒",
+    doneAnswer: "完成作答",
+    retake: "重新錄製",
+    submitAnswer: "提交回答",
+    uploading: "上傳中…",
+    playQuestion: "播放題目",
+    replayQuestion: "重播",
+    langLabel: "語言",
+    errCamera: "開唔到鏡頭/咪高峰，請檢查瀏覽器權限之後再試。",
   },
 };

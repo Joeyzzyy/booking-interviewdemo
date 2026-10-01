@@ -40,6 +40,7 @@ const AUDIO_LANGS = [
   { key: "id", label: "ID" },
   { key: "tl", label: "FIL" },
   { key: "zh", label: "普" },
+  { key: "yue", label: "粵" },
 ] as const;
 
 /** 視頻面試 tab：題庫管理 + 發起新面試（記錄在獨立「面試記錄」tab） */

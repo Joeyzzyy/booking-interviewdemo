@@ -10,14 +10,14 @@ import {
 } from "./ai-errors";
 
 /**
- * 題目多語言化：一次生成 4 種語言嘅譯文 + TTS 音頻，存入 Supabase storage。
+ * 題目多語言化：一次生成 5 種語言嘅譯文 + TTS 音頻，存入 Supabase storage。
  * - 翻譯：Gemini（沿用 GEMINI_MODEL）
- * - TTS：Gemini TTS（GEMINI_TTS_MODEL，默認 gemini-2.5-flash-preview-tts）
+ * - TTS：Gemini TTS（GEMINI_TTS_MODEL，默認 gemini-3.8-flash-tts；粵語 yue-HK 需要 3.x，2.5 preview 唔支持）
  * 全部調用「盡力而為」：某語言失敗唔影響其他語言，題目本身照樣可用。
  */
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
-const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts";
+const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-3.8-flash-tts";
 // 可選：指向自建代理 / 網關（Gemini 在部分地區不可用；Vercel 部署走 sin1 節點）
 const GEMINI_BASE =
   process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta/models";
@@ -49,7 +49,7 @@ function pcmToWav(pcm: Buffer, sampleRate: number, channels = 1, bits = 16): Buf
   return Buffer.concat([header, pcm]);
 }
 
-/** 將題目翻譯為 4 種語言（源語言：中文）。返回 { en, id, tl, zh }。失敗拋 AiServiceError（由調用方決定如何提示） */
+/** 將題目翻譯為 5 種語言（源語言：中文）。返回 { en, id, tl, zh, yue }。失敗拋 AiServiceError（由調用方決定如何提示） */
 export async function translateQuestion(question: string): Promise<Partial<Record<LocaleKey, string>>> {
   const key = getKey();
   let res: Response;
@@ -65,8 +65,8 @@ export async function translateQuestion(question: string): Promise<Partial<Recor
               {
                 text:
                   "你係專業翻譯。將下面呢條外傭面試問題翻譯成 5 種語言，保持原意、語氣自然、適合口頭朗讀。\n" +
-                  "語言代碼：en=English, id=Bahasa Indonesia, tl=Filipino/Tagalog, zh=簡體中文（普通話用詞）。\n" +
-                  `只輸出 JSON 物件，格式：{"en":"...","id":"...","tl":"...","zh":"..."}\n\n問題：${question}`,
+                  "語言代碼：en=English, id=Bahasa Indonesia, tl=Filipino/Tagalog, zh=簡體中文（普通話用詞）, yue=繁體中文（香港粵語口語用詞，例如：嘅/喺/咗）。\n" +
+                  `只輸出 JSON 物件，格式：{"en":"...","id":"...","tl":"...","zh":"...","yue":"..."}\n\n問題：${question}`,
               },
             ],
           },
