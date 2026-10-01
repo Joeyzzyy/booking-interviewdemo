@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageSquareText, Pencil, Pin, PinOff, Send, SquarePen, Trash2 } from "lucide-react";
 import { Button, Input, Modal } from "@/components/ui";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -26,17 +26,31 @@ function plainExcerpt(html: string, max = 50): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
+/** 時間軸左欄用：MM-DD / HH:mm 兩行（語言無關，直接格式化） */
+function timeParts(iso: string): { day: string; time: string } {
+  const d = new Date(iso);
+  const p2 = (n: number) => String(n).padStart(2, "0");
+  return {
+    day: `${p2(d.getMonth() + 1)}-${p2(d.getDate())}`,
+    time: `${p2(d.getHours())}:${p2(d.getMinutes())}`,
+  };
+}
+
 /**
  * 資訊交流區：審核通過用戶可發帖分享資訊、刪除自己的帖子（需確認）。
  * 管理員（canManage）可置頂 / 取消置頂及刪除任何帖子；置頂帖以卡片形式置頂展示。
+ * 非置頂帖分頁（每頁 10 條），底部哨兵元素進入視口時自動載入下一頁。
  */
 export default function BoardPanel() {
   const { t, locale } = useLanguage();
   /** 日期格式化語言標籤（zh-HK / zh-CN / en） */
   const dateLocale = LOCALES.find((l) => l.key === locale)?.htmlLang ?? "zh-HK";
   const [posts, setPosts] = useState<BoardPost[]>([]);
+  const [pinnedPosts, setPinnedPosts] = useState<BoardPost[]>([]);
+  const [hasMore, setHasMore] = useState(false);
   const [canManage, setCanManage] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [posting, setPosting] = useState(false);
@@ -49,13 +63,19 @@ export default function BoardPanel() {
   const [editingPost, setEditingPost] = useState<BoardPost | null>(null);
   const [viewPost, setViewPost] = useState<BoardPost | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BoardPost | null>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  /** 防止哨兵連續觸發導致重複請求 */
+  const fetchingRef = useRef(false);
 
+  /** 首頁 / 刷新（offset=0，重置列表） */
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/board", { cache: "no-store" });
+      const res = await fetch("/api/board?offset=0", { cache: "no-store" });
       const data = await res.json();
       if (res.ok) {
         setPosts(data.posts);
+        setPinnedPosts(data.pinned);
+        setHasMore(Boolean(data.hasMore));
         setCanManage(Boolean(data.canManage));
       }
     } catch {
@@ -70,6 +90,40 @@ export default function BoardPanel() {
     void load();
   }, [load]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  /** 載入下一頁（追加） */
+  const loadMore = async () => {
+    if (fetchingRef.current || !hasMore) return;
+    fetchingRef.current = true;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/board?offset=${posts.length}`, { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok) {
+        setPosts((prev) => [...prev, ...(data.posts as BoardPost[])]);
+        setHasMore(Boolean(data.hasMore));
+      }
+    } catch {
+      /* 下一頁失敗：哨兵會再次觸發 */
+    } finally {
+      fetchingRef.current = false;
+      setLoadingMore(false);
+    }
+  };
+
+  // 無限滾動：哨兵進入視口即載入下一頁（無 deps，每次渲染重新綁定，保證閉包最新）
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore || loadingMore) return;
+    const ob = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void loadMore();
+      },
+      { rootMargin: "200px" }
+    );
+    ob.observe(el);
+    return () => ob.disconnect();
+  });
 
   /** 打開發帖彈窗（新帖模式）；從編輯模式切返嚟時清空草稿避免串帖 */
   const openCreate = () => {
@@ -138,6 +192,7 @@ export default function BoardPanel() {
       const res = await fetch(`/api/board/${deleteTarget.id}`, { method: "DELETE" });
       if (res.ok) {
         setPosts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+        setPinnedPosts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
         if (viewPost?.id === deleteTarget.id) setViewPost(null);
         setDeleteTarget(null);
       }
@@ -191,7 +246,7 @@ export default function BoardPanel() {
             e.stopPropagation();
             openEdit(p);
           }}
-          className="cursor-pointer text-[#8b95ad] transition-colors hover:text-[#161b2e]"
+          className="cursor-pointer p-1 text-[#8b95ad] transition-colors hover:text-[#161b2e]"
         >
           <Pencil size={15} />
         </button>
@@ -206,7 +261,7 @@ export default function BoardPanel() {
             e.stopPropagation();
             void togglePin(p);
           }}
-          className={`cursor-pointer transition-colors disabled:opacity-50 ${
+          className={`cursor-pointer p-1 transition-colors disabled:opacity-50 ${
             p.pinned ? "text-[#2a8163] hover:text-[#8b95ad]" : "text-[#8b95ad] hover:text-[#2a8163]"
           }`}
         >
@@ -222,16 +277,13 @@ export default function BoardPanel() {
             e.stopPropagation();
             setDeleteTarget(p);
           }}
-          className="cursor-pointer text-[#8b95ad] transition-colors hover:text-red-600 disabled:opacity-50"
+          className="cursor-pointer p-1 text-[#8b95ad] transition-colors hover:text-red-600 disabled:opacity-50"
         >
           <Trash2 size={15} />
         </button>
       )}
     </>
   );
-
-  const pinnedPosts = posts.filter((p) => p.pinned);
-  const regularPosts = posts.filter((p) => !p.pinned);
 
   return (
     <div>
@@ -247,7 +299,7 @@ export default function BoardPanel() {
       {pinnedPosts.length > 0 && (
         <div className="mt-6">
           <h2 className="mb-3 text-[14px] font-extrabold text-[#161b2e]">{t.workspace.board.pinnedSection}</h2>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {pinnedPosts.map((p) => (
               <button
                 key={p.id}
@@ -269,32 +321,61 @@ export default function BoardPanel() {
         </div>
       )}
 
-      {/* 帖子列表（非置頂，完整卡片） */}
-      <div className="mt-7 flex flex-col gap-3">
+      {/* 帖子時間軸（左：時間 + 軸線 + 圓點；右：帖子卡片） */}
+      <div className="mt-7">
         {loading ? (
           <p className="py-10 text-center text-[13px] text-[#8b95ad]">{t.workspace.loading}</p>
-        ) : posts.length === 0 ? (
+        ) : posts.length === 0 && pinnedPosts.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-black/[0.1] px-5 py-10 text-center text-[13px] text-[#8b95ad]">
             {t.workspace.board.empty}
           </p>
         ) : (
-          regularPosts.map((p) => (
-            <article
-              key={p.id}
-              className="rounded-2xl border border-black/[0.06] border-l-4 border-l-[#35a07a] bg-white px-5 py-4 shadow-[0_2px_10px_rgba(22,27,46,0.05)]"
-            >
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h3 className="text-[15px] font-extrabold text-[#161b2e]">{p.title}</h3>
-                <span className="ml-auto flex items-center gap-2.5">{postActions(p)}</span>
-              </div>
-              <div
-                className="tiptap tiptap-view mt-1.5"
-                onClick={onContentClick}
-                dangerouslySetInnerHTML={{ __html: p.content }}
-              />
-              <p className="mt-2.5 text-[12px] font-semibold text-[#8b95ad]">{authorLine(p)}</p>
-            </article>
-          ))
+          <>
+            {posts.map((p, i) => {
+              const tp = timeParts(p.createdAt);
+              const last = i === posts.length - 1 && !hasMore;
+              return (
+                <div key={p.id} className="flex gap-3 pb-3 sm:gap-4 sm:pb-4">
+                  {/* 時間欄 + 軸線 + 圓點 */}
+                  <div className="relative w-12 shrink-0 text-right sm:w-14">
+                    <div className="text-[11px] font-bold text-[#5d6b85] sm:text-[12px]">{tp.day}</div>
+                    <div className="text-[10px] text-[#8b95ad] sm:text-[11px]">{tp.time}</div>
+                    {/* 軸線：最後一行只畫到圓點為止 */}
+                    <span
+                      aria-hidden="true"
+                      className={`absolute top-0 right-0 w-px bg-black/[0.08] ${last ? "h-2.5" : "h-full"}`}
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="absolute top-1 -right-[5px] h-2.5 w-2.5 rounded-full border-2 border-white bg-[#35a07a] shadow-[0_2px_6px_rgba(53,160,122,0.4)]"
+                    />
+                  </div>
+                  {/* 帖子卡片 */}
+                  <article className="min-w-0 flex-1 rounded-2xl border border-black/[0.06] border-l-4 border-l-[#35a07a] bg-white px-4 py-3.5 shadow-[0_2px_10px_rgba(22,27,46,0.05)] sm:px-5 sm:py-4">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <h3 className="text-[14px] font-extrabold text-[#161b2e] sm:text-[15px]">{p.title}</h3>
+                      <span className="ml-auto flex items-center gap-1.5 sm:gap-2.5">{postActions(p)}</span>
+                    </div>
+                    <div
+                      className="tiptap tiptap-view mt-1.5"
+                      onClick={onContentClick}
+                      dangerouslySetInnerHTML={{ __html: p.content }}
+                    />
+                    <p className="mt-2.5 text-[12px] font-semibold text-[#8b95ad]">{authorLine(p)}</p>
+                  </article>
+                </div>
+              );
+            })}
+
+            {/* 無限滾動哨兵 + 狀態行 */}
+            {hasMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
+            {loadingMore && (
+              <p className="py-4 text-center text-[12.5px] text-[#8b95ad]">{t.workspace.board.loadingMore}</p>
+            )}
+            {!hasMore && posts.length > 0 && !loadingMore && (
+              <p className="py-4 text-center text-[12.5px] text-[#8b95ad]">{t.workspace.board.allLoaded}</p>
+            )}
+          </>
         )}
       </div>
 
@@ -311,6 +392,7 @@ export default function BoardPanel() {
           </span>
         }
         widthClassName="max-w-2xl"
+        className="p-5 sm:p-7"
       >
         <form key={editingPost ? `edit-${editingPost.id}` : "new"} onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
           <Input
@@ -340,6 +422,7 @@ export default function BoardPanel() {
         onClose={() => setViewPost(null)}
         title={viewPost?.title}
         widthClassName="max-w-2xl"
+        className="p-5 sm:p-7"
         closeLabel={t.workspace.board.closePostDetail}
         footer={
           viewPost && (viewPost.own || canManage) ? (

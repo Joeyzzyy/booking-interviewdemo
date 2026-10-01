@@ -5,11 +5,27 @@ import { sanitizePostHtml, plainText } from "@/lib/booking/board";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/board — 資訊交流區帖子列表（置頂優先，再按新到舊，最多 100 條）
- *   響應含 canManage：當前用戶係管理員時前端顯示置頂 / 刪除任何帖子嘅操作
+ * GET /api/board?offset=N — 資訊交流區帖子列表
+ * - pinned：全部置頂帖（最多 12 條，新到舊），不參與分頁
+ * - posts：非置頂帖分頁（每頁 10 條，新到舊），hasMore 表示是否還有下一頁
+ * - canManage：當前用戶係管理員時前端顯示置頂 / 刪除任何帖子嘅操作
  * POST /api/board — 發帖 { title, content }
  * 均需登入且註冊資料審核通過。
  */
+const PAGE_SIZE = 10;
+const PINNED_CAP = 12;
+const POST_SELECT = "id, title, content, created_at, pinned, customer_id, customers(applicant_name, company_name)";
+
+interface PostRow {
+  id: string;
+  title: string;
+  content: string;
+  created_at: string;
+  pinned: boolean;
+  customer_id: string;
+  customers: { applicant_name: string | null; company_name: string | null } | null;
+}
+
 export async function GET(request: Request) {
   const customer = await getSessionCustomer(request);
   if (!customer || !isProfileApproved(customer)) {
@@ -20,31 +36,49 @@ export async function GET(request: Request) {
     return Response.json({ error: "服務暫時不可用" }, { status: 503 });
   }
 
+  const rawOffset = Number(new URL(request.url).searchParams.get("offset"));
+  const offset = Number.isFinite(rawOffset) && rawOffset > 0 ? Math.floor(rawOffset) : 0;
+
+  const mapPost = (p: PostRow) => ({
+    id: p.id,
+    title: p.title,
+    content: p.content,
+    createdAt: p.created_at,
+    own: p.customer_id === customer.id,
+    pinned: Boolean(p.pinned),
+    authorName: p.customers?.applicant_name || "用戶",
+    companyName: p.customers?.company_name || "",
+  });
+
+  // 置頂帖：全部返回（封頂 12），唔跟分頁
+  const { data: pinnedData, error: pinnedError } = await supabase
+    .from("board_posts")
+    .select(POST_SELECT)
+    .eq("pinned", true)
+    .order("created_at", { ascending: false })
+    .limit(PINNED_CAP);
+  if (pinnedError) {
+    console.error("[board] 讀取置頂帖失敗:", pinnedError);
+    return Response.json({ error: "讀取失敗" }, { status: 500 });
+  }
+
+  // 非置頂帖：多取 1 條判斷 hasMore
   const { data, error } = await supabase
     .from("board_posts")
-    .select("id, title, content, created_at, pinned, customer_id, customers(applicant_name, company_name)")
-    .order("pinned", { ascending: false })
+    .select(POST_SELECT)
+    .eq("pinned", false)
     .order("created_at", { ascending: false })
-    .limit(100);
+    .range(offset, offset + PAGE_SIZE);
   if (error) {
     console.error("[board] 讀取失敗:", error);
     return Response.json({ error: "讀取失敗" }, { status: 500 });
   }
 
-  const posts = (data || []).map((p) => {
-    const author = p.customers as unknown as { applicant_name: string | null; company_name: string | null } | null;
-    return {
-      id: p.id as string,
-      title: p.title as string,
-      content: p.content as string,
-      createdAt: p.created_at as string,
-      own: p.customer_id === customer.id,
-      pinned: Boolean(p.pinned),
-      authorName: author?.applicant_name || "用戶",
-      companyName: author?.company_name || "",
-    };
-  });
-  return Response.json({ posts, canManage: Boolean(customer.is_admin) });
+  const rows = (data || []) as unknown as PostRow[];
+  const hasMore = rows.length > PAGE_SIZE;
+  const posts = rows.slice(0, PAGE_SIZE).map(mapPost);
+  const pinned = ((pinnedData || []) as unknown as PostRow[]).map(mapPost);
+  return Response.json({ posts, pinned, hasMore, canManage: Boolean(customer.is_admin) });
 }
 
 export async function POST(request: Request) {

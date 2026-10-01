@@ -364,6 +364,8 @@ const yue = {
       editPost: "編輯帖子",
       save: "保存",
       saveFailed: "保存失敗，請稍後再試",
+      loadingMore: "載入中…",
+      allLoaded: "已顯示全部帖子",
     },
     editor: {
       bold: "粗體",
@@ -744,6 +746,8 @@ const cmn: Messages = {
       editPost: "编辑帖子",
       save: "保存",
       saveFailed: "保存失败，请稍后再试",
+      loadingMore: "加载中…",
+      allLoaded: "已显示全部帖子",
     },
     editor: {
       bold: "粗体",
@@ -1153,6 +1157,8 @@ const en: Messages = {
       editPost: "Edit post",
       save: "Save",
       saveFailed: "Saving failed, please try again later",
+      loadingMore: "Loading…",
+      allLoaded: "All posts loaded",
     },
     editor: {
       bold: "Bold",
