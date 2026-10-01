@@ -301,21 +301,52 @@ export default function BoardPanel() {
           <h2 className="mb-3 text-[14px] font-extrabold text-[#161b2e]">{t.workspace.board.pinnedSection}</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {pinnedPosts.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setViewPost(p)}
-                className="flex cursor-pointer flex-col gap-1.5 rounded-2xl border border-[#35a07a]/25 bg-gradient-to-b from-[#e9f5f0]/70 to-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-[#35a07a]/60 hover:shadow-[0_8px_20px_rgba(42,148,112,0.14)]"
-              >
-                <span className="flex items-start gap-1.5">
-                  <Pin size={13} className="mt-0.5 shrink-0 text-[#2a8163]" aria-hidden="true" />
-                  <span className="line-clamp-2 text-[13.5px] font-bold text-[#161b2e]">{p.title}</span>
-                </span>
-                <span className="line-clamp-2 text-[12px] leading-[1.6] text-[#5d6b85]">{plainExcerpt(p.content)}</span>
-                <span className="mt-auto pt-1 text-[11px] font-semibold text-[#8b95ad]">
-                  {p.authorName} · {new Date(p.createdAt).toLocaleDateString(dateLocale)}
-                </span>
-              </button>
+              <div key={p.id} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setViewPost(p)}
+                  className="flex h-full w-full cursor-pointer flex-col gap-1.5 rounded-2xl border border-[#35a07a]/25 bg-gradient-to-b from-[#e9f5f0]/70 to-white p-4 text-left transition-all hover:-translate-y-0.5 hover:border-[#35a07a]/60 hover:shadow-[0_8px_20px_rgba(42,148,112,0.14)]"
+                >
+                  <span className={`flex items-start gap-1.5 ${canManage ? "pr-12" : ""}`}>
+                    <Pin size={13} className="mt-0.5 shrink-0 text-[#2a8163]" aria-hidden="true" />
+                    <span className="line-clamp-2 text-[13.5px] font-bold text-[#161b2e]">{p.title}</span>
+                  </span>
+                  <span className="line-clamp-2 text-[12px] leading-[1.6] text-[#5d6b85]">{plainExcerpt(p.content)}</span>
+                  <span className="mt-auto pt-1 text-[11px] font-semibold text-[#8b95ad]">
+                    {p.authorName} · {new Date(p.createdAt).toLocaleDateString(dateLocale)}
+                  </span>
+                </button>
+                {/* 管理員操作：取消置頂 / 刪除（刪除有確認彈窗） */}
+                {canManage && (
+                  <span className="absolute top-2.5 right-2.5 flex gap-0.5">
+                    <button
+                      type="button"
+                      aria-label={t.workspace.board.unpin}
+                      title={t.workspace.board.unpin}
+                      disabled={pinningId === p.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void togglePin(p);
+                      }}
+                      className="cursor-pointer rounded-lg bg-white/80 p-1.5 text-[#2a8163] shadow-sm transition-colors hover:text-[#8b95ad] disabled:opacity-50"
+                    >
+                      <PinOff size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t.workspace.board.deletePost}
+                      disabled={deletingId === p.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(p);
+                      }}
+                      className="cursor-pointer rounded-lg bg-white/80 p-1.5 text-[#8b95ad] shadow-sm transition-colors hover:text-red-600 disabled:opacity-50"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </span>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -336,8 +367,8 @@ export default function BoardPanel() {
               const last = i === posts.length - 1 && !hasMore;
               return (
                 <div key={p.id} className="flex gap-3 pb-3 sm:gap-4 sm:pb-4">
-                  {/* 時間欄 + 軸線 + 圓點 */}
-                  <div className="relative w-12 shrink-0 text-right sm:w-14">
+                  {/* 時間欄 + 軸線 + 圓點（pr 令文字同軸線/圓點保持距離） */}
+                  <div className="relative w-12 shrink-0 pr-4 text-right sm:w-16 sm:pr-5">
                     <div className="text-[11px] font-bold text-[#5d6b85] sm:text-[12px]">{tp.day}</div>
                     <div className="text-[10px] text-[#8b95ad] sm:text-[11px]">{tp.time}</div>
                     {/* 軸線：最後一行只畫到圓點為止 */}
