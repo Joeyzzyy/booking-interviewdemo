@@ -360,6 +360,10 @@ const yue = {
       cancel: "取消",
       confirmDelete: "確定刪除",
       closePostDetail: "關閉帖子詳情",
+      edit: "編輯",
+      editPost: "編輯帖子",
+      save: "保存",
+      saveFailed: "保存失敗，請稍後再試",
     },
     editor: {
       bold: "粗體",
@@ -736,6 +740,10 @@ const cmn: Messages = {
       cancel: "取消",
       confirmDelete: "确定删除",
       closePostDetail: "关闭帖子详情",
+      edit: "编辑",
+      editPost: "编辑帖子",
+      save: "保存",
+      saveFailed: "保存失败，请稍后再试",
     },
     editor: {
       bold: "粗体",
@@ -1141,6 +1149,10 @@ const en: Messages = {
       cancel: "Cancel",
       confirmDelete: "Delete",
       closePostDetail: "Close post details",
+      edit: "Edit",
+      editPost: "Edit post",
+      save: "Save",
+      saveFailed: "Saving failed, please try again later",
     },
     editor: {
       bold: "Bold",

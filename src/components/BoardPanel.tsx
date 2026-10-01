@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { MessageSquareText, Pin, PinOff, Send, SquarePen, Trash2 } from "lucide-react";
+import { MessageSquareText, Pencil, Pin, PinOff, Send, SquarePen, Trash2 } from "lucide-react";
 import { Button, Input, Modal } from "@/components/ui";
 import RichTextEditor from "@/components/RichTextEditor";
 import { useLanguage, LOCALES } from "@/lib/i18n";
@@ -45,6 +45,8 @@ export default function BoardPanel() {
   const [pinningId, setPinningId] = useState<string | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
+  /** 編輯中的帖子；null = 發新帖模式 */
+  const [editingPost, setEditingPost] = useState<BoardPost | null>(null);
   const [viewPost, setViewPost] = useState<BoardPost | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BoardPost | null>(null);
 
@@ -69,24 +71,57 @@ export default function BoardPanel() {
   }, [load]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  /** 打開發帖彈窗（新帖模式）；從編輯模式切返嚟時清空草稿避免串帖 */
+  const openCreate = () => {
+    if (editingPost) {
+      setTitle("");
+      setContent("");
+    }
+    setEditingPost(null);
+    setError("");
+    setComposerOpen(true);
+  };
+
+  /** 打開發帖彈窗（編輯模式）：預填標題 + 內容 */
+  const openEdit = (p: BoardPost) => {
+    setEditingPost(p);
+    setTitle(p.title);
+    setContent(p.content);
+    setError("");
+    setComposerOpen(true);
+  };
+
+  const closeComposer = () => {
+    if (posting) return;
+    setComposerOpen(false);
+    setEditingPost(null);
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPosting(true);
     setError("");
     try {
-      const res = await fetch("/api/board", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, content }),
-      });
+      const res = editingPost
+        ? await fetch(`/api/board/${editingPost.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "edit", title, content }),
+          })
+        : await fetch("/api/board", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, content }),
+          });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || t.workspace.board.publishFailed);
+        setError(data.error || (editingPost ? t.workspace.board.saveFailed : t.workspace.board.publishFailed));
         return;
       }
       setTitle("");
       setContent("");
-      setComposerOpen(false); // 發佈後收起，直接睇帖子
+      setEditingPost(null);
+      setComposerOpen(false); // 發佈 / 保存後收起，直接睇帖子
       await load();
     } catch {
       setError(t.workspace.networkError);
@@ -144,9 +179,23 @@ export default function BoardPanel() {
     </>
   );
 
-  /** 帖子操作按鈕（管理員：置頂 + 刪除；作者：刪除） */
+  /** 帖子操作按鈕（作者/管理員：編輯；管理員：置頂；作者或管理員：刪除） */
   const postActions = (p: BoardPost) => (
     <>
+      {(p.own || canManage) && (
+        <button
+          type="button"
+          aria-label={t.workspace.board.edit}
+          title={t.workspace.board.edit}
+          onClick={(e) => {
+            e.stopPropagation();
+            openEdit(p);
+          }}
+          className="cursor-pointer text-[#8b95ad] transition-colors hover:text-[#161b2e]"
+        >
+          <Pencil size={15} />
+        </button>
+      )}
       {canManage && (
         <button
           type="button"
@@ -188,7 +237,7 @@ export default function BoardPanel() {
     <div>
       {/* 發帖入口：按鈕 + 大彈窗 */}
       <div className="flex justify-end">
-        <Button onClick={() => setComposerOpen(true)}>
+        <Button onClick={openCreate}>
           <SquarePen size={14} aria-hidden="true" />
           {t.workspace.board.publishNew}
         </Button>
@@ -249,21 +298,21 @@ export default function BoardPanel() {
         )}
       </div>
 
-      {/* 發帖大彈窗 */}
+      {/* 發帖 / 編輯大彈窗（key 保證切換帖子時編輯器重新初始化內容） */}
       <Modal
         open={composerOpen}
-        onClose={() => !posting && setComposerOpen(false)}
+        onClose={closeComposer}
         title={
           <span className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-white">
-              <MessageSquareText size={14} aria-hidden="true" />
+              {editingPost ? <Pencil size={14} aria-hidden="true" /> : <MessageSquareText size={14} aria-hidden="true" />}
             </span>
-            {t.workspace.board.composerTitle}
+            {editingPost ? t.workspace.board.editPost : t.workspace.board.composerTitle}
           </span>
         }
         widthClassName="max-w-2xl"
       >
-        <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
+        <form key={editingPost ? `edit-${editingPost.id}` : "new"} onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -279,19 +328,33 @@ export default function BoardPanel() {
           <div className="flex justify-end">
             <Button type="submit" loading={posting}>
               <Send size={14} aria-hidden="true" />
-              {t.workspace.board.publish}
+              {editingPost ? t.workspace.board.save : t.workspace.board.publish}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* 置頂帖全文彈窗 */}
+      {/* 置頂帖全文彈窗（作者 / 管理員可喺度直接編輯） */}
       <Modal
         open={viewPost !== null}
         onClose={() => setViewPost(null)}
         title={viewPost?.title}
         widthClassName="max-w-2xl"
         closeLabel={t.workspace.board.closePostDetail}
+        footer={
+          viewPost && (viewPost.own || canManage) ? (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                openEdit(viewPost);
+                setViewPost(null);
+              }}
+            >
+              <Pencil size={14} aria-hidden="true" />
+              {t.workspace.board.editPost}
+            </Button>
+          ) : undefined
+        }
       >
         {viewPost && (
           <>
