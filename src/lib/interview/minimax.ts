@@ -35,11 +35,12 @@ function getKey(): string {
   return key;
 }
 
-/** 去掉模型輸出嘅 ```json 代碼圍欄，返回純 JSON 文本 */
+/** 去掉模型輸出嘅 ```json 代碼圍欄同 <think> 思考段，返回純 JSON 文本 */
 function stripJsonFence(text: string): string {
-  const trimmed = text.trim();
-  const m = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  return m ? m[1].trim() : trimmed;
+  // M2/M3 係推理模型：reasoning_split 失效時 <think> 會混入 content
+  const noThink = text.replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
+  const m = noThink.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  return m ? m[1].trim() : noThink;
 }
 
 type ChatMessage =
@@ -62,7 +63,8 @@ async function minimaxChat(messages: ChatMessage[], model: string, label: string
         Authorization: `Bearer ${getKey()}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ model, messages, temperature: 0.2 }),
+      // reasoning_split：思考過程獨立返回（M2/M3 推理模型），content 保持乾淨
+      body: JSON.stringify({ model, messages, temperature: 0.2, reasoning_split: true }),
     });
   } catch (e) {
     throw networkError(label, e, model);
