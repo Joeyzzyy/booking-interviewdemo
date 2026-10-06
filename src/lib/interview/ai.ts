@@ -3,7 +3,8 @@
  *
  * 優先級：
  * - 語音轉寫：STT_API_KEY（OpenAI 兼容平台，默認硅基流動 SenseVoice）> GEMINI_API_KEY（直接吃視頻文件）
- * - 文本分析（逐題判斷 + 整體報告）：DEEPSEEK_API_KEY > GEMINI_API_KEY
+ *   （MiniMax STT asr-1.0 唔接受 mp4/webm 容器，所以保留硅基流動 SenseVoice 做視頻轉寫）
+ * - 文本分析（逐題判斷 + 整體報告）：MINIMAX_API_KEY > DEEPSEEK_API_KEY > GEMINI_API_KEY
  * 即：一個 GEMINI_API_KEY 可全包；全部未配置時降級（判斷自動通過、報告標註未啟用）。
  */
 
@@ -13,6 +14,7 @@ import {
   networkError,
   parseError,
 } from "./ai-errors";
+import { isMinimaxEnabled, minimaxChatJson } from "./minimax";
 
 const STT_URL = process.env.STT_BASE_URL || "https://api.siliconflow.cn/v1/audio/transcriptions";
 const STT_MODEL = process.env.STT_MODEL || "FunAudioLLM/SenseVoiceSmall";
@@ -22,7 +24,7 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GE
 
 export function isAiEnabled(): boolean {
   const stt = Boolean(process.env.STT_API_KEY || process.env.GEMINI_API_KEY);
-  const llm = Boolean(process.env.DEEPSEEK_API_KEY || process.env.GEMINI_API_KEY);
+  const llm = Boolean(process.env.MINIMAX_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.GEMINI_API_KEY);
   return stt && llm;
 }
 
@@ -86,6 +88,7 @@ export async function transcribeVideo(
   }
 
   // 路線 B：Gemini 直接吃視頻文件（inline base64，≤20MB）
+  // 註：MiniMax STT（asr-1.0）唔接受 mp4/webm 容器，所以唔加 MiniMax 路線，保留 Gemini 兜底
   if (process.env.GEMINI_API_KEY) {
     if (videoBuffer.length > 20 * 1024 * 1024) {
       throw new Error("視頻超過 Gemini 內聯上限（20MB），請縮短錄製時間");
@@ -111,9 +114,12 @@ export async function transcribeVideo(
   return "";
 }
 
-// ---------- 文本分析（DeepSeek 優先，Gemini 兜底） ----------
+// ---------- 文本分析（MiniMax 優先，DeepSeek 次之，Gemini 兜底） ----------
 
 async function llmJson(systemPrompt: string, userPrompt: string): Promise<string> {
+  if (isMinimaxEnabled()) {
+    return minimaxChatJson(systemPrompt, userPrompt);
+  }
   if (process.env.DEEPSEEK_API_KEY) {
     let res: Response;
     try {
@@ -146,7 +152,7 @@ async function llmJson(systemPrompt: string, userPrompt: string): Promise<string
       true
     );
   }
-  throw missingKeyError("DeepSeek / Gemini（文本分析）");
+  throw missingKeyError("MiniMax / DeepSeek / Gemini（文本分析）");
 }
 
 export interface JudgeResult {
@@ -155,7 +161,7 @@ export interface JudgeResult {
 }
 
 function hasLlm(): boolean {
-  return Boolean(process.env.DEEPSEEK_API_KEY || process.env.GEMINI_API_KEY);
+  return Boolean(process.env.MINIMAX_API_KEY || process.env.DEEPSEEK_API_KEY || process.env.GEMINI_API_KEY);
 }
 
 /** 逐題判斷：工人回答是否有效回應了問題（及考察要點） */
@@ -201,7 +207,7 @@ export async function generateReport(
   if (!hasLlm()) {
     return {
       score: 0,
-      summary: "AI 未配置（DEEPSEEK_API_KEY / GEMINI_API_KEY），未生成報告。",
+      summary: "AI 未配置（MINIMAX_API_KEY / DEEPSEEK_API_KEY / GEMINI_API_KEY），未生成報告。",
       strengths: [],
       concerns: [],
       resumeMatch: "",
@@ -226,6 +232,6 @@ export async function generateReport(
       generatedBy: "ai",
     };
   } catch {
-    throw parseError("DeepSeek / Gemini（報告生成）", raw);
+    throw parseError("MiniMax / DeepSeek / Gemini（報告生成）", raw);
   }
 }

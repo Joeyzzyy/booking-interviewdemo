@@ -8,11 +8,12 @@ import {
   parseError,
   toUserMessage,
 } from "./ai-errors";
+import { isMinimaxEnabled, minimaxChatJson, minimaxTts } from "./minimax";
 
 /**
  * 題目多語言化：一次生成 5 種語言嘅譯文 + TTS 音頻，存入 Supabase storage。
- * - 翻譯：Gemini（沿用 GEMINI_MODEL）
- * - TTS：Gemini TTS（GEMINI_TTS_MODEL，默認 gemini-3.8-flash-tts；粵語 yue-HK 需要 3.x，2.5 preview 唔支持）
+ * - 翻譯：MiniMax（MINIMAX_API_KEY）優先 > Gemini（沿用 GEMINI_MODEL）
+ * - TTS：MiniMax TTS（mp3，支持全部 5 種語言）優先 > Gemini TTS（wav；粵語 yue-HK 需要 3.x，2.5 preview 唔支持）
  * 全部調用「盡力而為」：某語言失敗唔影響其他語言，題目本身照樣可用。
  */
 
@@ -49,8 +50,39 @@ function pcmToWav(pcm: Buffer, sampleRate: number, channels = 1, bits = 16): Buf
   return Buffer.concat([header, pcm]);
 }
 
+/** 5 語言翻譯 prompt（MiniMax / Gemini 共用同一段） */
+function translatePrompt(question: string): string {
+  return (
+    "你係專業翻譯。將下面呢條外傭面試問題翻譯成 5 種語言，保持原意、語氣自然、適合口頭朗讀。\n" +
+    "語言代碼：en=English, id=Bahasa Indonesia, tl=Filipino/Tagalog, zh=簡體中文（普通話用詞）, yue=繁體中文（香港粵語口語用詞，例如：嘅/喺/咗）。\n" +
+    `只輸出 JSON 物件，格式：{"en":"...","id":"...","tl":"...","zh":"...","yue":"..."}\n\n問題：${question}`
+  );
+}
+
+/** 解析翻譯 JSON → { en, id, tl, zh, yue }（過濾空值） */
+function parseTranslations(text: string, providerLabel: string): Partial<Record<LocaleKey, string>> {
+  try {
+    const parsed = JSON.parse(text);
+    const out: Partial<Record<LocaleKey, string>> = {};
+    for (const l of LOCALES) {
+      const v = parsed[l.key];
+      if (typeof v === "string" && v.trim()) out[l.key] = v.trim();
+    }
+    return out;
+  } catch {
+    throw parseError(providerLabel, text);
+  }
+}
+
 /** 將題目翻譯為 5 種語言（源語言：中文）。返回 { en, id, tl, zh, yue }。失敗拋 AiServiceError（由調用方決定如何提示） */
 export async function translateQuestion(question: string): Promise<Partial<Record<LocaleKey, string>>> {
+  // 路線 A：MiniMax 文本模型
+  if (isMinimaxEnabled()) {
+    const raw = await minimaxChatJson("你係專業翻譯。", translatePrompt(question));
+    return parseTranslations(raw, "MiniMax（題目翻譯）");
+  }
+
+  // 路線 B：Gemini
   const key = getKey();
   let res: Response;
   try {
@@ -61,14 +93,7 @@ export async function translateQuestion(question: string): Promise<Partial<Recor
         contents: [
           {
             role: "user",
-            parts: [
-              {
-                text:
-                  "你係專業翻譯。將下面呢條外傭面試問題翻譯成 5 種語言，保持原意、語氣自然、適合口頭朗讀。\n" +
-                  "語言代碼：en=English, id=Bahasa Indonesia, tl=Filipino/Tagalog, zh=簡體中文（普通話用詞）, yue=繁體中文（香港粵語口語用詞，例如：嘅/喺/咗）。\n" +
-                  `只輸出 JSON 物件，格式：{"en":"...","id":"...","tl":"...","zh":"...","yue":"..."}\n\n問題：${question}`,
-              },
-            ],
+            parts: [{ text: translatePrompt(question) }],
           },
         ],
         generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
@@ -80,21 +105,36 @@ export async function translateQuestion(question: string): Promise<Partial<Recor
   if (!res.ok) throw classifyHttpError("Gemini（題目翻譯）", res.status, await res.text(), GEMINI_MODEL);
   const data = await res.json();
   const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-  try {
-    const parsed = JSON.parse(text);
-    const out: Partial<Record<LocaleKey, string>> = {};
-    for (const l of LOCALES) {
-      const v = parsed[l.key];
-      if (typeof v === "string" && v.trim()) out[l.key] = v.trim();
-    }
-    return out;
-  } catch {
-    throw parseError("Gemini（題目翻譯）", text, GEMINI_MODEL);
-  }
+  return parseTranslations(text, "Gemini（題目翻譯）");
 }
 
-/** 用 Gemini TTS 合成一段語音，返回 WAV Buffer（不支持的語言返回 null） */
-export async function synthesizeSpeech(text: string, lang: LocaleKey): Promise<Buffer | null> {
+/** MiniMax TTS language_boost 對應（5 種語言全部支持，粵語行 Chinese,Yue） */
+const MINIMAX_BOOST: Record<LocaleKey, string> = {
+  en: "English",
+  id: "Indonesian",
+  tl: "Filipino",
+  zh: "Chinese",
+  yue: "Chinese,Yue",
+};
+
+export interface SpeechResult {
+  buffer: Buffer;
+  ext: string;
+  contentType: string;
+}
+
+/**
+ * 合成一段語音（不支持的語言返回 null）。
+ * MiniMax 優先（mp3）；Gemini 兜底（PCM → WAV）。
+ */
+export async function synthesizeSpeech(text: string, lang: LocaleKey): Promise<SpeechResult | null> {
+  // 路線 A：MiniMax TTS（mp3）
+  if (isMinimaxEnabled()) {
+    const buffer = await minimaxTts(text, MINIMAX_BOOST[lang]);
+    return { buffer, ext: "mp3", contentType: "audio/mpeg" };
+  }
+
+  // 路線 B：Gemini TTS（wav）
   const def = LOCALES.find((l) => l.key === lang)!;
   if (!def.ttsCode) return null; // 模型不支持該語言（如粵語）
   const key = getKey();
@@ -123,11 +163,11 @@ export async function synthesizeSpeech(text: string, lang: LocaleKey): Promise<B
   if (!inline?.data) throw parseError("Gemini TTS", JSON.stringify(data).slice(0, 300), GEMINI_TTS_MODEL);
   const raw = Buffer.from(inline.data, "base64");
   const mime: string = inline.mimeType || "";
-  if (mime.includes("L16") || mime.includes("pcm")) {
-    const rate = Number(mime.match(/rate=(\d+)/)?.[1] || 24000);
-    return pcmToWav(raw, rate);
-  }
-  return raw; // 已是音頻容器格式（wav/mp3）時直接用
+  const buffer =
+    mime.includes("L16") || mime.includes("pcm")
+      ? pcmToWav(raw, Number(mime.match(/rate=(\d+)/)?.[1] || 24000))
+      : raw; // 已是音頻容器格式（wav/mp3）時直接用
+  return { buffer, ext: "wav", contentType: "audio/wav" };
 }
 
 /**
@@ -155,14 +195,14 @@ export async function generateQuestionAssets(
   await Promise.all(
     LOCALES.map(async (l) => {
       const text = translations[l.key];
-      if (!text || !l.ttsCode) return;
+      if (!text) return;
       try {
-        const wav = await synthesizeSpeech(text, l.key);
-        if (!wav) return;
-        const path = `tts/${questionId}/${l.key}.wav`;
+        const speech = await synthesizeSpeech(text, l.key);
+        if (!speech) return;
+        const path = `tts/${questionId}/${l.key}.${speech.ext}`;
         const { error } = await supabase.storage
           .from(INTERVIEW_BUCKET)
-          .upload(path, wav, { contentType: "audio/wav", upsert: true });
+          .upload(path, speech.buffer, { contentType: speech.contentType, upsert: true });
         if (error) {
           console.error(`[tts] 音頻上傳失敗（${l.key}）:`, error);
           warnings.push(`【${l.key}】音頻上傳存儲失敗：${error.message}（題目仍可用，可稍後重新生成）`);
