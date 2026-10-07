@@ -77,6 +77,8 @@ async function minimaxChat(messages: ChatMessage[], model: string, label: string
 /**
  * 文本 → JSON 字串（TEXT_MODEL）。
  * MiniMax chat 唔保證支持 response_format json_object，改用 prompt 指令 + 去圍欄。
+ * M2/M3 偶爾喺字串值入面放未轉義引號 → JSON.parse 失敗；呢種情況做一次「修復往返」：
+ * 將壞 JSON 俾返模型叫佢輸出合法 JSON（仍失敗就原樣返回，由調用方按現有邏輯報錯）。
  */
 export async function minimaxChatJson(systemPrompt: string, userPrompt: string): Promise<string> {
   const content = await minimaxChat(
@@ -87,7 +89,24 @@ export async function minimaxChatJson(systemPrompt: string, userPrompt: string):
     TEXT_MODEL,
     "MiniMax（文本分析）"
   );
-  return stripJsonFence(content || "{}");
+  const cleaned = stripJsonFence(content || "{}");
+  try {
+    JSON.parse(cleaned);
+    return cleaned;
+  } catch {
+    console.warn("[minimax] JSON 格式異常，嘗試修復往返…");
+  }
+  const repaired = await minimaxChat(
+    [
+      {
+        role: "user",
+        content: `以下係一段格式錯誤嘅 JSON（常見問題：字串值入面有未轉義嘅雙引號）。請修正為合法 JSON，保持內容唔變，只輸出修正後嘅 JSON，唔好加任何解釋。\n\n${cleaned}`,
+      },
+    ],
+    TEXT_MODEL,
+    "MiniMax（JSON 修復）"
+  );
+  return stripJsonFence(repaired || cleaned);
 }
 
 /**
