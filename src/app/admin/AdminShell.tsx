@@ -7,6 +7,7 @@ import AdminTheme from "@/components/admin/AdminTheme";
 import AdminBookings from "@/components/AdminBookings";
 import AdminProfiles from "@/components/AdminProfiles";
 import AdminUsers from "@/components/AdminUsers";
+import { useLanguage } from "@/lib/i18n";
 
 /**
  * 管理後台：僅預約訂單管理。
@@ -17,6 +18,7 @@ type AuthState = "checking" | "locked" | "authed";
 
 function AdminShellInner() {
   const { modal } = App.useApp();
+  const { t } = useLanguage();
   const [auth, setAuth] = useState<AuthState>("checking");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -47,14 +49,14 @@ function AdminShellInner() {
         setAuth("authed");
       } else {
         const d = await r.json().catch(() => ({}));
-        setError(d.error || "密碼錯誤");
+        setError(d.error || t.workspace.admin.shell.wrongPassword);
       }
     } catch {
-      setError("登入失敗，請稍後再試");
+      setError(t.workspace.admin.shell.loginFailed);
     } finally {
       setSubmitting(false);
     }
-  }, [password]);
+  }, [password, t]);
 
   const logout = useCallback(async () => {
     await fetch("/api/admin/logout", { method: "POST" }).catch(() => {});
@@ -64,14 +66,14 @@ function AdminShellInner() {
   /** 登出前彈窗確認 */
   const confirmLogout = useCallback(() => {
     modal.confirm({
-      title: "確認登出？",
-      content: "登出後需要重新輸入管理密碼才能進入後台。",
-      okText: "登出",
-      cancelText: "取消",
+      title: t.workspace.admin.shell.logoutTitle,
+      content: t.workspace.admin.shell.logoutBody,
+      okText: t.workspace.admin.shell.logout,
+      cancelText: t.workspace.admin.shell.cancel,
       okButtonProps: { danger: true },
       onOk: () => void logout(),
     });
-  }, [modal, logout]);
+  }, [modal, logout, t]);
 
   if (auth === "checking") {
     return (
@@ -111,14 +113,14 @@ function AdminShellInner() {
               N
             </div>
             <Typography.Title level={4} style={{ margin: 0 }}>
-              傭易做 管理後台
+              {t.workspace.admin.shell.title}
             </Typography.Title>
           </div>
           <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 8 }}>
-            請輸入管理密碼以繼續
+            {t.workspace.admin.shell.passwordHint}
           </Typography.Paragraph>
           <Input.Password
-            placeholder="管理密碼"
+            placeholder={t.workspace.admin.shell.passwordPlaceholder}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onPressEnter={login}
@@ -136,7 +138,7 @@ function AdminShellInner() {
             loading={submitting}
             onClick={login}
           >
-            登入
+            {t.workspace.admin.shell.login}
           </Button>
         </Card>
       </div>
@@ -175,18 +177,18 @@ function AdminShellInner() {
             N
           </div>
           <Typography.Title level={4} style={{ margin: 0 }}>
-            傭易做 管理後台
+            {t.workspace.admin.shell.title}
           </Typography.Title>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <Tag color="green" style={{ marginInlineEnd: 0 }}>
-            當前賬號：管理員（密碼登入）
+            {t.workspace.admin.shell.identity}
           </Tag>
           <Link href="/" style={{ fontSize: 13, fontWeight: 600, color: "#35a07a" }}>
-            返回網站
+            {t.workspace.admin.shell.backToSite}
           </Link>
           <Button size="small" onClick={confirmLogout}>
-            登出
+            {t.workspace.admin.shell.logout}
           </Button>
         </div>
       </Layout.Header>
@@ -195,9 +197,9 @@ function AdminShellInner() {
           style={{ marginTop: 8 }}
           defaultActiveKey="bookings"
           items={[
-            { key: "bookings", label: "預約訂單管理", children: <AdminBookings /> },
-            { key: "profiles", label: "用戶審核", children: <AdminProfiles /> },
-            { key: "users", label: "用戶管理", children: <AdminUsers /> },
+            { key: "bookings", label: t.workspace.admin.shell.tabs.bookings, children: <AdminBookings /> },
+            { key: "profiles", label: t.workspace.admin.shell.tabs.profiles, children: <AdminProfiles /> },
+            { key: "users", label: t.workspace.admin.shell.tabs.users, children: <AdminUsers /> },
           ]}
         />
       </Layout.Content>

@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MessageSquareText, Pencil, Pin, PinOff, Send, SquarePen, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Heart, MessageCircle, MessageSquareText, Pencil, Pin, PinOff, Send, SquarePen, Trash2 } from "lucide-react";
 import { Button, Input, Modal } from "@/components/ui";
 import RichTextEditor from "@/components/RichTextEditor";
 import { useLanguage, LOCALES } from "@/lib/i18n";
+import { apiErrorText } from "@/lib/i18n/api-errors";
 
 interface BoardPost {
   id: string;
@@ -15,6 +17,9 @@ interface BoardPost {
   pinned: boolean;
   authorName: string;
   companyName: string;
+  likeCount: number;
+  likedByMe: boolean;
+  commentCount: number;
 }
 
 /** 去 HTML 標籤取純文本（置頂卡摘要用） */
@@ -57,6 +62,7 @@ export default function BoardPanel() {
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pinningId, setPinningId] = useState<string | null>(null);
+  const [likingId, setLikingId] = useState<string | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   /** 編輯中的帖子；null = 發新帖模式 */
@@ -169,7 +175,7 @@ export default function BoardPanel() {
           });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || (editingPost ? t.workspace.board.saveFailed : t.workspace.board.publishFailed));
+        setError(apiErrorText(data, t) || (editingPost ? t.workspace.board.saveFailed : t.workspace.board.publishFailed));
         return;
       }
       setTitle("");
@@ -217,6 +223,26 @@ export default function BoardPanel() {
       /* 忽略 */
     } finally {
       setPinningId(null);
+    }
+  };
+
+  /** 行內讚好切換（以服務端返回為準，唔做樂觀更新避免同分頁數據打架） */
+  const toggleLike = async (p: BoardPost) => {
+    if (likingId) return;
+    setLikingId(p.id);
+    try {
+      const res = await fetch(`/api/board/${p.id}/like`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        const patch = (x: BoardPost) =>
+          x.id === p.id ? { ...x, likedByMe: Boolean(data.liked), likeCount: data.likeCount as number } : x;
+        setPosts((prev) => prev.map(patch));
+        setPinnedPosts((prev) => prev.map(patch));
+      }
+    } catch {
+      /* 忽略 */
+    } finally {
+      setLikingId(null);
     }
   };
 
@@ -384,7 +410,11 @@ export default function BoardPanel() {
                   {/* 帖子卡片 */}
                   <article className="min-w-0 flex-1 rounded-2xl border border-black/[0.06] border-l-4 border-l-[#35a07a] bg-white px-4 py-3.5 shadow-[0_2px_10px_rgba(22,27,46,0.05)] sm:px-5 sm:py-4">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <h3 className="text-[14px] font-extrabold text-[#161b2e] sm:text-[15px]">{p.title}</h3>
+                      <h3 className="text-[14px] font-extrabold text-[#161b2e] sm:text-[15px]">
+                        <Link href={`/board/${p.id}`} className="transition-colors hover:text-[#2a8163]">
+                          {p.title}
+                        </Link>
+                      </h3>
                       <span className="ml-auto flex items-center gap-1.5 sm:gap-2.5">{postActions(p)}</span>
                     </div>
                     <div
@@ -392,7 +422,33 @@ export default function BoardPanel() {
                       onClick={onContentClick}
                       dangerouslySetInnerHTML={{ __html: p.content }}
                     />
-                    <p className="mt-2.5 text-[12px] font-semibold text-[#8b95ad]">{authorLine(p)}</p>
+                    <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <p className="text-[12px] font-semibold text-[#8b95ad]">{authorLine(p)}</p>
+                      <span className="ml-auto flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void toggleLike(p)}
+                          disabled={likingId === p.id}
+                          aria-pressed={p.likedByMe}
+                          aria-label={p.likedByMe ? t.workspace.board.unlike : t.workspace.board.like}
+                          title={p.likedByMe ? t.workspace.board.unlike : t.workspace.board.like}
+                          className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold transition-colors disabled:opacity-50 ${
+                            p.likedByMe ? "bg-[#e9f5f0] text-[#2a8163]" : "text-[#8b95ad] hover:bg-black/[0.04] hover:text-[#2a8163]"
+                          }`}
+                        >
+                          <Heart size={13} aria-hidden="true" fill={p.likedByMe ? "currentColor" : "none"} />
+                          {p.likeCount}
+                        </button>
+                        <Link
+                          href={`/board/${p.id}`}
+                          aria-label={t.workspace.board.comments(p.commentCount)}
+                          className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold text-[#8b95ad] transition-colors hover:bg-black/[0.04] hover:text-[#2a8163]"
+                        >
+                          <MessageCircle size={13} aria-hidden="true" />
+                          {p.commentCount}
+                        </Link>
+                      </span>
+                    </div>
                   </article>
                 </div>
               );

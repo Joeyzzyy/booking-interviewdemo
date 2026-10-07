@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   const customer = await getSessionCustomer(request);
   if (!customer) {
-    return Response.json({ error: "請先登入" }, { status: 401 });
+    return Response.json({ error: "請先登入", code: "LOGIN_REQUIRED" }, { status: 401 });
   }
   const supabase = getSupabase();
   if (!supabase) {
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const service = getService(body.serviceKey || "");
   const quantity = body.quantity === 10 ? 10 : body.quantity === 1 ? 1 : null;
   if (!service || !quantity) {
-    return Response.json({ error: "請選擇服務及套票數量" }, { status: 400 });
+    return Response.json({ error: "請選擇服務及套票數量", code: "CHECKOUT_PARAMS" }, { status: 400 });
   }
   const amountHkd = quantity === 10 ? service.pricePack10 : service.priceSingle;
 
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   }
   if (!session?.url) {
     return Response.json(
-      { error: "線上付款未開通，請 WhatsApp 9522 3881 聯絡我哋購買" },
+      { error: "線上付款未開通，請 WhatsApp 9522 3881 聯絡我哋購買", code: "PAYMENT_UNAVAILABLE" },
       { status: 503 }
     );
   }

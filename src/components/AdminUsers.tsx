@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { App, Button, Popconfirm, Space, Table, Tag, Typography } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
+import { useLanguage } from "@/lib/i18n";
 
 interface AdminUser {
   id: string;
@@ -16,39 +17,43 @@ interface AdminUser {
   created_at: string;
 }
 
-const STATUS_TAG: Record<string, { color: string; label: string }> = {
-  pending: { color: "gold", label: "待審核" },
-  approved: { color: "green", label: "已通過" },
-  rejected: { color: "red", label: "未通過" },
+const STATUS_COLOR: Record<string, string> = {
+  pending: "gold",
+  approved: "green",
+  rejected: "red",
 };
-
-/** 審核狀態顯示：未提交資料的用戶一律顯示「未提交」（profile_status 可能是 pending） */
-function statusTagOf(u: AdminUser) {
-  if (!u.applicant_name) return <Tag>未提交</Tag>;
-  const st = STATUS_TAG[u.profile_status || "pending"];
-  return <Tag color={st?.color}>{st?.label || u.profile_status}</Tag>;
-}
 
 /** 管理後台 — 用戶管理：查看全部註冊用戶，設置 / 取消管理員權限（管理員可置頂及刪除交流區任何帖子） */
 export default function AdminUsers() {
   const { message } = App.useApp();
+  const { t } = useLanguage();
+  const tu = t.workspace.admin.users;
+  const tp = t.workspace.admin.profiles;
+  const tc = t.workspace.admin.common;
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
+
+  /** 審核狀態顯示：未提交資料的用戶一律顯示「未提交」（profile_status 可能是 pending） */
+  const statusTagOf = (u: AdminUser) => {
+    if (!u.applicant_name) return <Tag>{tu.statusUnsubmitted}</Tag>;
+    const key = u.profile_status || "pending";
+    return <Tag color={STATUS_COLOR[key]}>{(tp.status as Record<string, string>)[key] || key}</Tag>;
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/users", { cache: "no-store" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "讀取失敗");
+      if (!res.ok) throw new Error(data.error || tc.loadFailed);
       setUsers(data.users);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : "讀取失敗");
+      message.error(e instanceof Error ? e.message : tc.loadFailed);
     } finally {
       setLoading(false);
     }
-  }, [message]);
+  }, [message, tc]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -66,13 +71,13 @@ export default function AdminUsers() {
       });
       const data = await res.json();
       if (!res.ok) {
-        message.error(data.error || "操作失敗");
+        message.error(data.error || tc.actFailed);
         return;
       }
-      message.success(isAdmin ? "已設為管理員" : "已取消管理員權限");
+      message.success(isAdmin ? tu.msgMadeAdmin : tu.msgRemovedAdmin);
       await load();
     } catch {
-      message.error("網絡錯誤，操作失敗");
+      message.error(tc.networkError);
     } finally {
       setActingId(null);
     }
@@ -80,19 +85,19 @@ export default function AdminUsers() {
 
   const columns: ColumnsType<AdminUser> = [
     {
-      title: "申請人",
+      title: tu.colApplicant,
       dataIndex: "applicant_name",
       width: 140,
       render: (v) => (v ? <strong>{v}</strong> : <Typography.Text type="secondary">—</Typography.Text>),
     },
     {
-      title: "公司名稱",
+      title: tu.colCompany,
       dataIndex: "company_name",
       width: 200,
       render: (v) => v || "—",
     },
     {
-      title: "聯絡方式",
+      title: tu.colContact,
       width: 220,
       render: (_, u) => (
         <span>
@@ -105,31 +110,31 @@ export default function AdminUsers() {
       ),
     },
     {
-      title: "註冊時間",
+      title: tu.colRegisteredAt,
       dataIndex: "created_at",
       width: 160,
       render: (v) => (v ? new Date(v).toLocaleString("zh-HK") : "—"),
     },
     {
-      title: "審核狀態",
+      title: tu.colReviewStatus,
       width: 100,
       render: (_, u) => statusTagOf(u),
     },
     {
-      title: "管理員",
+      title: tu.colAdmin,
       width: 200,
       render: (_, u) => (
         <Space wrap>
-          {u.is_admin && <Tag color="green">管理員</Tag>}
+          {u.is_admin && <Tag color="green">{tu.adminTag}</Tag>}
           <Popconfirm
-            title={u.is_admin ? "取消此用戶的管理員權限？" : "將此用戶設為管理員？"}
-            description={u.is_admin ? "取消後不能再置頂 / 刪除其他用戶的帖子。" : "管理員可以置頂及刪除交流區任何帖子。"}
-            okText="確定"
-            cancelText="取消"
+            title={u.is_admin ? tu.confirmRemoveTitle : tu.confirmMakeTitle}
+            description={u.is_admin ? tu.confirmRemoveDesc : tu.confirmMakeDesc}
+            okText={tc.ok}
+            cancelText={tc.cancel}
             onConfirm={() => void setAdmin(u, !u.is_admin)}
           >
             <Button size="small" danger={u.is_admin} loading={actingId === u.id}>
-              {u.is_admin ? "取消管理員" : "設為管理員"}
+              {u.is_admin ? tu.removeAdmin : tu.makeAdmin}
             </Button>
           </Popconfirm>
         </Space>
@@ -141,10 +146,10 @@ export default function AdminUsers() {
     <>
       <Space style={{ marginBottom: 16, width: "100%", justifyContent: "space-between" }} wrap>
         <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-          全部註冊用戶（最多顯示 300 個）。管理員可喺資訊交流區置頂 / 刪除任何帖子。
+          {tu.note}
         </Typography.Text>
         <Button icon={<ReloadOutlined />} onClick={() => void load()}>
-          刷新
+          {tc.refresh}
         </Button>
       </Space>
 
@@ -154,7 +159,7 @@ export default function AdminUsers() {
         columns={columns}
         dataSource={users}
         pagination={false}
-        locale={{ emptyText: "暫時沒有記錄" }}
+        locale={{ emptyText: tc.empty }}
         scroll={{ x: 1000 }}
       />
     </>

@@ -5,6 +5,7 @@ import { App, Button, Card, List, Space, Table, Tag, Typography } from "antd";
 import { CopyOutlined, DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import VideoWithCover from "@/components/common/VideoWithCover";
+import { useLanguage } from "@/lib/i18n";
 
 interface InterviewItem {
   id: string;
@@ -35,15 +36,18 @@ interface Report {
   generatedBy: "ai" | "none";
 }
 
-const STATUS_TAG: Record<string, { color: string; label: string }> = {
-  pending: { color: "default", label: "未開始" },
-  in_progress: { color: "gold", label: "進行中" },
-  completed: { color: "green", label: "已完成" },
+const STATUS_COLOR: Record<string, string> = {
+  pending: "default",
+  in_progress: "gold",
+  completed: "green",
 };
 
 /** 面試記錄（獨立 tab）：列表 + 展開詳情（報告/作答/視頻）+ 整場刪除 */
 export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiBase?: string }) {
   const { message, modal } = App.useApp();
+  const { t } = useLanguage();
+  const tr = t.workspace.interviewMgmt.records;
+  const tm = t.workspace.interviewMgmt;
   const [interviews, setInterviews] = useState<InterviewItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -58,10 +62,10 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
     try {
       const res = await fetch(`${apiBase}/interviews`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "讀取失敗");
+      if (!res.ok) throw new Error(data.error || tm.loadFailed);
       setInterviews(data.interviews || []);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : "讀取失敗");
+      message.error(e instanceof Error ? e.message : tm.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -76,25 +80,25 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
 
   const copyLink = (token: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/interview/${token}`).catch(() => {});
-    message.success("連結已複製");
+    message.success(tr.copied);
   };
 
   const deleteInterview = (iv: InterviewItem) => {
     modal.confirm({
-      title: "刪除面試記錄？",
-      content: `確定刪除「${iv.worker_name}」嘅整場面試？作答記錄、視頻及簡歷原件會一併刪除，不能恢復。`,
-      okText: "確定刪除",
+      title: tr.deleteTitle,
+      content: tr.deleteBody(iv.worker_name),
+      okText: tr.deleteOk,
       okButtonProps: { danger: true, loading: deletingId === iv.id },
-      cancelText: "取消",
+      cancelText: tm.cancel,
       onOk: async () => {
         setDeletingId(iv.id);
         try {
           const res = await fetch(`${apiBase}/interviews/${iv.id}`, { method: "DELETE" });
           if (res.ok) {
-            message.success("已刪除");
+            message.success(tr.deleted);
             await load();
           } else {
-            message.error((await res.json()).error || "刪除失敗");
+            message.error((await res.json()).error || tr.deleteFailed);
           }
         } finally {
           setDeletingId(null);
@@ -108,12 +112,12 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
     try {
       const res = await fetch(`${apiBase}/interviews/${id}`);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `讀取失敗（${res.status}）`);
+      if (!res.ok) throw new Error(data.error || `${tm.loadFailed}（${res.status}）`);
       setDetails((prev) => ({ ...prev, [id]: data }));
     } catch (e) {
       // 記錄失敗狀態，避免展開行永遠停留喺「載入中…」
       setDetails((prev) => ({ ...prev, [id]: null }));
-      message.error(e instanceof Error ? e.message : "詳情載入失敗");
+      message.error(e instanceof Error ? e.message : tr.detailLoadFailed);
     }
   };
 
@@ -126,31 +130,35 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
   /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
   const columns: ColumnsType<InterviewItem> = [
-    { title: "工人", dataIndex: "worker_name", width: 150, render: (v) => <strong>{v}</strong> },
+    { title: tr.colWorker, dataIndex: "worker_name", width: 150, render: (v) => <strong>{v}</strong> },
     {
-      title: "狀態",
+      title: tr.colStatus,
       dataIndex: "status",
       width: 100,
-      render: (s) => <Tag color={STATUS_TAG[s]?.color}>{STATUS_TAG[s]?.label || s}</Tag>,
+      render: (s) => (
+        <Tag color={STATUS_COLOR[s]}>
+          {(tr.status as Record<string, string>)[s] || s}
+        </Tag>
+      ),
     },
     {
-      title: "評分",
+      title: tr.colScore,
       width: 90,
       render: (_, iv) => (iv.report?.score != null ? <Tag color="blue">{iv.report.score}/10</Tag> : "—"),
     },
     {
-      title: "創建時間",
+      title: tr.colCreatedAt,
       dataIndex: "created_at",
       width: 170,
       render: (v) => new Date(v).toLocaleString("zh-HK"),
     },
     {
-      title: "操作",
+      title: tr.colActions,
       width: 200,
       render: (_, iv) => (
         <Space>
           <Button size="small" icon={<CopyOutlined />} onClick={() => copyLink(iv.token)}>
-            複製連結
+            {tr.copyLink}
           </Button>
           <Button
             size="small"
@@ -159,7 +167,7 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
             loading={deletingId === iv.id}
             onClick={() => deleteInterview(iv)}
           >
-            刪除
+            {tr.delete}
           </Button>
         </Space>
       ),
@@ -168,7 +176,7 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
 
   return (
     <Card
-      extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={() => load()}>刷新</Button>}
+      extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={() => load()}>{tm.refresh}</Button>}
     >
       <Table<InterviewItem>
         rowKey="id"
@@ -177,7 +185,7 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
         dataSource={interviews}
         scroll={{ x: true }}
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
-        locale={{ emptyText: "暫無面試記錄" }}
+        locale={{ emptyText: tr.empty }}
         expandable={{
           expandedRowKeys: expandedKeys,
           onExpandedRowsChange: (keys) => setExpandedKeys([...keys] as string[]),
@@ -185,33 +193,33 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
           expandedRowRender: (iv) => {
             const d = details[iv.id];
             if (iv.id in details && !d)
-              return <Typography.Text type="danger">詳情載入失敗，請收合後重新展開重試。</Typography.Text>;
-            if (!d) return <Typography.Text type="secondary">載入中…</Typography.Text>;
+              return <Typography.Text type="danger">{tr.detailFailed}</Typography.Text>;
+            if (!d) return <Typography.Text type="secondary">{tr.loading}</Typography.Text>;
             const r = d.interview.report;
             return (
               <Space direction="vertical" style={{ width: "100%" }} size={12}>
                 {d.interview.resume_url && (
                   <Button size="small" href={d.interview.resume_url} target="_blank">
-                    下載簡歷原件
+                    {tr.downloadResume}
                   </Button>
                 )}
                 {r && (
-                  <Card size="small" title={`AI 匹配報告（${r.score}/10 分）`} style={{ background: "#fffbe6" }}>
+                  <Card size="small" title={tr.reportTitle(r.score)} style={{ background: "#fffbe6" }}>
                     <Typography.Paragraph>{r.summary}</Typography.Paragraph>
                     {r.strengths?.length > 0 && (
                       <>
-                        <strong>優點：</strong>
+                        <strong>{tr.strengths}</strong>
                         <ul>{r.strengths.map((s, i) => <li key={i}>{s}</li>)}</ul>
                       </>
                     )}
                     {r.concerns?.length > 0 && (
                       <>
-                        <strong>疑點：</strong>
+                        <strong>{tr.concerns}</strong>
                         <ul>{r.concerns.map((s, i) => <li key={i}>{s}</li>)}</ul>
                       </>
                     )}
-                    {r.resumeMatch && <p><strong>簡歷匹配：</strong>{r.resumeMatch}</p>}
-                    {r.recommendation && <p><strong>建議：</strong>{r.recommendation}</p>}
+                    {r.resumeMatch && <p><strong>{tr.resumeMatch}</strong>{r.resumeMatch}</p>}
+                    {r.recommendation && <p><strong>{tr.recommendation}</strong>{r.recommendation}</p>}
                   </Card>
                 )}
                 {d.answers.length > 0 ? (
@@ -223,7 +231,7 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                           <Space>
                             <strong>{a.question_text}</strong>
                             <Tag color={a.passed ? "green" : "red"}>
-                              第 {a.attempt} 次 · {a.passed ? "通過" : "未通過"}
+                              {tr.attempt(a.attempt)} · {a.passed ? tr.passed : tr.failed}
                             </Tag>
                           </Space>
                           {a.transcript && (
@@ -232,7 +240,7 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                             </Typography.Paragraph>
                           )}
                           {a.feedback && (
-                            <Typography.Text type="danger">AI 反饋：{a.feedback}</Typography.Text>
+                            <Typography.Text type="danger">{tr.aiFeedback(a.feedback)}</Typography.Text>
                           )}
                           {a.video_url && (
                             <VideoWithCover src={a.video_url} controls preload="metadata" style={{ width: "100%", maxWidth: 480, borderRadius: 8, background: "#000" }} />
@@ -242,7 +250,7 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                     )}
                   />
                 ) : (
-                  <Typography.Text type="secondary">尚未作答。</Typography.Text>
+                  <Typography.Text type="secondary">{tr.noAnswers}</Typography.Text>
                 )}
               </Space>
             );

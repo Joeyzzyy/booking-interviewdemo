@@ -11,6 +11,7 @@ import AdminInterviews from "@/components/AdminInterviews";
 import AdminInterviewRecords from "@/components/AdminInterviewRecords";
 import BoardPanel from "@/components/BoardPanel";
 import { useLanguage, LOCALES } from "@/lib/i18n";
+import { apiErrorText } from "@/lib/i18n/api-errors";
 
 /** 預約工作台：頂層分組（服務預約 / AI 面試）+ 子分欄 */
 type BookingGroup = "booking" | "interview" | "board";
@@ -242,7 +243,7 @@ export default function BookingClient() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setPurchaseMsg({ ok: false, text: data.error || t.workspace.purchase.createFailed });
+        setPurchaseMsg({ ok: false, text: apiErrorText(data, t) || t.workspace.purchase.createFailed });
         return;
       }
       window.location.assign(data.url); // 跳轉 Stripe 付款頁
@@ -261,7 +262,7 @@ export default function BookingClient() {
       const res = await fetch(`/api/my/bookings/${cancelTarget.id}/cancel`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        setCancelError(data.error || t.workspace.cancelModal.failed);
+        setCancelError(apiErrorText(data, t) || t.workspace.cancelModal.failed);
         return;
       }
       setCancelTarget(null);
@@ -308,7 +309,7 @@ export default function BookingClient() {
       const res = await fetch("/api/bookings/parse-passport", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) {
-        setOcrMsg({ ok: false, text: data.error || t.workspace.book.ocr.failed });
+        setOcrMsg({ ok: false, text: apiErrorText(data, t) || t.workspace.book.ocr.failed });
         return;
       }
       if (data.workerName) setWorkerName(data.workerName);
@@ -360,7 +361,7 @@ export default function BookingClient() {
       const res = await fetch("/api/bookings", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) {
-        setState({ phase: "error", message: data.error || t.workspace.submitFailed });
+        setState({ phase: "error", message: apiErrorText(data, t) || t.workspace.submitFailed });
         return;
       }
       setState({ phase: "success", orderNo: data.orderNo });

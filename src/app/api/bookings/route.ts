@@ -46,7 +46,7 @@ export async function POST(request: Request) {
   // 服務項校驗
   const service = getService(get("serviceKey"));
   if (!service) {
-    return Response.json({ error: "請選擇服務項目" }, { status: 400 });
+    return Response.json({ error: "請選擇服務項目", code: "SERVICE_REQUIRED" }, { status: 400 });
   }
 
   // 通用欄位校驗（賬戶有電郵則以賬戶為準；手機號註冊且未綁電郵時，接受表單聯絡電郵）
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   const email = customer.email || get("contactEmail");
   if (!phone || !whatsapp || !workerName || !passport) {
     return Response.json(
-      { error: "請填寫聯絡電話、WhatsApp、工人姓名及護照號碼" },
+      { error: "請填寫聯絡電話、WhatsApp、工人姓名及護照號碼", code: "FIELDS_REQUIRED" },
       { status: 400 }
     );
   }
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
   // 文件校驗（工人資料必傳）
   const files = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
   if (files.length === 0) {
-    return Response.json({ error: "請上傳工人資料（簽證、護照等）" }, { status: 400 });
+    return Response.json({ error: "請上傳工人資料（簽證、護照等）", code: "WORKER_DOCS_REQUIRED" }, { status: 400 });
   }
   if (files.length > UPLOAD_LIMITS.maxFiles) {
     return Response.json({ error: `最多上傳 ${UPLOAD_LIMITS.maxFiles} 個文件` }, { status: 400 });
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
   const ticketRaw = form.get("flightTicket");
   const ticket = ticketRaw instanceof File && ticketRaw.size > 0 ? ticketRaw : null;
   if (needsTicket && !ticket) {
-    return Response.json({ error: "請上傳機票或行程單" }, { status: 400 });
+    return Response.json({ error: "請上傳機票或行程單", code: "TICKET_REQUIRED" }, { status: 400 });
   }
   const allFiles = ticket ? [ticket, ...files] : files;
 

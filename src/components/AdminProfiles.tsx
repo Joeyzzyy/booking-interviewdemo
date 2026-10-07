@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { App, Button, Input, Modal, Space, Table, Tabs, Tag, Typography } from "antd";
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
+import { useLanguage } from "@/lib/i18n";
 
 interface AdminProfile {
   id: string;
@@ -19,15 +20,18 @@ interface AdminProfile {
   profile_submitted_at: string | null;
 }
 
-const STATUS_TAG: Record<string, { color: string; label: string }> = {
-  pending: { color: "gold", label: "待審核" },
-  approved: { color: "green", label: "已通過" },
-  rejected: { color: "red", label: "未通過" },
+const STATUS_COLOR: Record<string, string> = {
+  pending: "gold",
+  approved: "green",
+  rejected: "red",
 };
 
 /** 管理後台 — 註冊資料審核：通過後用戶才能使用功能；拒絕需填原因，用戶重填時可見 */
 export default function AdminProfiles() {
   const { message } = App.useApp();
+  const { t } = useLanguage();
+  const tp = t.workspace.admin.profiles;
+  const tc = t.workspace.admin.common;
   const [status, setStatus] = useState("pending");
   const [profiles, setProfiles] = useState<AdminProfile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,15 +45,15 @@ export default function AdminProfiles() {
       try {
         const res = await fetch(`/api/admin/profiles?status=${s}`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "讀取失敗");
+        if (!res.ok) throw new Error(data.error || tc.loadFailed);
         setProfiles(data.profiles);
       } catch (e) {
-        message.error(e instanceof Error ? e.message : "讀取失敗");
+        message.error(e instanceof Error ? e.message : tc.loadFailed);
       } finally {
         setLoading(false);
       }
     },
-    [message]
+    [message, tc]
   );
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -68,18 +72,18 @@ export default function AdminProfiles() {
       });
       const data = await res.json();
       if (!res.ok) {
-        message.error(data.error || "操作失敗");
+        message.error(data.error || tc.actFailed);
         return false;
       }
       message.success(
         action === "approve"
-          ? `已通過${data.emailSent ? "，通知郵件已發送" : ""}`
-          : `已拒絕${data.emailSent ? "，通知郵件已發送" : ""}，原因會顯示給用戶`
+          ? `${tp.msgApproved}${data.emailSent ? tc.emailSentSuffix : ""}`
+          : `${tp.msgRejected}${data.emailSent ? tc.emailSentSuffix : ""}${tp.rejectReasonShown}`
       );
       await load(status);
       return true;
     } catch {
-      message.error("網絡錯誤，操作失敗");
+      message.error(tc.networkError);
       return false;
     } finally {
       setActingId(null);
@@ -96,11 +100,11 @@ export default function AdminProfiles() {
   };
 
   const columns: ColumnsType<AdminProfile> = [
-    { title: "申請人", dataIndex: "applicant_name", width: 140, render: (v) => <strong>{v}</strong> },
-    { title: "公司名稱", dataIndex: "company_name", width: 200 },
-    { title: "勞工處登記編號", dataIndex: "labour_reg_no", width: 140 },
+    { title: tp.colApplicant, dataIndex: "applicant_name", width: 140, render: (v) => <strong>{v}</strong> },
+    { title: tp.colCompany, dataIndex: "company_name", width: 200 },
+    { title: tp.colLabourNo, dataIndex: "labour_reg_no", width: 140 },
     {
-      title: "聯絡方式",
+      title: tp.colContact,
       width: 200,
       render: (_, p) => (
         <span>
@@ -113,31 +117,35 @@ export default function AdminProfiles() {
       ),
     },
     {
-      title: "名片",
+      title: tp.colIdCard,
       width: 100,
       render: (_, p) =>
         p.id_card_url ? (
           <Button size="small" href={p.id_card_url} target="_blank">
-            查看
+            {tp.view}
           </Button>
         ) : (
           "—"
         ),
     },
     {
-      title: "狀態",
+      title: tp.colStatus,
       dataIndex: "profile_status",
       width: 90,
-      render: (s) => <Tag color={STATUS_TAG[s]?.color}>{STATUS_TAG[s]?.label || s}</Tag>,
+      render: (s) => (
+        <Tag color={STATUS_COLOR[s]}>
+          {(tp.status as Record<string, string>)[s] || s}
+        </Tag>
+      ),
     },
     {
-      title: "提交時間",
+      title: tp.colSubmittedAt,
       dataIndex: "profile_submitted_at",
       width: 160,
       render: (v) => (v ? new Date(v).toLocaleString("zh-HK") : "—"),
     },
     {
-      title: "操作",
+      title: tp.colActions,
       width: 200,
       render: (_, p) => (
         <Space wrap>
@@ -150,7 +158,7 @@ export default function AdminProfiles() {
                 loading={actingId === p.id}
                 onClick={() => void act(p, "approve", "")}
               >
-                通過
+                {tp.approve}
               </Button>
               <Button
                 size="small"
@@ -161,13 +169,13 @@ export default function AdminProfiles() {
                   setRejectReason("");
                 }}
               >
-                拒絕
+                {tp.reject}
               </Button>
             </>
           )}
           {p.profile_status === "rejected" && p.profile_reject_reason && (
             <Typography.Text type="danger" style={{ fontSize: 12 }}>
-              原因：{p.profile_reject_reason}
+              {tp.reasonPrefix}{p.profile_reject_reason}
             </Typography.Text>
           )}
         </Space>
@@ -182,14 +190,14 @@ export default function AdminProfiles() {
           activeKey={status}
           onChange={setStatus}
           items={[
-            { key: "pending", label: "待審核" },
-            { key: "approved", label: "已通過" },
-            { key: "rejected", label: "未通過" },
-            { key: "all", label: "全部" },
+            { key: "pending", label: tp.tabs.pending },
+            { key: "approved", label: tp.tabs.approved },
+            { key: "rejected", label: tp.tabs.rejected },
+            { key: "all", label: tp.tabs.all },
           ]}
         />
         <Button icon={<ReloadOutlined />} onClick={() => void load(status)}>
-          刷新
+          {tc.refresh}
         </Button>
       </Space>
 
@@ -199,28 +207,28 @@ export default function AdminProfiles() {
         columns={columns}
         dataSource={profiles}
         pagination={false}
-        locale={{ emptyText: "暫時沒有記錄" }}
+        locale={{ emptyText: tc.empty }}
         scroll={{ x: 1100 }}
       />
 
       {/* 拒絕原因彈窗 */}
       <Modal
         open={rejectTarget !== null}
-        title={`拒絕「${rejectTarget?.applicant_name}」的註冊資料？`}
-        okText="確定拒絕"
-        cancelText="返回"
+        title={tp.rejectTitle(rejectTarget?.applicant_name || "")}
+        okText={tp.rejectOk}
+        cancelText={tc.back}
         okButtonProps={{ danger: true, loading: actingId === rejectTarget?.id }}
         onOk={() => void onReject()}
         onCancel={() => setRejectTarget(null)}
       >
         <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>
-          請填寫拒絕原因（必填）。用戶下次進入時會在表單頂部看到此原因，並可重新填寫提交。
+          {tp.rejectHint}
         </Typography.Paragraph>
         <Input.TextArea
           rows={3}
           value={rejectReason}
           onChange={(e) => setRejectReason(e.target.value)}
-          placeholder="例如：名片照片模糊，請重新上傳清晰照片"
+          placeholder={tp.rejectPlaceholder}
         />
       </Modal>
     </>

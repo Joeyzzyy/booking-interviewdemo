@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Smartphone, ArrowLeft } from "lucide-react";
 import { Button, Field, Input, Tabs } from "@/components/ui";
+import { useLanguage } from "@/lib/i18n";
+import { apiErrorText } from "@/lib/i18n/api-errors";
 
 type Channel = "email" | "phone";
 
@@ -20,6 +22,7 @@ export default function LoginForm({
   onSuccess?: () => void;
 }) {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const [channel, setChannel] = useState<Channel>("email");
   const [identifier, setIdentifier] = useState("");
@@ -56,7 +59,7 @@ export default function LoginForm({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "發送失敗");
+        setError(apiErrorText(data, t) || "發送失敗");
         return;
       }
       setStep("code");
@@ -80,7 +83,7 @@ export default function LoginForm({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "驗證失敗");
+        setError(apiErrorText(data, t) || "驗證失敗");
         return;
       }
       window.dispatchEvent(new Event("nl-auth-changed"));

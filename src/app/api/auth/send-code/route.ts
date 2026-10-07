@@ -25,7 +25,10 @@ export async function POST(request: Request) {
   const identifier = normalizeIdentifier(channel, body.identifier || "");
   if (!identifier) {
     return Response.json(
-      { error: channel === "email" ? "請填寫有效電郵地址" : "請填寫有效手機號碼" },
+      {
+        error: channel === "email" ? "請填寫有效電郵地址" : "請填寫有效手機號碼",
+        code: channel === "email" ? "INVALID_EMAIL" : "INVALID_PHONE",
+      },
       { status: 400 }
     );
   }
@@ -48,7 +51,10 @@ export async function POST(request: Request) {
       // 發送失敗：丟棄驗證碼，避免佔用 60 秒頻率限制導致無法重試
       await discardOtpCode(identifier, channel);
       return Response.json(
-        { error: channel === "email" ? "驗證碼發送失敗，請稍後再試" : "短訊服務暫不可用，請改用電郵登入" },
+        {
+          error: channel === "email" ? "驗證碼發送失敗，請稍後再試" : "短訊服務暫不可用，請改用電郵登入",
+          code: channel === "email" ? "SEND_FAILED" : "SMS_UNAVAILABLE",
+        },
         { status: 503 }
       );
     }

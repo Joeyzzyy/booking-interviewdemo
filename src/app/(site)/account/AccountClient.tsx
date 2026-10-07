@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { Badge, Button, Field, Input, Modal } from "@/components/ui";
 import { openLogin } from "@/components/auth/login-events";
+import { useLanguage } from "@/lib/i18n";
+import { apiErrorText } from "@/lib/i18n/api-errors";
 import type { Channel } from "@/lib/booking/auth";
 
 interface CustomerInfo {
@@ -20,8 +22,6 @@ interface CustomerInfo {
   email: string | null;
   phone: string | null;
 }
-
-const CHANNEL_LABEL: Record<Channel, string> = { email: "電郵", phone: "手機號" };
 
 /** 綁定聯絡方式彈窗：輸入標識 → 發送驗證碼 → 校驗綁定 */
 function BindModal({
@@ -35,6 +35,9 @@ function BindModal({
   onClose: () => void;
   onBound: (customer: CustomerInfo) => void;
 }) {
+  const { t } = useLanguage();
+  const ta = t.workspace.account;
+  const channelLabel = channel === "email" ? ta.email : ta.phone;
   const [identifier, setIdentifier] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"input" | "code">("input");
@@ -63,13 +66,13 @@ function BindModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "發送失敗");
+        setError(apiErrorText(data, t) || ta.sendFailed);
         return;
       }
       setStep("code");
       if (data.devCode) setDevCode(data.devCode);
     } catch {
-      setError("網絡錯誤，請稍後再試");
+      setError(t.workspace.networkError);
     } finally {
       setBusy(false);
     }
@@ -86,13 +89,13 @@ function BindModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "綁定失敗");
+        setError(apiErrorText(data, t) || ta.bindFailed);
         return;
       }
       onBound(data.customer);
       onClose();
     } catch {
-      setError("網絡錯誤，請稍後再試");
+      setError(t.workspace.networkError);
     } finally {
       setBusy(false);
     }
@@ -102,26 +105,26 @@ function BindModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={`綁定${CHANNEL_LABEL[channel]}`}
+      title={ta.bindTitle(channelLabel)}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={busy}>
-            取消
+            {t.header.cancel}
           </Button>
           {step === "input" ? (
             <Button onClick={() => void sendCode()} loading={busy} disabled={!identifier.trim()}>
-              發送驗證碼
+              {ta.sendCode}
             </Button>
           ) : (
             <Button onClick={() => void bind()} loading={busy} disabled={code.length !== 6}>
-              確認綁定
+              {ta.confirmBind}
             </Button>
           )}
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <Field label={CHANNEL_LABEL[channel]} required>
+        <Field label={channelLabel} required>
           <Input
             type={channel === "email" ? "email" : "tel"}
             value={identifier}
@@ -132,19 +135,19 @@ function BindModal({
         </Field>
         {step === "code" && (
           <>
-            <Field label="驗證碼" required hint={`驗證碼已發送至 ${identifier}，10 分鐘內有效`}>
+            <Field label={ta.codeLabel} required hint={ta.codeHint(identifier)}>
               <Input
                 inputMode="numeric"
                 maxLength={6}
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                placeholder="6 位數字"
+                placeholder={ta.codePlaceholder}
                 autoFocus
               />
             </Field>
             {devCode && (
               <p className="rounded-xl bg-[#e9f5f0] px-4 py-2.5 text-[12.5px] text-[#2a8163]">
-                開發模式：驗證碼為 <strong className="tracking-widest">{devCode}</strong>
+                {ta.devCode(devCode)}
               </p>
             )}
           </>
@@ -158,6 +161,9 @@ function BindModal({
 /** 賬號中心：賬戶資料 / 聯絡方式綁定管理 / 快速入口 */
 export default function AccountClient() {
   const router = useRouter();
+  const { t } = useLanguage();
+  const ta = t.workspace.account;
+  const channelLabel = (c: Channel) => (c === "email" ? ta.email : ta.phone);
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
   const [checked, setChecked] = useState(false);
   const [bindChannel, setBindChannel] = useState<Channel | null>(null);
@@ -209,15 +215,15 @@ export default function AccountClient() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setNotice({ ok: false, text: data.error || "解綁失敗" });
+        setNotice({ ok: false, text: apiErrorText(data, t) || ta.unbindFailed });
         return;
       }
       setCustomer(data.customer);
-      setNotice({ ok: true, text: `${CHANNEL_LABEL[unbindTarget]}已解綁。` });
+      setNotice({ ok: true, text: ta.unboundOk(channelLabel(unbindTarget)) });
       setUnbindTarget(null);
       window.dispatchEvent(new Event("nl-auth-changed"));
     } catch {
-      setNotice({ ok: false, text: "網絡錯誤，請稍後再試" });
+      setNotice({ ok: false, text: t.workspace.networkError });
     } finally {
       setUnbinding(false);
     }
@@ -226,7 +232,7 @@ export default function AccountClient() {
   if (!checked) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-[14px] text-[#8b95ad]">
-        載入中…
+        {t.workspace.loading}
       </div>
     );
   }
@@ -234,12 +240,12 @@ export default function AccountClient() {
   if (!customer) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-24 text-center">
-        <h1 className="text-[24px] font-bold tracking-[-0.02em] text-[#161b2e]">賬號中心</h1>
+        <h1 className="text-[24px] font-bold tracking-[-0.02em] text-[#161b2e]">{ta.title}</h1>
         <p className="mt-3 text-[14px] leading-[1.85] text-[#5d6b85]">
-          登入後即可管理你的聯絡方式與預約紀錄。
+          {ta.loginHint}
         </p>
         <Button size="lg" className="mt-6" onClick={() => openLogin("/account")}>
-          登入 / 註冊
+          {t.header.login}
         </Button>
       </div>
     );
@@ -255,12 +261,12 @@ export default function AccountClient() {
       <div className="relative mx-auto max-w-[760px]">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-[26px] font-bold tracking-[-0.02em] text-[#161b2e]">賬號中心</h1>
-            <p className="mt-1.5 text-[13.5px] text-[#5d6b85]">管理你的聯絡方式與賬戶設定</p>
+            <h1 className="text-[26px] font-bold tracking-[-0.02em] text-[#161b2e]">{ta.title}</h1>
+            <p className="mt-1.5 text-[13.5px] text-[#5d6b85]">{ta.subtitle}</p>
           </div>
           <Button variant="secondary" size="sm" onClick={() => setLogoutOpen(true)}>
             <LogOut size={13} aria-hidden="true" />
-            登出
+            {t.header.logout}
           </Button>
         </div>
 
@@ -277,9 +283,9 @@ export default function AccountClient() {
 
         {/* 聯絡方式 */}
         <div className="glass-card p-7 sm:p-8">
-          <h2 className="text-[16px] font-bold text-[#161b2e]">聯絡方式</h2>
+          <h2 className="text-[16px] font-bold text-[#161b2e]">{ta.contactTitle}</h2>
           <p className="mt-1.5 text-[12.5px] leading-[1.75] text-[#8b95ad]">
-            電郵與手機號均可用於驗證碼登入。賬戶必須至少保留一種聯絡方式，暫不支援註銷賬戶。
+            {ta.contactDesc}
           </p>
 
           <div className="mt-6 flex flex-col gap-4">
@@ -295,12 +301,12 @@ export default function AccountClient() {
                     <Icon size={17} aria-hidden="true" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-semibold text-[#8b95ad]">{CHANNEL_LABEL[channel]}</p>
+                    <p className="text-[12px] font-semibold text-[#8b95ad]">{channelLabel(channel)}</p>
                     <p className="truncate text-[14.5px] font-bold text-[#161b2e]">
-                      {value || "未綁定"}
+                      {value || ta.notBound}
                     </p>
                   </div>
-                  <Badge variant={bound ? "green" : "gray"}>{bound ? "已綁定" : "未綁定"}</Badge>
+                  <Badge variant={bound ? "green" : "gray"}>{bound ? ta.bound : ta.notBound}</Badge>
                   {channel === "phone" && !bound && (
                     <Badge variant="gray">Coming Soon</Badge>
                   )}
@@ -309,20 +315,20 @@ export default function AccountClient() {
                       variant={bound ? "outline" : "primary"}
                       size="sm"
                       disabled={channel === "phone" && !bound}
-                      title={channel === "phone" && !bound ? "短訊驗證即將開放" : undefined}
+                      title={channel === "phone" && !bound ? ta.smsComingSoon : undefined}
                       onClick={() => setBindChannel(channel)}
                     >
-                      {bound ? "更換" : "綁定"}
+                      {bound ? ta.change : ta.bind}
                     </Button>
                     {bound && (
                       <Button
                         variant="danger"
                         size="sm"
                         disabled={!canUnbind}
-                        title={canUnbind ? undefined : "賬戶必須至少保留一種聯絡方式"}
+                        title={canUnbind ? undefined : ta.keepOneHint}
                         onClick={() => setUnbindTarget(channel)}
                       >
-                        解綁
+                        {ta.unbind}
                       </Button>
                     )}
                   </div>
@@ -341,9 +347,9 @@ export default function AccountClient() {
               </span>
               <div>
                 <h3 className="text-[15px] font-bold text-[#161b2e] group-hover:text-[#2a8163]">
-                  我的預約與套票
+                  {ta.bookingsEntryTitle}
                 </h3>
-                <p className="mt-1 text-[12.5px] text-[#8b95ad]">查看預約紀錄、套票餘額，發起新預約</p>
+                <p className="mt-1 text-[12.5px] text-[#8b95ad]">{ta.bookingsEntryDesc}</p>
               </div>
             </div>
           </Link>
@@ -352,9 +358,9 @@ export default function AccountClient() {
               <TriangleAlert size={19} aria-hidden="true" />
             </span>
             <div>
-              <h3 className="text-[15px] font-bold text-[#5d6b85]">註銷賬戶</h3>
+              <h3 className="text-[15px] font-bold text-[#5d6b85]">{ta.closeAccountTitle}</h3>
               <p className="mt-1 text-[12.5px] leading-[1.7] text-[#8b95ad]">
-                暫不支援自助註銷；如有需要請聯絡客服處理。
+                {ta.closeAccountDesc}
               </p>
             </div>
           </div>
@@ -369,7 +375,7 @@ export default function AccountClient() {
           onClose={() => setBindChannel(null)}
           onBound={(c) => {
             setCustomer(c);
-            setNotice({ ok: true, text: `${CHANNEL_LABEL[bindChannel]}綁定成功。` });
+            setNotice({ ok: true, text: ta.boundOk(channelLabel(bindChannel)) });
             window.dispatchEvent(new Event("nl-auth-changed"));
           }}
         />
@@ -379,23 +385,26 @@ export default function AccountClient() {
       <Modal
         open={unbindTarget !== null}
         onClose={() => !unbinding && setUnbindTarget(null)}
-        title={unbindTarget ? `解綁${CHANNEL_LABEL[unbindTarget]}？` : undefined}
+        title={unbindTarget ? ta.unbindTitle(channelLabel(unbindTarget)) : undefined}
         footer={
           <>
             <Button variant="secondary" onClick={() => setUnbindTarget(null)} disabled={unbinding}>
-              返回
+              {ta.back}
             </Button>
             <Button variant="danger" onClick={() => void unbind()} loading={unbinding}>
-              確定解綁
+              {ta.confirmUnbind}
             </Button>
           </>
         }
       >
         {unbindTarget && (
           <p className="text-[14px] leading-[1.8] text-[#5d6b85]">
-            解綁後，<strong className="text-[#161b2e]">{customer[unbindTarget]}</strong> 將不能再用於登入此賬戶；
-            你仍可使用{CHANNEL_LABEL[unbindTarget === "email" ? "phone" : "email"]}
-            （{customer[unbindTarget === "email" ? "phone" : "email"]}）登入。
+            {ta.unbindBodyBefore}
+            <strong className="text-[#161b2e]">{customer[unbindTarget]}</strong>
+            {ta.unbindBodyAfter(
+              channelLabel(unbindTarget === "email" ? "phone" : "email"),
+              customer[unbindTarget === "email" ? "phone" : "email"] || ""
+            )}
           </p>
         )}
       </Modal>
@@ -404,20 +413,20 @@ export default function AccountClient() {
       <Modal
         open={logoutOpen}
         onClose={() => setLogoutOpen(false)}
-        title="登出？"
+        title={t.header.logoutTitle}
         footer={
           <>
             <Button variant="secondary" onClick={() => setLogoutOpen(false)}>
-              取消
+              {t.header.cancel}
             </Button>
             <Button variant="danger" onClick={() => void logout()}>
-              確定登出
+              {t.header.confirmLogout}
             </Button>
           </>
         }
       >
         <p className="text-[14px] leading-[1.8] text-[#5d6b85]">
-          登出後需要重新驗證電郵或手機號才能再次登入。
+          {t.header.logoutHint}
         </p>
       </Modal>
     </div>

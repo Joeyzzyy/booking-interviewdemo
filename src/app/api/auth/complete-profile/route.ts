@@ -18,7 +18,7 @@ function sanitizeFilename(name: string): string {
 export async function POST(request: Request) {
   const customer = await getSessionCustomer(request);
   if (!customer) {
-    return Response.json({ error: "請先登入" }, { status: 401 });
+    return Response.json({ error: "請先登入", code: "LOGIN_REQUIRED" }, { status: 401 });
   }
   const supabase = getSupabase();
   if (!supabase) {
@@ -40,20 +40,20 @@ export async function POST(request: Request) {
   const labourRegNo = get("labourRegNo");
   if (!applicantName || !companyName || !labourRegNo) {
     return Response.json(
-      { error: "請填寫申請人姓名、公司名稱及勞工處登記編號" },
+      { error: "請填寫申請人姓名、公司名稱及勞工處登記編號", code: "PROFILE_FIELDS_REQUIRED" },
       { status: 400 }
     );
   }
 
   const idCard = form.get("idCard");
   if (!(idCard instanceof File) || idCard.size === 0) {
-    return Response.json({ error: "請上傳公司名片照片" }, { status: 400 });
+    return Response.json({ error: "請上傳公司名片照片", code: "IDCARD_REQUIRED" }, { status: 400 });
   }
   if (!ACCEPT.includes(idCard.type)) {
-    return Response.json({ error: "名片格式不支持（僅限 JPG/PNG/PDF）" }, { status: 400 });
+    return Response.json({ error: "名片格式不支持（僅限 JPG/PNG/PDF）", code: "IDCARD_BAD_FORMAT" }, { status: 400 });
   }
   if (idCard.size > 4 * 1024 * 1024) {
-    return Response.json({ error: "名片檔案超過 4MB 上限，請壓縮後再上傳" }, { status: 400 });
+    return Response.json({ error: "名片檔案超過 4MB 上限，請壓縮後再上傳", code: "IDCARD_TOO_LARGE" }, { status: 400 });
   }
 
   // 上傳名片到私有桶

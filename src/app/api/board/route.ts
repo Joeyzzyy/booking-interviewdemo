@@ -78,13 +78,52 @@ export async function GET(request: Request) {
   const hasMore = rows.length > PAGE_SIZE;
   const posts = rows.slice(0, PAGE_SIZE).map(mapPost);
   const pinned = ((pinnedData || []) as unknown as PostRow[]).map(mapPost);
-  return Response.json({ posts, pinned, hasMore, canManage: Boolean(customer.is_admin) });
+
+  // 批量取 like / comment 統計（兩條查詢，避免 N+1；表未建立時靜默降級為 0）
+  const ids = [...pinned, ...posts].map((p) => p.id);
+  const likeCount = new Map<string, number>();
+  const likedByMe = new Set<string>();
+  const commentCount = new Map<string, number>();
+  if (ids.length > 0) {
+    const [likesRes, commentsRes] = await Promise.all([
+      supabase.from("board_post_likes").select("post_id, customer_id").in("post_id", ids),
+      supabase.from("board_comments").select("post_id").in("post_id", ids),
+    ]);
+    if (likesRes.error) {
+      console.warn("[board] 讚好統計失敗（可能未執行 board.sql 新表）:", likesRes.error.message);
+    } else {
+      for (const r of likesRes.data || []) {
+        likeCount.set(r.post_id, (likeCount.get(r.post_id) || 0) + 1);
+        if (r.customer_id === customer.id) likedByMe.add(r.post_id);
+      }
+    }
+    if (commentsRes.error) {
+      console.warn("[board] 留言統計失敗（可能未執行 board.sql 新表）:", commentsRes.error.message);
+    } else {
+      for (const r of commentsRes.data || []) {
+        commentCount.set(r.post_id, (commentCount.get(r.post_id) || 0) + 1);
+      }
+    }
+  }
+  const enrich = <T extends { id: string }>(p: T) => ({
+    ...p,
+    likeCount: likeCount.get(p.id) || 0,
+    likedByMe: likedByMe.has(p.id),
+    commentCount: commentCount.get(p.id) || 0,
+  });
+
+  return Response.json({
+    posts: posts.map(enrich),
+    pinned: pinned.map(enrich),
+    hasMore,
+    canManage: Boolean(customer.is_admin),
+  });
 }
 
 export async function POST(request: Request) {
   const customer = await getSessionCustomer(request);
   if (!customer || !isProfileApproved(customer)) {
-    return Response.json({ error: "審核通過後先可以發帖" }, { status: 403 });
+    return Response.json({ error: "審核通過後先可以發帖", code: "APPROVAL_REQUIRED" }, { status: 403 });
   }
   const supabase = getSupabase();
   if (!supabase) {
@@ -100,13 +139,13 @@ export async function POST(request: Request) {
   const title = (body.title || "").trim();
   const content = sanitizePostHtml(body.content || "");
   if (!title || !plainText(content)) {
-    return Response.json({ error: "請填寫標題及內容" }, { status: 400 });
+    return Response.json({ error: "請填寫標題及內容", code: "TITLE_CONTENT_REQUIRED" }, { status: 400 });
   }
   if (title.length > 80) {
-    return Response.json({ error: "標題最長 80 字" }, { status: 400 });
+    return Response.json({ error: "標題最長 80 字", code: "TITLE_TOO_LONG" }, { status: 400 });
   }
   if (plainText(content).length > 2000) {
-    return Response.json({ error: "內容最長 2000 字" }, { status: 400 });
+    return Response.json({ error: "內容最長 2000 字", code: "CONTENT_TOO_LONG" }, { status: 400 });
   }
 
   const { error } = await supabase.from("board_posts").insert({

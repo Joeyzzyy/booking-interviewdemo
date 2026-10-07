@@ -20,6 +20,7 @@ import {
   WhatsAppOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
+import { useLanguage } from "@/lib/i18n";
 
 interface BookingFile {
   name: string;
@@ -47,11 +48,11 @@ interface AdminBooking {
   created_at: string;
 }
 
-const STATUS_TAG: Record<string, { color: string; label: string }> = {
-  pending: { color: "gold", label: "待確認" },
-  confirmed: { color: "green", label: "已確認" },
-  rejected: { color: "red", label: "已拒絕" },
-  cancelled: { color: "default", label: "已取消" },
+const STATUS_COLOR: Record<string, string> = {
+  pending: "gold",
+  confirmed: "green",
+  rejected: "red",
+  cancelled: "default",
 };
 
 /** 電話規範化為 wa.me 國際格式（香港 8 位自動補 852） */
@@ -63,15 +64,17 @@ function waNumber(raw: string | null): string | null {
   return digits;
 }
 
-function waLink(b: AdminBooking): string | null {
+function waLink(b: AdminBooking, waText: string): string | null {
   const num = waNumber(b.whatsapp) || waNumber(b.phone);
   if (!num) return null;
-  const text = `你好 ${b.employer_name}，呢度係傭易做。關於你嘅預約 ${b.order_no}（${b.service_label}）：`;
-  return `https://wa.me/${num}?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/${num}?text=${encodeURIComponent(waText)}`;
 }
 
 export default function AdminBookings() {
   const { message } = App.useApp();
+  const { t } = useLanguage();
+  const tb = t.workspace.admin.bookings;
+  const tc = t.workspace.admin.common;
   const [status, setStatus] = useState("pending");
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState(false);
@@ -89,16 +92,16 @@ export default function AdminBookings() {
       try {
         const res = await fetch(`/api/admin/bookings?status=${s}`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "讀取失敗");
+        if (!res.ok) throw new Error(data.error || tc.loadFailed);
         setBookings(data.bookings);
         setExpandedKeys((data.bookings as AdminBooking[]).map((b) => b.id));
       } catch (e) {
-        message.error(e instanceof Error ? e.message : "讀取失敗");
+        message.error(e instanceof Error ? e.message : tc.loadFailed);
       } finally {
         setLoading(false);
       }
     },
-    [message]
+    [message, tc]
   );
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -117,16 +120,16 @@ export default function AdminBookings() {
       });
       const data = await res.json();
       if (!res.ok) {
-        message.error(data.error || "操作失敗");
+        message.error(data.error || tc.actFailed);
         return false;
       }
       message.success(
-        `${action === "confirm" ? "已確認" : "已拒絕"}${data.emailSent ? "，通知郵件已發送" : ""}`
+        `${action === "confirm" ? tb.msgConfirmed : tb.msgRejected}${data.emailSent ? tc.emailSentSuffix : ""}`
       );
       await load(status);
       return true;
     } catch {
-      message.error("網絡錯誤，操作失敗");
+      message.error(tc.networkError);
       return false;
     } finally {
       setActingId(null);
@@ -157,10 +160,10 @@ export default function AdminBookings() {
   };
 
   const columns: ColumnsType<AdminBooking> = [
-    { title: "訂單號", dataIndex: "order_no", width: 170, render: (v) => <strong>{v}</strong> },
-    { title: "服務", dataIndex: "service_label", width: 120 },
+    { title: tb.colOrderNo, dataIndex: "order_no", width: 170, render: (v) => <strong>{v}</strong> },
+    { title: tb.colService, dataIndex: "service_label", width: 120 },
     {
-      title: "僱主",
+      title: tb.colEmployer,
       width: 200,
       render: (_, b) => (
         <span>
@@ -173,31 +176,37 @@ export default function AdminBookings() {
       ),
     },
     {
-      title: "狀態",
+      title: tb.colStatus,
       dataIndex: "status",
       width: 100,
-      render: (s) => <Tag color={STATUS_TAG[s]?.color}>{STATUS_TAG[s]?.label || s}</Tag>,
+      render: (s) => (
+        <Tag color={STATUS_COLOR[s]}>
+          {(tb.status as Record<string, string>)[s] || s}
+        </Tag>
+      ),
     },
     {
-      title: "下單時間",
+      title: tb.colCreatedAt,
       dataIndex: "created_at",
       width: 170,
       render: (v) => new Date(v).toLocaleString("zh-HK"),
     },
     {
-      title: "操作",
+      title: tb.colActions,
       width: 360,
-      render: (_, b) => (
+      render: (_, b) => {
+        const wa = waLink(b, tb.waText(b.employer_name, b.order_no, b.service_label));
+        return (
         <Space wrap>
-          {waLink(b) && (
+          {wa && (
             <Button
               size="small"
               icon={<WhatsAppOutlined />}
-              href={waLink(b)!}
+              href={wa}
               target="_blank"
               style={{ background: "#25d366", color: "#fff", border: "none" }}
             >
-              透過 WhatsApp 聯絡客戶
+              {tb.whatsappBtn}
             </Button>
           )}
           {b.status === "pending" && (
@@ -209,7 +218,7 @@ export default function AdminBookings() {
                 loading={actingId === b.id}
                 onClick={() => onConfirm(b)}
               >
-                確認訂單
+                {tb.confirmBtn}
               </Button>
               <Button
                 size="small"
@@ -220,12 +229,13 @@ export default function AdminBookings() {
                   setRejectNote("");
                 }}
               >
-                拒絕訂單
+                {tb.rejectBtn}
               </Button>
             </>
           )}
         </Space>
-      ),
+        );
+      },
     },
   ];
 
@@ -236,14 +246,14 @@ export default function AdminBookings() {
           activeKey={status}
           onChange={setStatus}
           items={[
-            { key: "pending", label: "待確認" },
-            { key: "confirmed", label: "已確認" },
-            { key: "rejected", label: "已拒絕" },
-            { key: "all", label: "全部" },
+            { key: "pending", label: tb.tabs.pending },
+            { key: "confirmed", label: tb.tabs.confirmed },
+            { key: "rejected", label: tb.tabs.rejected },
+            { key: "all", label: tb.tabs.all },
           ]}
         />
         <Button icon={<ReloadOutlined />} loading={loading} onClick={() => load(status)}>
-          刷新
+          {tc.refresh}
         </Button>
       </Space>
 
@@ -254,29 +264,29 @@ export default function AdminBookings() {
         dataSource={bookings}
         scroll={{ x: true }}
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
-        locale={{ emptyText: "暫無訂單" }}
+        locale={{ emptyText: tb.empty }}
         expandable={{
           expandedRowKeys: expandedKeys,
           onExpandedRowsChange: (keys) => setExpandedKeys([...keys] as string[]),
           expandedRowRender: (b) => (
             <Descriptions column={{ xs: 1, sm: 2 }} size="small" bordered>
-              <Descriptions.Item label="工人姓名">{b.worker_name}</Descriptions.Item>
-              <Descriptions.Item label="電郵">{b.email}</Descriptions.Item>
+              <Descriptions.Item label={tb.detailWorkerName}>{b.worker_name}</Descriptions.Item>
+              <Descriptions.Item label={tb.detailEmail}>{b.email}</Descriptions.Item>
               {b.whatsapp && <Descriptions.Item label="WhatsApp">{b.whatsapp}</Descriptions.Item>}
-              <Descriptions.Item label="收費">
-                {b.price_hkd != null ? `HK$${b.price_hkd}` : "面議"}
+              <Descriptions.Item label={tb.detailPrice}>
+                {b.price_hkd != null ? `HK$${b.price_hkd}` : tb.priceTbd}
               </Descriptions.Item>
               {Object.entries(b.details || {}).map(([k, v]) => (
                 <Descriptions.Item key={k} label={k}>
                   {v}
                 </Descriptions.Item>
               ))}
-              {b.remark && <Descriptions.Item label="備註">{b.remark}</Descriptions.Item>}
+              {b.remark && <Descriptions.Item label={tb.detailRemark}>{b.remark}</Descriptions.Item>}
               {b.admin_note && (
-                <Descriptions.Item label="管理員備註">{b.admin_note}</Descriptions.Item>
+                <Descriptions.Item label={tb.detailAdminNote}>{b.admin_note}</Descriptions.Item>
               )}
               {b.files.length > 0 && (
-                <Descriptions.Item label="上傳文件">
+                <Descriptions.Item label={tb.detailFiles}>
                   <Space wrap>
                     {b.files.map((f) => (
                       <Button key={f.path} size="small" href={f.url || "#"} target="_blank">
@@ -293,20 +303,20 @@ export default function AdminBookings() {
 
       {/* 拒絕理由彈窗（必填，客戶可見） */}
       <Modal
-        title={`拒絕訂單 ${rejectTarget?.order_no || ""}`}
+        title={tb.rejectTitle(rejectTarget?.order_no || "")}
         open={!!rejectTarget}
         onCancel={() => setRejectTarget(null)}
         onOk={onReject}
-        okText="確定拒絕訂單"
-        cancelText="返回"
+        okText={tb.rejectOk}
+        cancelText={tc.back}
         okButtonProps={{ danger: true, loading: actingId === rejectTarget?.id, disabled: !rejectNote.trim() }}
       >
         <Typography.Paragraph type="secondary">
-          請填寫拒絕理由（必填）。理由會顯示在客戶的訂單記錄並以電郵通知，套票會自動退回客戶賬戶。
+          {tb.rejectHint}
         </Typography.Paragraph>
         <Input.TextArea
           rows={3}
-          placeholder="拒絕理由（必填，例如：該日期已滿，請另約時間）"
+          placeholder={tb.rejectPlaceholder}
           value={rejectNote}
           onChange={(e) => setRejectNote(e.target.value)}
         />
@@ -314,20 +324,20 @@ export default function AdminBookings() {
 
       {/* 確認訂單彈窗（可寫備忘，客戶可見） */}
       <Modal
-        title={`確認訂單 ${confirmTarget?.order_no || ""}`}
+        title={tb.confirmTitle(confirmTarget?.order_no || "")}
         open={!!confirmTarget}
         onCancel={() => setConfirmTarget(null)}
         onOk={doConfirm}
-        okText="確定確認訂單"
-        cancelText="返回"
+        okText={tb.confirmOk}
+        cancelText={tc.back}
         okButtonProps={{ loading: actingId === confirmTarget?.id }}
       >
         <Typography.Paragraph type="secondary">
-          確認後會以電郵通知客戶。可填寫備忘（選填），備忘會顯示在客戶的訂單記錄。
+          {tb.confirmHint}
         </Typography.Paragraph>
         <Input.TextArea
           rows={3}
-          placeholder="確認備忘（選填，例如：已安排 10 月 5 日下午陪同驗身）"
+          placeholder={tb.confirmPlaceholder}
           value={confirmNote}
           onChange={(e) => setConfirmNote(e.target.value)}
         />

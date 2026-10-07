@@ -21,6 +21,7 @@ import {
   UploadOutlined,
 } from "@ant-design/icons";
 import type { UploadFile } from "antd";
+import { useLanguage } from "@/lib/i18n";
 
 interface Question {
   id: string;
@@ -56,6 +57,10 @@ export default function AdminInterviews({
   onCreated?: (info: { token: string; link: string }) => void;
 }) {
   const { message, modal } = App.useApp();
+  const { t } = useLanguage();
+  const tq = t.workspace.interviewMgmt.questions;
+  const tcr = t.workspace.interviewMgmt.create;
+  const tm = t.workspace.interviewMgmt;
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -100,10 +105,10 @@ export default function AdminInterviews({
     try {
       const res = await fetch(`${apiBase}/interview/questions`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "讀取失敗");
+      if (!res.ok) throw new Error(data.error || tm.loadFailed);
       setQuestions(data.questions || []);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : "讀取失敗");
+      message.error(e instanceof Error ? e.message : tm.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -128,7 +133,7 @@ export default function AdminInterviews({
   };
 
   const addQuestion = async () => {
-    if (!newQ.question.trim()) return message.warning("請填寫問題");
+    if (!newQ.question.trim()) return message.warning(tq.warnFill);
     setAddingQ(true);
     const res = await fetch(`${apiBase}/interview/questions`, {
       method: "POST",
@@ -137,12 +142,12 @@ export default function AdminInterviews({
     });
     setAddingQ(false);
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return message.error(data.error || "新增失敗");
+    if (!res.ok) return message.error(data.error || tq.addFailed);
     if (data.warning) {
-      message.warning("已新增問題，但譯文/語音生成有問題");
-      showDetailModal("warning", "譯文/語音生成警告", data.warning);
+      message.warning(tq.addedWithWarning);
+      showDetailModal("warning", tq.warnModalTitle, data.warning);
     } else {
-      message.success("已新增問題");
+      message.success(tq.added);
     }
     setNewQ({ question: "", focus: "" });
     void load();
@@ -164,20 +169,20 @@ export default function AdminInterviews({
       const res = await fetch(`${apiBase}/interview/questions/${q.id}/audio`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        message.error("語音生成失敗，請查看詳情");
-        showDetailModal("error", "語音生成失敗", data.error || "生成失敗");
+        message.error(tq.audioFailed);
+        showDetailModal("error", tq.audioFailedTitle, data.error || tq.genFailed);
         return;
       }
       if (data.warnings?.length) {
-        message.warning("語音已生成，但部分語言失敗");
-        showDetailModal("warning", "部分語言語音生成失敗", data.warnings.join("\n\n"));
+        message.warning(tq.audioPartial);
+        showDetailModal("warning", tq.audioPartialTitle, data.warnings.join("\n\n"));
       } else {
-        message.success("已生成 4 語言語音");
+        message.success(tq.audioDone);
       }
       void load();
     } catch (e) {
-      message.error("生成失敗");
-      showDetailModal("error", "語音生成失敗", e instanceof Error ? e.message : String(e));
+      message.error(tq.genFailed);
+      showDetailModal("error", tq.audioFailedTitle, e instanceof Error ? e.message : String(e));
     } finally {
       setAudioBusy(null);
     }
@@ -190,10 +195,10 @@ export default function AdminInterviews({
         method: "DELETE",
       });
       if (res.ok) {
-        message.success("已刪除");
+        message.success(tq.deleted);
         void load();
       } else {
-        message.error((await res.json()).error || "刪除失敗");
+        message.error((await res.json()).error || tq.deleteFailed);
       }
     } finally {
       setDeletingId(null);
@@ -211,7 +216,7 @@ export default function AdminInterviews({
       const res = await fetch(`${apiBase}/interviews`, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) {
-        message.error(data.error || "創建失敗");
+        message.error(data.error || tcr.failed);
         return;
       }
       const link = `${window.location.origin}/interview/${data.token}`;
@@ -223,7 +228,7 @@ export default function AdminInterviews({
         return;
       }
       modal.success({
-        title: "面試連結已生成（已複製）",
+        title: tcr.linkModalTitle,
         content: (
           <Typography.Paragraph copyable style={{ wordBreak: "break-all" }}>
             {link}
@@ -240,28 +245,28 @@ export default function AdminInterviews({
       {/* 題庫管理 */}
       {section !== "create" && (
       <Card
-        title="面試問題管理"
-        extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={() => load()}>刷新</Button>}
+        title={tq.cardTitle}
+        extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={() => load()}>{tm.refresh}</Button>}
       >
         <List
           loading={loading}
           dataSource={questions}
-          locale={{ emptyText: "暫無問題，請先新增" }}
+          locale={{ emptyText: tq.empty }}
           renderItem={(q) => (
             <List.Item
               style={{ opacity: q.active ? 1 : 0.45 }}
               actions={[
                 <Button key="a" size="small" onClick={() => generateAudio(q)} loading={audioBusy === `audio-${q.id}`}>
-                  {q.audio && Object.keys(q.audio).length > 0 ? "重生成語音" : "生成語音"}
+                  {q.audio && Object.keys(q.audio).length > 0 ? tq.regenAudio : tq.genAudio}
                 </Button>,
                 <Button key="t" size="small" onClick={() => toggleQuestion(q)}>
-                  {q.active ? "停用" : "啟用"}
+                  {q.active ? tq.disable : tq.enable}
                 </Button>,
                 <Popconfirm
                   key="d"
-                  title={`刪除「${q.question}」？`}
-                  okText="刪除"
-                  cancelText="取消"
+                  title={tq.deleteTitle(q.question)}
+                  okText={tq.deleteOk}
+                  cancelText={tm.cancel}
                   okButtonProps={{ loading: deletingId === q.id }}
                   onConfirm={() => deleteQuestion(q)}
                 >
@@ -273,9 +278,9 @@ export default function AdminInterviews({
                 title={q.question}
                 description={
                   <div>
-                    {q.focus ? <div style={{ marginBottom: 6 }}>{`考察：${q.focus}`}</div> : null}
+                    {q.focus ? <div style={{ marginBottom: 6 }}>{tq.focusPrefix(q.focus)}</div> : null}
                     <div className="admin-audio-row">
-                      <span className="admin-audio-label">試聽：</span>
+                      <span className="admin-audio-label">{tq.preview}</span>
                       {AUDIO_LANGS.map((l) => {
                         const url = q.audioUrls?.[l.key];
                         const playing = playingLang === l.key;
@@ -284,7 +289,7 @@ export default function AdminInterviews({
                             key={l.key}
                             type="button"
                             disabled={!url}
-                            title={url ? `播放 ${l.label}` : `${l.label} 暫無語音`}
+                            title={url ? tq.play(l.label) : tq.noAudio(l.label)}
                             onClick={() => url && previewAudio(l.key, url)}
                             className={`admin-audio-btn${playing ? " playing" : ""}`}
                           >
@@ -301,17 +306,17 @@ export default function AdminInterviews({
         />
         <div className="admin-q-add">
           <Input
-            placeholder="問題，例如：請介紹你照顧初生嬰兒嘅經驗"
+            placeholder={tq.addPlaceholder}
             value={newQ.question}
             onChange={(e) => setNewQ({ ...newQ, question: e.target.value })}
           />
           <Input
-            placeholder="考察要點（可選）"
+            placeholder={tq.addFocusPlaceholder}
             value={newQ.focus}
             onChange={(e) => setNewQ({ ...newQ, focus: e.target.value })}
           />
           <Button type="primary" icon={<PlusOutlined />} loading={addingQ} onClick={addQuestion}>
-            新增
+            {tq.add}
           </Button>
         </div>
       </Card>
@@ -319,19 +324,19 @@ export default function AdminInterviews({
 
       {/* 發起面試 */}
       {section !== "questions" && (
-      <Card title="發起新面試">
+      <Card title={tcr.cardTitle}>
         <Form form={form} layout="vertical" onFinish={createInterview}>
           <Form.Item
             name="workerName"
-            label="工人姓名"
-            rules={[{ required: true, message: "請填寫工人姓名" }]}
+            label={tcr.workerNameLabel}
+            rules={[{ required: true, message: tcr.workerNameRequired }]}
           >
-            <Input placeholder="工人姓名" />
+            <Input placeholder={tcr.workerNameLabel} />
           </Form.Item>
           <Form.Item
-            label="簡歷文件（PDF/TXT，≤4MB）"
+            label={tcr.resumeFileLabel}
             required
-            tooltip="文件或文字至少提供一種；圖片簡歷請直接貼上文字"
+            tooltip={tcr.resumeTooltip}
           >
             <Upload
               fileList={fileList}
@@ -340,11 +345,11 @@ export default function AdminInterviews({
               accept=".pdf,.txt"
               maxCount={1}
             >
-              <Button icon={<UploadOutlined />}>選擇文件</Button>
+              <Button icon={<UploadOutlined />}>{tcr.chooseFile}</Button>
             </Upload>
           </Form.Item>
-          <Form.Item name="resumeText" label="簡歷文字（上傳 PDF/TXT 會自動提取；圖片簡歷請手動貼上）">
-            <Input.TextArea rows={4} placeholder="貼上簡歷文字" />
+          <Form.Item name="resumeText" label={tcr.resumeTextLabel}>
+            <Input.TextArea rows={4} placeholder={tcr.resumeTextPlaceholder} />
           </Form.Item>
           <Button
             type="primary"
@@ -353,11 +358,11 @@ export default function AdminInterviews({
             loading={creating}
             disabled={!canCreate}
           >
-            生成面試連結
+            {tcr.generateLink}
           </Button>
           {!canCreate && (
             <Typography.Text type="secondary" style={{ display: "block", marginTop: 8, fontSize: 12 }}>
-              需要工人姓名 + 簡歷（文件或文字至少一種）才能發起面試
+              {tcr.hint}
             </Typography.Text>
           )}
         </Form>

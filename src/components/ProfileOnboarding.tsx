@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { UploadCloud, Trash2 } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 import { useLanguage } from "@/lib/i18n";
+import { apiErrorText } from "@/lib/i18n/api-errors";
 
 /**
  * 註冊資料補全：申請人姓名 / 公司名稱 / 勞工處登記編號 / 公司名片照片。
@@ -49,7 +50,7 @@ export default function ProfileOnboarding({
       const res = await fetch("/api/auth/complete-profile", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || t.workspace.submitFailed);
+        setError(apiErrorText(data, t) || t.workspace.submitFailed);
         return;
       }
       onDone();

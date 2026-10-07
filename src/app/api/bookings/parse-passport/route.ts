@@ -14,7 +14,7 @@ const ACCEPT = ["image/jpeg", "image/png", "application/pdf"];
 export async function POST(request: Request) {
   const customer = await getSessionCustomer(request);
   if (!customer) {
-    return Response.json({ error: "請先登入" }, { status: 401 });
+    return Response.json({ error: "請先登入", code: "LOGIN_REQUIRED" }, { status: 401 });
   }
 
   let form: FormData;
@@ -25,19 +25,22 @@ export async function POST(request: Request) {
   }
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return Response.json({ error: "請選擇護照檔案" }, { status: 400 });
+    return Response.json({ error: "請選擇護照檔案", code: "OCR_NO_FILE" }, { status: 400 });
   }
   if (!ACCEPT.includes(file.type)) {
-    return Response.json({ error: "格式不支持（僅限 JPG/PNG/PDF）" }, { status: 400 });
+    return Response.json({ error: "格式不支持（僅限 JPG/PNG/PDF）", code: "BAD_FORMAT" }, { status: 400 });
   }
   if (file.size > 4 * 1024 * 1024) {
-    return Response.json({ error: "檔案超過 4MB 上限，請壓縮或截圖後再上傳" }, { status: 400 });
+    return Response.json(
+      { error: "檔案超過 4MB 上限，請壓縮或截圖後再上傳", code: "FILE_TOO_LARGE" },
+      { status: 400 }
+    );
   }
 
   try {
     const result = await parsePassport(Buffer.from(await file.arrayBuffer()), file.type);
     if (!result.workerName && !result.passportNo) {
-      return Response.json({ error: "識別唔到護照資料，請手動輸入" }, { status: 422 });
+      return Response.json({ error: "識別唔到護照資料，請手動輸入", code: "OCR_EMPTY" }, { status: 422 });
     }
     return Response.json(result);
   } catch (e) {
