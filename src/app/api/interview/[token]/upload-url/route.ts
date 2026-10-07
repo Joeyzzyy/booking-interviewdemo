@@ -11,10 +11,14 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/** 客戶端提取嘅 WAV 音頻上限（16kHz mono 16-bit，90 秒 ≈ 2.9MB） */
+const MAX_AUDIO_SIZE = 8 * 1024 * 1024;
+
 /**
  * POST /api/interview/[token]/upload-url
  * body: { questionId, size, contentType }
  * 生成 Supabase 簽名上傳 URL（視頻瀏覽器直傳，繞開 Vercel 4.5MB 限制）。
+ * contentType 支持視頻（webm/mp4）及 audio/wav（客戶端提取嘅純音頻，畀 MiniMax STT 用）。
  */
 export async function POST(
   request: Request,
@@ -40,10 +44,14 @@ export async function POST(
   }
   // contentType 可能帶 codecs 後綴（如 video/webm;codecs=vp9,opus），前綴匹配
   const baseType = body.contentType.split(";")[0].trim();
-  if (!VIDEO_ACCEPT.includes(baseType)) {
+  const isAudio = baseType === "audio/wav";
+  if (!isAudio && !VIDEO_ACCEPT.includes(baseType)) {
     return Response.json({ error: "視頻格式不支持" }, { status: 400 });
   }
-  if (body.size > MAX_VIDEO_SIZE) {
+  if (isAudio && body.size > MAX_AUDIO_SIZE) {
+    return Response.json({ error: "音頻超過 8MB 上限" }, { status: 400 });
+  }
+  if (!isAudio && body.size > MAX_VIDEO_SIZE) {
     return Response.json({ error: "視頻超過 60MB 上限" }, { status: 400 });
   }
 
@@ -56,7 +64,7 @@ export async function POST(
   }
   const attempts = progress[current.id]?.attempts || 0;
 
-  const ext = baseType === "video/mp4" ? "mp4" : "webm";
+  const ext = isAudio ? "wav" : baseType === "video/mp4" ? "mp4" : "webm";
   const path = `videos/${interview.id}/${current.id}-attempt${attempts + 1}.${ext}`;
   const { data, error } = await supabase.storage
     .from(INTERVIEW_BUCKET)

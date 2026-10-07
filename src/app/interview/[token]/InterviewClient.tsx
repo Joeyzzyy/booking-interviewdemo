@@ -14,6 +14,7 @@ import {
 import Logo from "@/components/brand/Logo";
 import VideoWithCover from "@/components/common/VideoWithCover";
 import { brandName } from "@/lib/brand";
+import { blobToWav } from "@/lib/audio/wav";
 import {
   DEFAULT_LOCALE,
   LOCALES,
@@ -291,12 +292,34 @@ export default function InterviewClient({ token }: { token: string }) {
         setPhase({ name: "processing", step: "upload", pct })
       );
 
+      // 2b) 提取純音頻（16kHz mono WAV）並上傳（盡力而為：MiniMax STT 唔吃視頻容器；失敗唔阻流程，服務端回落視頻轉寫）
+      let audioPath: string | undefined;
+      try {
+        const wav = await blobToWav(videoBlob);
+        const audioUrlRes = await fetch(`/api/interview/${token}/upload-url`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            questionId: currentQ.id,
+            size: wav.size,
+            contentType: "audio/wav",
+          }),
+        });
+        if (audioUrlRes.ok) {
+          const audioUrlData = await audioUrlRes.json();
+          await uploadWithProgress(audioUrlData.signedUrl, wav, () => {});
+          audioPath = audioUrlData.path;
+        }
+      } catch {
+        /* 冇音頻都照提交（服務端用舊視頻轉寫鏈） */
+      }
+
       // 3) 提交分析
       setPhase({ name: "processing", step: "analyze", pct: 100 });
       const ansRes = await fetch(`/api/interview/${token}/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionId: currentQ.id, videoPath: urlData.path }),
+        body: JSON.stringify({ questionId: currentQ.id, videoPath: urlData.path, audioPath }),
       });
       const ansData = await ansRes.json();
       if (!ansRes.ok) throw new Error(ansData.error || "分析失敗");

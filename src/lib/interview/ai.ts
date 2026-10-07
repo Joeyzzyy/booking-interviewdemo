@@ -14,7 +14,7 @@ import {
   networkError,
   parseError,
 } from "./ai-errors";
-import { isMinimaxEnabled, minimaxChatJson } from "./minimax";
+import { isMinimaxEnabled, minimaxChatJson, minimaxStt } from "./minimax";
 
 const STT_URL = process.env.STT_BASE_URL || "https://api.siliconflow.cn/v1/audio/transcriptions";
 const STT_MODEL = process.env.STT_MODEL || "FunAudioLLM/SenseVoiceSmall";
@@ -60,7 +60,42 @@ async function geminiGenerate(parts: GeminiPart[], json: boolean): Promise<strin
 
 // ---------- 語音轉寫 ----------
 
-/** 視頻（webm/mp4）→ 文字。語言限定中文（普通話/粵語）或英文。 */
+/** 路線 A 共用：OpenAI 兼容 STT（硅基流動 / Groq / OpenAI）multipart 調用 */
+async function siliconflowStt(fileBuffer: Buffer, filename: string, contentType: string): Promise<string> {
+  const form = new FormData();
+  form.append("model", STT_MODEL);
+  form.append("file", new Blob([new Uint8Array(fileBuffer)], { type: contentType }), filename);
+  let res: Response;
+  try {
+    res = await fetch(STT_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.STT_API_KEY}` },
+      body: form,
+    });
+  } catch (e) {
+    throw networkError("語音轉寫（STT）", e, STT_MODEL);
+  }
+  if (!res.ok) throw classifyHttpError("語音轉寫（STT）", res.status, await res.text(), STT_MODEL);
+  const data = await res.json();
+  return (data.text || "").trim();
+}
+
+/**
+ * 純音頻（客戶端預抽嘅 WAV）→ 文字。
+ * MiniMax asr-1.0 優先（粵語效果好）；硅基流動 SenseVoice 兜底（wav 直接可用）。
+ * 兩個 key 都未配置 → 返回空字串（調用方回落視頻轉寫鏈）。
+ */
+export async function transcribeAudio(audioBuffer: Buffer, filename: string): Promise<string> {
+  if (isMinimaxEnabled()) {
+    return minimaxStt(audioBuffer, filename);
+  }
+  if (process.env.STT_API_KEY) {
+    return siliconflowStt(audioBuffer, filename, "audio/wav");
+  }
+  return "";
+}
+
+/** 視頻（webm/mp4）→ 文字（舊流程，冇預抽音頻時用）。語言限定中文（普通話/粵語）或英文。 */
 export async function transcribeVideo(
   videoBuffer: Buffer,
   filename: string,
@@ -68,22 +103,7 @@ export async function transcribeVideo(
 ): Promise<string> {
   // 路線 A：OpenAI 兼容 STT（硅基流動 / Groq / OpenAI）
   if (process.env.STT_API_KEY) {
-    const form = new FormData();
-    form.append("model", STT_MODEL);
-    form.append("file", new Blob([new Uint8Array(videoBuffer)], { type: contentType }), filename);
-    let res: Response;
-    try {
-      res = await fetch(STT_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${process.env.STT_API_KEY}` },
-        body: form,
-      });
-    } catch (e) {
-      throw networkError("語音轉寫（STT）", e, STT_MODEL);
-    }
-    if (!res.ok) throw classifyHttpError("語音轉寫（STT）", res.status, await res.text(), STT_MODEL);
-    const data = await res.json();
-    return (data.text || "").trim();
+    return siliconflowStt(videoBuffer, filename, contentType);
   }
 
   // 路線 B：Gemini 直接吃視頻文件（inline base64，≤20MB）

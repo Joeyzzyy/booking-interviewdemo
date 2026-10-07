@@ -137,6 +137,31 @@ export async function minimaxVisionJson(
   return stripJsonFence(content || "{}");
 }
 
+/**
+ * 語音轉寫（speech_to_text，asr-1.0）→ 文字。
+ * 只接受純音頻容器（wav/mp3/aac/ogg）；拒絕帶視頻流嘅文件及 webm/matroska，
+ * 所以調用方要傳客戶端預先抽好嘅 WAV。粵語（yue）轉寫效果好。
+ */
+export async function minimaxStt(audioBuffer: Buffer, filename: string): Promise<string> {
+  const form = new FormData();
+  form.append("model", "asr-1.0");
+  form.append("file", new Blob([new Uint8Array(audioBuffer)], { type: "audio/wav" }), filename);
+  form.append("response_format", "json");
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/v1/speech_to_text`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getKey()}` },
+      body: form,
+    });
+  } catch (e) {
+    throw networkError("MiniMax（語音轉寫）", e, "asr-1.0");
+  }
+  if (!res.ok) throw classifyHttpError("MiniMax（語音轉寫）", res.status, await res.text(), "asr-1.0");
+  const data = await res.json();
+  return (data.text || "").trim();
+}
+
 /** TTS（t2a_v2，hex 輸出）→ mp3 Buffer；base_resp.status_code !== 0 時拋錯（含 status_msg） */
 export async function minimaxTts(text: string, languageBoost: string): Promise<Buffer> {
   let res: Response;

@@ -1,6 +1,6 @@
 import { getSupabase } from "@/lib/booking/db";
 import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
-import { transcribeVideo } from "@/lib/interview/ai";
+import { transcribeAudio, transcribeVideo } from "@/lib/interview/ai";
 import { toUserMessage } from "@/lib/interview/ai-errors";
 import {
   currentQuestion,
@@ -16,7 +16,8 @@ export const preferredRegion = "sin1";
 
 /**
  * POST /api/interview/[token]/answer
- * body: { questionId, videoPath }
+ * body: { questionId, videoPath, audioPath? }
+ * 轉寫優先：客戶端預抽嘅 WAV（audioPath，MiniMax asr-1.0 / 硅基流動）→ 冇音頻或轉寫為空時回落視頻鏈（硅基流動 → Gemini）。
  * 下載視頻 → STT 轉寫 → 記錄作答 → 返回是否通過。
  */
 export async function POST(
@@ -32,19 +33,22 @@ export async function POST(
     return Response.json({ error: "面試已完成" }, { status: 409 });
   }
 
-  let body: { questionId?: string; videoPath?: string };
+  let body: { questionId?: string; videoPath?: string; audioPath?: string };
   try {
     body = await request.json();
   } catch {
     return Response.json({ error: "請求格式錯誤" }, { status: 400 });
   }
-  const { questionId, videoPath } = body;
+  const { questionId, videoPath, audioPath } = body;
   if (!questionId || !videoPath) {
     return Response.json({ error: "缺少參數" }, { status: 400 });
   }
   // 防越權：路徑必須屬於本場面試
   if (!videoPath.startsWith(`videos/${interview.id}/`)) {
     return Response.json({ error: "無效視頻" }, { status: 400 });
+  }
+  if (audioPath && !audioPath.startsWith(`videos/${interview.id}/`)) {
+    return Response.json({ error: "無效音頻" }, { status: 400 });
   }
 
   const questions = await getActiveQuestionsForOwner(interview.customer_id);
@@ -55,24 +59,46 @@ export async function POST(
   }
   const attempt = (progress[current.id]?.attempts || 0) + 1;
 
-  // 下載視頻 → 轉寫
-  const { data: videoData, error: dlErr } = await supabase.storage
-    .from(INTERVIEW_BUCKET)
-    .download(videoPath);
-  if (dlErr || !videoData) {
-    console.error("[interview] 視頻下載失敗:", dlErr);
-    return Response.json({ error: "視頻讀取失敗，請重新上傳" }, { status: 500 });
-  }
-  const videoBuffer = Buffer.from(await videoData.arrayBuffer());
-
   // 轉寫（失敗唔阻流程：報告會標註無轉寫；但要把友善+詳情的 warning 透出俾用戶截圖）
   let transcript = "";
   let warning: string | undefined;
-  try {
-    transcript = await transcribeVideo(videoBuffer, videoPath.split("/").pop() || "answer.webm", videoData.type);
-  } catch (e) {
-    console.error("[interview] 轉寫失敗（仍接受作答）:", e);
-    warning = toUserMessage(e);
+
+  // 路線 1（優先）：客戶端預抽嘅 WAV 音頻 → MiniMax asr-1.0 / 硅基流動（唔使下載視頻，慳時間）
+  if (audioPath) {
+    const { data: audioData, error: audioErr } = await supabase.storage
+      .from(INTERVIEW_BUCKET)
+      .download(audioPath);
+    if (audioErr || !audioData) {
+      console.error("[interview] 音頻下載失敗（回落視頻轉寫）:", audioErr);
+    } else {
+      try {
+        transcript = await transcribeAudio(
+          Buffer.from(await audioData.arrayBuffer()),
+          audioPath.split("/").pop() || "answer.wav"
+        );
+      } catch (e) {
+        console.error("[interview] 音頻轉寫失敗（回落視頻轉寫）:", e);
+        warning = toUserMessage(e);
+      }
+    }
+  }
+
+  // 路線 2（兜底）：冇音頻或音頻轉寫為空 → 舊視頻轉寫鏈（硅基流動 → Gemini 直接吃視頻）
+  if (!transcript) {
+    const { data: videoData, error: dlErr } = await supabase.storage
+      .from(INTERVIEW_BUCKET)
+      .download(videoPath);
+    if (dlErr || !videoData) {
+      console.error("[interview] 視頻下載失敗:", dlErr);
+      return Response.json({ error: "視頻讀取失敗，請重新上傳" }, { status: 500 });
+    }
+    const videoBuffer = Buffer.from(await videoData.arrayBuffer());
+    try {
+      transcript = await transcribeVideo(videoBuffer, videoPath.split("/").pop() || "answer.webm", videoData.type);
+    } catch (e) {
+      console.error("[interview] 轉寫失敗（仍接受作答）:", e);
+      warning = toUserMessage(e);
+    }
   }
 
   // 提交即通過：工人提交作答即接受（佢可自願重錄後再提交），唔做逐題 AI 門禁。
