@@ -1,5 +1,5 @@
 /**
- * MiniMax AI（主要 provider；未配置 MINIMAX_API_KEY 時各調用方回落 Gemini / DeepSeek）。
+ * MiniMax AI（主要 provider；未配置 MINIMAX_API_KEY 時各調用方回落 Gemini）。
  *
  * 環境變量：
  * - MINIMAX_API_KEY      （必需，設置即啟用 MiniMax 優先路線）

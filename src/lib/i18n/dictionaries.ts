@@ -208,13 +208,9 @@ const yue = {
       success: "付款成功，套票已入賬你的賬戶。",
       cancelled: "付款已取消，套票未扣費。",
       createFailed: "創建付款失敗",
-      claimFailed: "領取失敗",
-      demoCredited: "試用套票已入賬：每種服務 2 張，即刻可預約。",
     },
     passes: {
       title: "我的套票",
-      claimDemo: "領取試用套票（演示）",
-      claiming: "領取中…",
       remaining: (n: number) => `剩餘 ${n} 次`,
       noPasses: "未購套票",
       singlePrice: (price: number) => `單次 HK$${price}`,
@@ -268,7 +264,7 @@ const yue = {
       step3Desc: "必傳",
       includes: (label: string) => `${label}包括：`,
       noPassWarning: (label: string) =>
-        `你未購買「${label}」套票，暫時不能填寫預約資料。請先到「我的套票」分頁購買，或領取試用套票體驗流程。`,
+        `你未購買「${label}」套票，暫時不能填寫預約資料。請先到「我的套票」分頁購買。`,
       goBuyPasses: "前往購買套票",
       ocr: {
         title: "上傳工人護照，自動填寫姓名及護照號碼",
@@ -589,13 +585,9 @@ const cmn: Messages = {
       success: "付款成功，套票已入账你的账户。",
       cancelled: "付款已取消，套票未扣费。",
       createFailed: "创建付款失败",
-      claimFailed: "领取失败",
-      demoCredited: "试用套票已入账：每种服务 2 张，马上可预约。",
     },
     passes: {
       title: "我的套票",
-      claimDemo: "领取试用套票（演示）",
-      claiming: "领取中…",
       remaining: (n: number) => `剩余 ${n} 次`,
       noPasses: "未购套票",
       singlePrice: (price: number) => `单次 HK$${price}`,
@@ -650,7 +642,7 @@ const cmn: Messages = {
       step3Desc: "必传",
       includes: (label: string) => `${label}包括：`,
       noPassWarning: (label: string) =>
-        `你未购买「${label}」套票，暂时不能填写预约资料。请先到「我的套票」分页购买，或领取试用套票体验流程。`,
+        `你未购买「${label}」套票，暂时不能填写预约资料。请先到「我的套票」分页购买。`,
       goBuyPasses: "前往购买套票",
       ocr: {
         title: "上传工人护照，自动填写姓名及护照号码",
@@ -998,13 +990,9 @@ const en: Messages = {
       success: "Payment successful—passes have been credited to your account.",
       cancelled: "Payment cancelled—no charge was made.",
       createFailed: "Failed to create payment",
-      claimFailed: "Claim failed",
-      demoCredited: "Trial passes credited: 2 per service—ready to book now.",
     },
     passes: {
       title: "My passes",
-      claimDemo: "Claim trial passes (demo)",
-      claiming: "Claiming…",
       remaining: (n: number) => `${n} remaining`,
       noPasses: "No passes",
       singlePrice: (price: number) => `Single HK$${price}`,
@@ -1061,7 +1049,7 @@ const en: Messages = {
       step3Desc: "Required",
       includes: (label: string) => `${label} includes:`,
       noPassWarning: (label: string) =>
-        `You haven't bought a "${label}" pass pack, so you can't fill in booking details yet. Please buy one on the "My passes" tab, or claim trial passes to try the flow.`,
+        `You haven't bought a "${label}" pass pack, so you can't fill in booking details yet. Please buy one on the "My passes" tab first.`,
       goBuyPasses: "Go buy passes",
       ocr: {
         title: "Upload the helper's passport to auto-fill name and passport number",

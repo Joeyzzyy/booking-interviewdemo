@@ -253,29 +253,6 @@ export default function BookingClient() {
     }
   };
 
-  /** 演示用：領取試用套票（正式購票開通後接口自動停用） */
-  const claimDemoPass = async () => {
-    setBuying("demo");
-    setPurchaseMsg(null);
-    setPurchaseFlash(null);
-    try {
-      const res = await fetch("/api/passes/demo-buy", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        setPurchaseMsg({ ok: false, text: data.error || t.workspace.purchase.claimFailed });
-        return;
-      }
-      const map: Record<string, number> = {};
-      for (const b of data.balances) map[b.serviceKey] = b.remaining;
-      setBalances(map);
-      setPurchaseMsg({ ok: true, text: t.workspace.purchase.demoCredited });
-    } catch {
-      setPurchaseMsg({ ok: false, text: t.workspace.networkError });
-    } finally {
-      setBuying(null);
-    }
-  };
-
   const cancelBooking = async () => {
     if (!cancelTarget) return;
     setCancelling(true);
@@ -600,11 +577,8 @@ export default function BookingClient() {
           {/* ============ 我的套票（餘額 + 購買） ============ */}
           {tab === "passes" && (
             <div>
-              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="mb-5">
                 <h2 className="text-[16px] font-bold text-[#161b2e]">{t.workspace.passes.title}</h2>
-                <Button variant="outline" size="sm" disabled={buying !== null} onClick={() => void claimDemoPass()}>
-                  {buying === "demo" ? t.workspace.passes.claiming : t.workspace.passes.claimDemo}
-                </Button>
               </div>
               {purchaseFlash && (
                 <p

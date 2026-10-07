@@ -1,5 +1,5 @@
 /**
- * AI 服務（Gemini / Gemini TTS / DeepSeek / STT）錯誤分類與友善提示。
+ * AI 服務（MiniMax / Gemini / Gemini TTS / STT）錯誤分類與友善提示。
  *
  * 原則：任何 AI 調用失敗都要——
  * 1. 對用戶友善：講清楚「發生咩事 + 點算」（key 類錯誤必須透出，唔可以靜靜吞掉）

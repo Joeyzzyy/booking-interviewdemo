@@ -17,7 +17,7 @@ export const preferredRegion = "sin1";
 /**
  * POST /api/interview/[token]/answer
  * body: { questionId, videoPath }
- * 下載視頻 → Groq 轉寫 → DeepSeek 判斷 → 記錄作答 → 返回是否通過。
+ * 下載視頻 → STT 轉寫 → 記錄作答 → 返回是否通過。
  */
 export async function POST(
   request: Request,
