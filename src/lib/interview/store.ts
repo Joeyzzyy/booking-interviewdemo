@@ -21,6 +21,8 @@ export interface Question {
   question: string;
   focus: string | null;
   sort_order: number;
+  /** 分類 key（公共題庫 = 表單章節；用戶自定義題目為 null） */
+  category?: string | null;
   /** 各語言譯文：{ en, id, tl, zh } */
   translations?: Record<string, string> | null;
   /** 各語言 TTS 音頻 storage 路徑 */
@@ -39,18 +41,22 @@ export async function getInterviewByToken(token: string): Promise<Interview | nu
 }
 
 /**
- * 取某位用戶的有效題目；ownerId 為 null 時取「共用示範題庫」（customer_id IS NULL）。
- * 工人端作答時，按該場面試的歸屬人取題。
+ * 取某位用戶的有效題目：「公共題庫（customer_id IS NULL）+ 自己的題目」。
+ * ownerId 為 null 時只取公共題庫。
+ * 工人端作答時，按該場面試的歸屬人取題；公共題排前（按 sort_order），自定義題排後。
  */
 export async function getActiveQuestionsForOwner(ownerId: string | null): Promise<Question[]> {
   const supabase = getSupabase();
   if (!supabase) return [];
   let query = supabase
     .from("interview_questions")
-    .select("id, question, focus, sort_order, translations, audio")
+    .select("id, question, focus, sort_order, category, translations, audio")
     .eq("active", true);
-  query = ownerId ? query.eq("customer_id", ownerId) : query.is("customer_id", null);
+  query = ownerId
+    ? query.or(`customer_id.is.null,customer_id.eq.${ownerId}`)
+    : query.is("customer_id", null);
   const { data } = await query
+    .order("customer_id", { ascending: true, nullsFirst: true })
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
   return (data as Question[]) || [];

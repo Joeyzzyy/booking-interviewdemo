@@ -529,6 +529,8 @@ const yue = {
         audioPartialTitle: "部分語言語音生成失敗",
         audioDone: "已生成 4 語言語音",
         genFailed: "生成失敗",
+        sharedTag: "公共題庫",
+        customGroup: "自定義問題",
       },
       create: {
         cardTitle: "發起新面試",
@@ -1172,6 +1174,8 @@ const cmn: Messages = {
         audioPartialTitle: "部分语言语音生成失败",
         audioDone: "已生成 4 语言语音",
         genFailed: "生成失败",
+        sharedTag: "公共题库",
+        customGroup: "自定义问题",
       },
       create: {
         cardTitle: "发起新面试",
@@ -1847,6 +1851,8 @@ const en: Messages = {
         audioPartialTitle: "Audio generation failed for some languages",
         audioDone: "Audio generated in 4 languages",
         genFailed: "Generation failed",
+        sharedTag: "Shared bank",
+        customGroup: "Custom Questions",
       },
       create: {
         cardTitle: "New interview",

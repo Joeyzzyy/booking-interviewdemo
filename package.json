@@ -6,7 +6,8 @@
     "dev": "NODE_USE_ENV_PROXY=1 next dev",
     "build": "next build",
     "start": "NODE_USE_ENV_PROXY=1 next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:questions": "NODE_USE_ENV_PROXY=1 tsx scripts/seed-shared-questions.ts"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
@@ -36,6 +37,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "tailwindcss": "^4",
+    "tsx": "^4.19.0",
     "typescript": "^5"
   }
 }

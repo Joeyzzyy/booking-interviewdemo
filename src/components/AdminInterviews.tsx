@@ -1,15 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   App,
   Button,
   Card,
+  Collapse,
   Form,
   Input,
   List,
   Popconfirm,
   Space,
+  Tag,
   Typography,
   Upload,
 } from "antd";
@@ -22,6 +24,7 @@ import {
 } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import { useLanguage } from "@/lib/i18n";
+import { QUESTION_SECTIONS, sectionLabel } from "@/lib/interview/shared-questions";
 
 interface Question {
   id: string;
@@ -29,6 +32,10 @@ interface Question {
   focus: string | null;
   sort_order: number;
   active: boolean;
+  /** 分類 key（公共題庫 = 表單章節；自定義題目為 null） */
+  category?: string | null;
+  /** 歸屬用戶 id（null = 公共題庫） */
+  customer_id?: string | null;
   /** 各語言 TTS 音頻路徑（空 = 未生成） */
   audio?: Record<string, string> | null;
   /** 各語言音頻簽名 URL（供試聽） */
@@ -57,10 +64,12 @@ export default function AdminInterviews({
   onCreated?: (info: { token: string; link: string }) => void;
 }) {
   const { message, modal } = App.useApp();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const tq = t.workspace.interviewMgmt.questions;
   const tcr = t.workspace.interviewMgmt.create;
   const tm = t.workspace.interviewMgmt;
+  /** 用戶工作台視圖（公共題庫只讀）；後台視圖可管理全部 */
+  const isUserView = apiBase === "/api/my";
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -120,6 +129,27 @@ export default function AdminInterviews({
     void load();
   }, [load]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  /** 題目按分類分組：表單 9 章節（固定順序）→ 其他未知分類 → 自定義問題（最後） */
+  const groups = useMemo(() => {
+    const byCat = new Map<string, Question[]>();
+    for (const q of questions) {
+      const key = q.category || "custom";
+      if (!byCat.has(key)) byCat.set(key, []);
+      byCat.get(key)!.push(q);
+    }
+    const ordered: { key: string; label: string; items: Question[] }[] = [];
+    for (const s of QUESTION_SECTIONS) {
+      const items = byCat.get(s.key);
+      if (items?.length) ordered.push({ key: s.key, label: sectionLabel(s.key, locale), items });
+      byCat.delete(s.key);
+    }
+    const custom = byCat.get("custom");
+    byCat.delete("custom");
+    for (const [key, items] of byCat) ordered.push({ key, label: key, items }); // 未知分類原樣展示
+    if (custom?.length) ordered.push({ key: "custom", label: tq.customGroup, items: custom });
+    return ordered;
+  }, [questions, locale, tq.customGroup]);
 
   /** 以彈窗展示錯誤/警告詳情（含上游返回原文，方便截圖診斷） */
   const showDetailModal = (type: "error" | "warning", title: string, detail: string) => {
@@ -248,62 +278,94 @@ export default function AdminInterviews({
         title={tq.cardTitle}
         extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={() => load()}>{tm.refresh}</Button>}
       >
-        <List
-          loading={loading}
-          dataSource={questions}
-          locale={{ emptyText: tq.empty }}
-          renderItem={(q) => (
-            <List.Item
-              style={{ opacity: q.active ? 1 : 0.45 }}
-              actions={[
-                <Button key="a" size="small" onClick={() => generateAudio(q)} loading={audioBusy === `audio-${q.id}`}>
-                  {q.audio && Object.keys(q.audio).length > 0 ? tq.regenAudio : tq.genAudio}
-                </Button>,
-                <Button key="t" size="small" onClick={() => toggleQuestion(q)}>
-                  {q.active ? tq.disable : tq.enable}
-                </Button>,
-                <Popconfirm
-                  key="d"
-                  title={tq.deleteTitle(q.question)}
-                  okText={tq.deleteOk}
-                  cancelText={tm.cancel}
-                  okButtonProps={{ loading: deletingId === q.id }}
-                  onConfirm={() => deleteQuestion(q)}
-                >
-                  <Button size="small" danger icon={<DeleteOutlined />} loading={deletingId === q.id} />
-                </Popconfirm>,
-              ]}
-            >
-              <List.Item.Meta
-                title={q.question}
-                description={
-                  <div>
-                    {q.focus ? <div style={{ marginBottom: 6 }}>{tq.focusPrefix(q.focus)}</div> : null}
-                    <div className="admin-audio-row">
-                      <span className="admin-audio-label">{tq.preview}</span>
-                      {AUDIO_LANGS.map((l) => {
-                        const url = q.audioUrls?.[l.key];
-                        const playing = playingLang === l.key;
-                        return (
-                          <button
-                            key={l.key}
-                            type="button"
-                            disabled={!url}
-                            title={url ? tq.play(l.label) : tq.noAudio(l.label)}
-                            onClick={() => url && previewAudio(l.key, url)}
-                            className={`admin-audio-btn${playing ? " playing" : ""}`}
-                          >
-                            {playing ? "■" : "▶"} {l.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+        {(() => {
+          /** 單條題目渲染（分組列表共用） */
+          const renderQuestion = (q: Question) => {
+            // 公共題庫：用戶工作台只讀（後台仍可管理）
+            const readOnly = isUserView && !q.customer_id;
+            return (
+              <List.Item
+                style={{ opacity: q.active ? 1 : 0.45 }}
+                actions={
+                  readOnly
+                    ? [<Tag key="s" color="blue" style={{ marginInlineEnd: 0 }}>{tq.sharedTag}</Tag>]
+                    : [
+                        <Button key="a" size="small" onClick={() => generateAudio(q)} loading={audioBusy === `audio-${q.id}`}>
+                          {q.audio && Object.keys(q.audio).length > 0 ? tq.regenAudio : tq.genAudio}
+                        </Button>,
+                        <Button key="t" size="small" onClick={() => toggleQuestion(q)}>
+                          {q.active ? tq.disable : tq.enable}
+                        </Button>,
+                        <Popconfirm
+                          key="d"
+                          title={tq.deleteTitle(q.question)}
+                          okText={tq.deleteOk}
+                          cancelText={tm.cancel}
+                          okButtonProps={{ loading: deletingId === q.id }}
+                          onConfirm={() => deleteQuestion(q)}
+                        >
+                          <Button size="small" danger icon={<DeleteOutlined />} loading={deletingId === q.id} />
+                        </Popconfirm>,
+                      ]
                 }
-              />
-            </List.Item>
-          )}
-        />
+              >
+                <List.Item.Meta
+                  title={
+                    <Space size={8}>
+                      {readOnly && <Tag color="blue">{tq.sharedTag}</Tag>}
+                      <span>{q.question}</span>
+                    </Space>
+                  }
+                  description={
+                    <div>
+                      {q.focus ? <div style={{ marginBottom: 6 }}>{tq.focusPrefix(q.focus)}</div> : null}
+                      <div className="admin-audio-row">
+                        <span className="admin-audio-label">{tq.preview}</span>
+                        {AUDIO_LANGS.map((l) => {
+                          const url = q.audioUrls?.[l.key];
+                          const playing = playingLang === l.key;
+                          return (
+                            <button
+                              key={l.key}
+                              type="button"
+                              disabled={!url}
+                              title={url ? tq.play(l.label) : tq.noAudio(l.label)}
+                              onClick={() => url && previewAudio(l.key, url)}
+                              className={`admin-audio-btn${playing ? " playing" : ""}`}
+                            >
+                              {playing ? "■" : "▶"} {l.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  }
+                />
+              </List.Item>
+            );
+          };
+          if (!loading && questions.length === 0) {
+            return <List locale={{ emptyText: tq.empty }} />;
+          }
+          return (
+            <Collapse
+              ghost
+              defaultActiveKey={groups.map((g) => g.key)}
+              items={groups.map((g) => ({
+                key: g.key,
+                label: (
+                  <Space size={8}>
+                    <span>{g.label}</span>
+                    <Tag>{g.items.length}</Tag>
+                  </Space>
+                ),
+                children: (
+                  <List loading={loading} dataSource={g.items} renderItem={renderQuestion} />
+                ),
+              }))}
+            />
+          );
+        })()}
         <div className="admin-q-add">
           <Input
             placeholder={tq.addPlaceholder}

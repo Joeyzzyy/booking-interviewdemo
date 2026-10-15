@@ -9,7 +9,7 @@ export const maxDuration = 60;
 // Gemini API 封鎖香港區域（其他區域無影響）
 export const preferredRegion = "sin1";
 
-/** GET 當前用戶的題庫列表（含停用） */
+/** GET 題庫列表（公共題庫 + 當前用戶自定義題目，含停用；shared 標記公共題） */
 export async function GET(request: Request) {
   const customer = await getSessionCustomer(request);
   if (!customer) return Response.json({ error: "請先登入" }, { status: 401 });
@@ -19,7 +19,8 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from("interview_questions")
     .select("*")
-    .eq("customer_id", customer.id)
+    .or(`customer_id.is.null,customer_id.eq.${customer.id}`)
+    .order("customer_id", { ascending: true, nullsFirst: true })
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) return Response.json({ error: "讀取失敗" }, { status: 500 });
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
         const u = urlMap.get(p);
         if (u) audioUrls[lang] = u;
       }
-      return { ...r, audioUrls };
+      return { ...r, audioUrls, shared: !r.customer_id };
     }),
   });
 }
