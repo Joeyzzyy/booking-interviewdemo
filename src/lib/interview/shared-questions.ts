@@ -7,29 +7,33 @@
  * - 題目原文為英文；5 語譯文 + TTS 音頻由 generateQuestionAssets 生成
  */
 
-/** 章節定義（順序即展示順序）；label 對應站點三語（粵/简/英） */
+/** 章節定義（順序即展示順序）；label 五語：粵/简/英/印尼/菲（覆蓋站點三語 + 工人端五語） */
 export interface QuestionSection {
   key: string;
-  label: { yue: string; zh: string; en: string };
+  label: { yue: string; zh: string; en: string; id: string; tl: string };
 }
 
 export const QUESTION_SECTIONS: QuestionSection[] = [
-  { key: "administrative", label: { yue: "行政資料", zh: "行政资料", en: "Administrative Information" } },
-  { key: "personal", label: { yue: "個人資料", zh: "个人资料", en: "Personal Information" } },
-  { key: "skills", label: { yue: "核心技能自評", zh: "核心技能自评", en: "Core Skill Self-Assessment" } },
-  { key: "language", label: { yue: "語言能力", zh: "语言能力", en: "Language Proficiency" } },
-  { key: "country", label: { yue: "各國工作經驗", zh: "各国工作经验", en: "Country Experience Summary" } },
-  { key: "history", label: { yue: "僱傭歷史", zh: "雇佣历史", en: "Employment History Record" } },
-  { key: "willingness", label: { yue: "工作意願", zh: "工作意愿", en: "General Willingness Questions" } },
-  { key: "preferences", label: { yue: "偏好與可到崗時間", zh: "偏好与可到岗时间", en: "Preferences & Availability" } },
-  { key: "legal", label: { yue: "法律同意與聲明", zh: "法律同意与声明", en: "Legal Consents & Declarations" } },
+  { key: "administrative", label: { yue: "行政資料", zh: "行政资料", en: "Administrative Information", id: "Informasi Administrasi", tl: "Impormasyong Administratibo" } },
+  { key: "personal", label: { yue: "個人資料", zh: "个人资料", en: "Personal Information", id: "Informasi Pribadi", tl: "Personal na Impormasyon" } },
+  { key: "skills", label: { yue: "核心技能自評", zh: "核心技能自评", en: "Core Skill Self-Assessment", id: "Penilaian Diri Keterampilan Inti", tl: "Pagtatasa ng Pangunahing Kasanayan" } },
+  { key: "language", label: { yue: "語言能力", zh: "语言能力", en: "Language Proficiency", id: "Kemampuan Bahasa", tl: "Kakayahan sa Wika" } },
+  { key: "country", label: { yue: "各國工作經驗", zh: "各国工作经验", en: "Country Experience Summary", id: "Ringkasan Pengalaman Kerja per Negara", tl: "Buod ng Karanasan sa Bawat Bansa" } },
+  { key: "history", label: { yue: "僱傭歷史", zh: "雇佣历史", en: "Employment History Record", id: "Riwayat Pekerjaan", tl: "Kasaysayan ng Trabaho" } },
+  { key: "willingness", label: { yue: "工作意願", zh: "工作意愿", en: "General Willingness Questions", id: "Pertanyaan Kesediaan Umum", tl: "Mga Tanong sa Kahandaan" } },
+  { key: "preferences", label: { yue: "偏好與可到崗時間", zh: "偏好与可到岗时间", en: "Preferences & Availability", id: "Preferensi & Ketersediaan", tl: "Mga Kagustuhan at Availability" } },
+  { key: "legal", label: { yue: "法律同意與聲明", zh: "法律同意与声明", en: "Legal Consents & Declarations", id: "Persetujuan & Pernyataan Hukum", tl: "Mga Legal na Pahintulot at Deklarasyon" } },
 ];
 
-/** 站點語言（yue/cmn/en）→ 章節顯示名 */
-export function sectionLabel(key: string, locale: "yue" | "cmn" | "en"): string {
+/** 語言（站點 yue/cmn/en 或工人端 en/id/tl/zh/yue）→ 章節顯示名 */
+export function sectionLabel(
+  key: string,
+  locale: "yue" | "cmn" | "zh" | "en" | "id" | "tl"
+): string {
   const section = QUESTION_SECTIONS.find((s) => s.key === key);
   if (!section) return key;
-  return locale === "cmn" ? section.label.zh : locale === "en" ? section.label.en : section.label.yue;
+  if (locale === "zh" || locale === "cmn") return section.label.zh;
+  return section.label[locale] || section.label.en;
 }
 
 export interface SharedQuestion {

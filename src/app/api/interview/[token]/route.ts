@@ -54,6 +54,7 @@ export async function GET(
         return {
           id: q.id,
           question: q.question,
+          category: q.category || null,
           translations: q.translations || {},
           audio: audioUrls,
         };

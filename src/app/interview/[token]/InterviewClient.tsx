@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CircleCheck,
   Languages,
@@ -22,10 +22,13 @@ import {
   tstr,
   type LocaleKey,
 } from "@/lib/interview/i18n";
+import { sectionLabel } from "@/lib/interview/shared-questions";
 
 interface Question {
   id: string;
   question: string;
+  /** 分類 key（公共題庫 = 表單章節；自定義題目為 null） */
+  category?: string | null;
   /** 各語言譯文 */
   translations: Record<string, string>;
   /** 各語言 TTS 音頻簽名 URL */
@@ -113,6 +116,30 @@ export default function InterviewClient({ token }: { token: string }) {
     ? info.questions.find((q) => !info.progress[q.id]?.passed) || null
     : null;
   const doneCount = info ? info.questions.filter((q) => info.progress[q.id]?.passed).length : 0;
+
+  /** 題目結構：連續相同分類歸為一個「系列」（自定義題目歸入 custom 系列，排最後） */
+  const sections = useMemo(() => {
+    if (!info) return [] as { key: string; count: number }[];
+    const out: { key: string; count: number }[] = [];
+    for (const q of info.questions) {
+      const key = q.category || "custom";
+      if (out.length && out[out.length - 1].key === key) out[out.length - 1].count += 1;
+      else out.push({ key, count: 1 });
+    }
+    return out;
+  }, [info]);
+
+  /** 系列顯示名（跟隨工人端語言；custom = 附加問題） */
+  const sectionName = useCallback(
+    (key: string) => (key === "custom" ? t("customSection") : sectionLabel(key, lang)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lang]
+  );
+
+  /** 當前題目所屬系列（1-based，供「系列 x/s」顯示） */
+  const currentSectionIdx = currentQ
+    ? sections.findIndex((s) => s.key === (currentQ.category || "custom")) + 1
+    : 0;
 
   /** 只拉取資料、不改階段（答題後的刷新用，避免閃回「面試開始」） */
   const fetchInfo = useCallback(async (): Promise<InterviewInfo | null> => {
@@ -477,6 +504,33 @@ export default function InterviewClient({ token }: { token: string }) {
           ))}
         </ul>
 
+        {/* 題目結構：共幾個系列、每個系列幾題 */}
+        {sections.length > 0 && (
+          <div className="mt-5 rounded-xl border border-[#e6e9f2] px-4 py-4">
+            <p className="text-[13px] font-bold text-[#161b2e]">
+              {t("sectionsTitle", { s: sections.length, n: info.questions.length })}
+            </p>
+            <ul className="mt-2.5 flex flex-col gap-1.5">
+              {sections.map((s, i) => (
+                <li
+                  key={s.key}
+                  className="flex items-center justify-between gap-3 text-[12.5px] leading-[1.6] text-[#5d6b85]"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-[#e9f5f0] text-[10px] font-bold text-[#2a8163]">
+                      {i + 1}
+                    </span>
+                    {sectionName(s.key)}
+                  </span>
+                  <span className="shrink-0 font-mono text-[11.5px] text-[#8b95ad]">
+                    {t("sectionCount", { n: s.count })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <p className="mt-5 rounded-xl border border-[#e6e9f2] px-4 py-3 text-[12px] leading-[1.7] text-[#8b95ad]">
           {t("privacy")}
         </p>
@@ -591,6 +645,19 @@ export default function InterviewClient({ token }: { token: string }) {
           />
         </div>
       </div>
+
+      {/* 當前所屬系列 */}
+      {currentSectionIdx > 0 && (
+        <div className="mb-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e9f5f0] px-3 py-1 text-[11.5px] font-bold text-[#2a8163]">
+            {t("sectionOf", {
+              x: currentSectionIdx,
+              s: sections.length,
+              name: sectionName(currentQ.category || "custom"),
+            })}
+          </span>
+        </div>
+      )}
 
       <div className="flex items-start justify-between gap-3">
         <h2 className="flex-1 text-[19px] leading-[1.55] font-semibold text-[#161b2e] sm:text-[21px]">

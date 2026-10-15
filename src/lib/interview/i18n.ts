@@ -77,6 +77,10 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
     replayQuestion: "Replay",
     langLabel: "Language",
     errCamera: "Cannot access camera/microphone. Please check browser permissions and try again.",
+    sectionsTitle: "Interview structure: {s} sections, {n} questions in total",
+    sectionCount: "{n} questions",
+    sectionOf: "Section {x}/{s}: {name}",
+    customSection: "Additional Questions",
   },
   id: {
     loading: "Memuat…",
@@ -115,6 +119,10 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
     replayQuestion: "Putar ulang",
     langLabel: "Bahasa",
     errCamera: "Tidak dapat mengakses kamera/mikrofon. Periksa izin browser lalu coba lagi.",
+    sectionsTitle: "Struktur wawancara: {s} bagian, total {n} pertanyaan",
+    sectionCount: "{n} pertanyaan",
+    sectionOf: "Bagian {x}/{s}: {name}",
+    customSection: "Pertanyaan Tambahan",
   },
   tl: {
     loading: "Naglo-load…",
@@ -153,6 +161,10 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
     replayQuestion: "I-play muli",
     langLabel: "Wika",
     errCamera: "Hindi ma-access ang camera/microphone. Suriin ang browser permissions at subukan muli.",
+    sectionsTitle: "Balangkas ng interview: {s} seksyon, kabuuang {n} tanong",
+    sectionCount: "{n} tanong",
+    sectionOf: "Seksyon {x}/{s}: {name}",
+    customSection: "Mga Karagdagang Tanong",
   },
   zh: {
     loading: "加载中…",
@@ -191,6 +203,10 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
     replayQuestion: "重播",
     langLabel: "语言",
     errCamera: "无法开启摄像头/麦克风，请检查浏览器权限后重试。",
+    sectionsTitle: "本次面试共 {s} 个系列、{n} 道题",
+    sectionCount: "{n} 题",
+    sectionOf: "系列 {x}/{s}：{name}",
+    customSection: "附加问题",
   },
   yue: {
     loading: "載入中…",
@@ -229,5 +245,9 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
     replayQuestion: "重播",
     langLabel: "語言",
     errCamera: "開唔到鏡頭/咪高峰，請檢查瀏覽器權限之後再試。",
+    sectionsTitle: "今次面試共 {s} 個系列、{n} 條題",
+    sectionCount: "{n} 題",
+    sectionOf: "系列 {x}/{s}：{name}",
+    customSection: "附加問題",
   },
 };
