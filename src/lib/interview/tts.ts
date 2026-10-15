@@ -173,10 +173,14 @@ export async function synthesizeSpeech(text: string, lang: LocaleKey): Promise<S
 /**
  * 為題目生成並存儲 5 語言譯文 + TTS 音頻，回寫 interview_questions。
  * 傳入 questionId 需已存在；返回寫入嘅 translations / audio。
+ *
+ * @param langs 可選：僅（重新）生成指定語言嘅音頻（如 ["yue"] 只換粵語）。
+ *              省略 = 全部 5 語言。未指定的語言會保留數據庫中已有嘅值（合併寫回）。
  */
 export async function generateQuestionAssets(
   questionId: string,
-  question: string
+  question: string,
+  langs?: LocaleKey[]
 ): Promise<{
   translations: Partial<Record<LocaleKey, string>>;
   audio: Partial<Record<LocaleKey, string>>;
@@ -186,15 +190,31 @@ export async function generateQuestionAssets(
   const supabase = getSupabase();
   if (!supabase) throw new Error("數據庫未配置");
 
+  const targets = langs?.length ? LOCALES.filter((l) => langs.includes(l.key)) : LOCALES;
+
   const translations = await translateQuestion(question);
   // 普通話若翻譯缺失，用原文兜底（題目通常就係中文）
   if (!translations.zh) translations.zh = question;
 
-  const audio: Partial<Record<LocaleKey, string>> = {};
+  // 讀現有資產：僅重生成部分語言時合併寫回，避免覆蓋其他語言
+  const { data: current } = await supabase
+    .from("interview_questions")
+    .select("translations, audio")
+    .eq("id", questionId)
+    .single();
+  const existingAudio = ((current?.audio as Record<string, string>) || {}) as Partial<
+    Record<LocaleKey, string>
+  >;
+  const mergedTranslations: Partial<Record<LocaleKey, string>> = {
+    ...((current?.translations as Record<string, string>) || {}),
+  };
+  for (const l of targets) if (translations[l.key]) mergedTranslations[l.key] = translations[l.key];
+
+  const audio: Partial<Record<LocaleKey, string>> = { ...existingAudio };
   const warnings: string[] = [];
   await Promise.all(
-    LOCALES.map(async (l) => {
-      const text = translations[l.key];
+    targets.map(async (l) => {
+      const text = mergedTranslations[l.key];
       if (!text) return;
       try {
         const speech = await synthesizeSpeech(text, l.key);
@@ -208,6 +228,12 @@ export async function generateQuestionAssets(
           warnings.push(`【${l.key}】音頻上傳存儲失敗：${error.message}（題目仍可用，可稍後重新生成）`);
           return;
         }
+        // 舊格式檔（如 .wav → .mp3）清掉，避免存儲殘留
+        const old = existingAudio[l.key];
+        if (old && old !== path) {
+          const { error: rmErr } = await supabase.storage.from(INTERVIEW_BUCKET).remove([old]);
+          if (rmErr) console.warn(`[tts] 舊音頻清理失敗（${l.key}）:`, rmErr);
+        }
         audio[l.key] = path;
       } catch (e) {
         console.error(`[tts] 音頻生成失敗（${l.key}）:`, e);
@@ -218,8 +244,8 @@ export async function generateQuestionAssets(
 
   await supabase
     .from("interview_questions")
-    .update({ translations, audio })
+    .update({ translations: mergedTranslations, audio })
     .eq("id", questionId);
 
-  return { translations, audio, warnings };
+  return { translations: mergedTranslations, audio, warnings };
 }
