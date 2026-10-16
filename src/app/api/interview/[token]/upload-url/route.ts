@@ -52,9 +52,11 @@ export async function POST(
 
   const ext = isAudio ? "wav" : baseType === "video/mp4" ? "mp4" : "webm";
   const path = `videos/${interview.id}/session.${ext}`;
+  // upsert：整場面試視頻/音頻各一份，提交失敗重試或重錄時直接覆蓋
+  //（默認簽名上傳 URL 對已存在對象報 409 KeyAlreadyExists）
   const { data, error } = await supabase.storage
     .from(INTERVIEW_BUCKET)
-    .createSignedUploadUrl(path);
+    .createSignedUploadUrl(path, { upsert: true });
   if (error || !data) {
     console.error("[interview] 簽名上傳 URL 失敗:", error);
     return Response.json({ error: "上傳初始化失敗" }, { status: 500 });
