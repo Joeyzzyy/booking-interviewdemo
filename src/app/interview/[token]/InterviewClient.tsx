@@ -643,9 +643,9 @@ export default function InterviewClient({ token }: { token: string }) {
         <h1 className="text-[20px] font-bold text-[#161b2e]">{t("setupTitle")}</h1>
         <p className="mt-2 text-[13.5px] leading-[1.8] text-[#5d6b85]">{t("setupDesc")}</p>
 
-        {/* 鏡頭預覽 */}
+        {/* 鏡頭預覽（豎屏取景：99% 用戶手機錄製） */}
         <div className="relative mt-5 overflow-hidden rounded-2xl border border-[#e6e9f2] bg-black">
-          <video ref={setupVideoRef} playsInline muted className="aspect-video w-full object-cover" />
+          <video ref={setupVideoRef} playsInline muted className="aspect-[3/4] max-h-[44vh] w-full object-cover" />
           {setupState !== "ready" && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#161b2e]/85 px-6 text-center">
               {setupState === "asking" ? (
@@ -753,38 +753,37 @@ export default function InterviewClient({ token }: { token: string }) {
     body = (
       <>
         <LangSelector lang={lang} onChange={setLang} label={t("langLabel")} />
-        {/* 錄製狀態：畫中畫預覽（鏡頭全程開著）+ 進度 + 咪高峰實時音量 */}
-        <div className="mb-5 flex items-center gap-3">
-          <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border border-[#e6e9f2] bg-black">
-            <video ref={liveVideoRef} playsInline muted className="h-full w-full object-cover" />
-            <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#ff4d4d]" aria-hidden="true" />
-              {t("recOn")}
-            </span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[12px] font-semibold text-[#8b95ad]">
-              {t("progressOf", { x: qIndex + 1, n: questions.length })}
-            </div>
-            <div className="mt-2 flex gap-1.5">
-              {questions.map((q, i) => (
+        {/* 大畫面預覽（豎屏手機錄製為主：3:4 全寬大圖，鏡頭全程開著） */}
+        <div className="relative mb-4 overflow-hidden rounded-2xl border border-[#e6e9f2] bg-black">
+          <video ref={liveVideoRef} playsInline muted className="aspect-[3/4] max-h-[46vh] w-full object-cover" />
+          <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-bold text-white">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#ff4d4d]" aria-hidden="true" />
+            {t("recOn")}
+          </span>
+        </div>
+
+        {/* 進度 + 咪高峰實時音量（緊湊一行，作答全程可見） */}
+        <div className="mb-3">
+          <div className="flex items-center justify-between text-[12px] font-semibold text-[#8b95ad]">
+            <span>{t("progressOf", { x: qIndex + 1, n: questions.length })}</span>
+            <span className="flex items-center gap-1.5" aria-label={t("micTestTitle")}>
+              <Mic size={12} className="text-[#35a07a]" aria-hidden="true" />
+              <span className="inline-block h-1.5 w-20 overflow-hidden rounded-full bg-[#e6e9f2]">
                 <span
-                  key={q.id}
-                  aria-hidden="true"
-                  className={`h-1.5 flex-1 rounded-full ${i <= qIndex ? "bg-[#35a07a]" : "bg-[#e6e9f2]"}`}
-                />
-              ))}
-            </div>
-            {/* 咪高峰實時音量（作答全程可見，隨時確認收音正常） */}
-            <div className="mt-2 flex items-center gap-1.5">
-              <Mic size={12} className="shrink-0 text-[#35a07a]" aria-hidden="true" />
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#e6e9f2]">
-                <div
-                  className={`h-full rounded-full transition-[width] duration-75 ${micLevel > 0.5 ? "bg-[#35a07a]" : "bg-[#8fd3b8]"}`}
+                  className={`block h-full rounded-full transition-[width] duration-75 ${micLevel > 0.5 ? "bg-[#35a07a]" : "bg-[#8fd3b8]"}`}
                   style={{ width: `${Math.round(micLevel * 100)}%` }}
                 />
-              </div>
-            </div>
+              </span>
+            </span>
+          </div>
+          <div className="mt-1.5 flex gap-1">
+            {questions.map((q, i) => (
+              <span
+                key={q.id}
+                aria-hidden="true"
+                className={`h-1 flex-1 rounded-full ${i <= qIndex ? "bg-[#35a07a]" : "bg-[#e6e9f2]"}`}
+              />
+            ))}
           </div>
         </div>
 
