@@ -35,7 +35,7 @@ interface Question {
 
 interface InterviewInfo {
   workerName: string;
-  status: "pending" | "in_progress" | "completed";
+  status: "pending" | "in_progress" | "processing" | "completed";
   questions: Question[];
   progress: Record<string, { attempts: number; passed: boolean }>;
 }
@@ -46,7 +46,8 @@ type Phase =
   | { name: "consent" }
   | { name: "setup" }
   | { name: "question" }
-  | { name: "processing"; step: "upload" | "analyze"; pct: number }
+  | { name: "processing"; step: "upload" | "submit"; pct: number }
+  | { name: "submitted" }
   | { name: "finished" };
 
 /** 設備檢查狀態：請求權限中 → 被拒（無法開始）→ 就緒 */
@@ -234,11 +235,17 @@ export default function InterviewClient({ token }: { token: string }) {
     }
   }, [token]);
 
-  /** 首次/重新載入：按狀態決定階段 */
+  /** 首次/重新載入：按狀態決定階段（processing = 已提交，AI 後台解析中） */
   const load = useCallback(async () => {
     const data = await fetchInfo();
     if (!data) return;
-    setPhase(data.status === "completed" ? { name: "finished" } : { name: "consent" });
+    setPhase(
+      data.status === "completed"
+        ? { name: "finished" }
+        : data.status === "processing"
+          ? { name: "submitted" }
+          : { name: "consent" }
+    );
   }, [fetchInfo]);
 
   const stopStream = () => {
@@ -362,6 +369,17 @@ export default function InterviewClient({ token }: { token: string }) {
       attachStream(streamRef.current);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase.name]);
+
+  // 上傳堵頁：processing（上傳 + 提交）期間攔截關閉/刷新/返回；提交完成後自動解除
+  useEffect(() => {
+    if (phase.name !== "processing") return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
   }, [phase.name]);
 
   /** 進入設備檢查：必須攞到鏡頭 + 咪高峰，否則唔畀開始 */
@@ -527,18 +545,19 @@ export default function InterviewClient({ token }: { token: string }) {
         /* 冇音頻都照提交（服務端用舊視頻轉寫鏈） */
       }
 
-      // 3) 提交統一分析（轉寫 → 按題切分 → 寫作答 → 生成整體報告 → 標記完成）
-      setPhase({ name: "processing", step: "analyze", pct: 100 });
+      // 3) 提交後台任務（秒回）：AI 轉寫切分 + 報告改喺後台慢慢跑，唔使喺頁面等
+      setPhase({ name: "processing", step: "submit", pct: 100 });
       const res = await fetch(`/api/interview/${token}/session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ videoPath: urlData.path, audioPath, events: eventsRef.current }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "分析失敗");
+      if (!res.ok) throw new Error(data.error || "提交失敗");
       if (data.warning) setWarning(data.warning);
       stopStream();
-      setPhase({ name: "finished" });
+      // 已提交：AI 後台解析中，用戶可以即刻閂頁
+      setPhase({ name: "submitted" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "提交失敗，請稍後再試");
       setPhase({ name: "question" });
@@ -721,7 +740,7 @@ export default function InterviewClient({ token }: { token: string }) {
       <div className="flex flex-col items-center gap-5 py-8 text-center">
         <span className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#e9f5f0] border-t-[#35a07a]" />
         <h2 className="text-[17px] font-bold text-[#161b2e]">
-          {isUpload ? t("stepUpload") : t("stepAnalyze")}
+          {isUpload ? t("stepUpload") : t("stepSubmit")}
         </h2>
         <div className="w-full max-w-[420px] space-y-3">
           <div>
@@ -738,14 +757,34 @@ export default function InterviewClient({ token }: { token: string }) {
           </div>
           <div>
             <div className="mb-1.5 flex justify-between text-[12px] font-semibold">
-              <span className={!isUpload ? "text-[#2a8163]" : "text-[#8b95ad]"}>{t("stepAnalyze")}</span>
+              <span className={!isUpload ? "text-[#2a8163]" : "text-[#8b95ad]"}>{t("stepSubmit")}</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-[#e6e9f2]">
               <div className={`h-full rounded-full bg-[#35a07a] ${isUpload ? "w-0" : "w-full animate-pulse"}`} />
             </div>
           </div>
         </div>
-        <p className="max-w-[40ch] text-[12.5px] leading-[1.8] text-[#8b95ad]">{t("analyzingHint")}</p>
+        {/* 堵頁提示：上傳未完唔可以閂頁；解析喺後台，唔使等 */}
+        <p className="max-w-[46ch] rounded-xl border border-[#f0d79a] bg-[#fdf6e3] px-4 py-3 text-[13px] font-semibold leading-[1.8] text-[#8a6d1a]">
+          {t("uploadBlockHint")}
+        </p>
+      </div>
+    );
+  } else if (phase.name === "submitted") {
+    // 已提交：AI 後台解析中，可以即刻閂頁；之後重開連結可睇狀態
+    body = (
+      <div className="flex flex-col items-center gap-4 py-8 text-center">
+        <CircleCheck size={44} className="text-[#35a07a]" aria-hidden="true" />
+        <h1 className="text-[20px] font-bold text-[#161b2e]">{t("submitted")}</h1>
+        <p className="max-w-[44ch] text-[14px] leading-[1.9] text-[#3d4763]">{t("submittedDesc")}</p>
+        {warning && (
+          <p className="max-w-[46ch] rounded-xl border border-[#f0d79a] bg-[#fdf6e3] px-4 py-3 text-left text-[12.5px] leading-[1.7] text-[#8a6d1a]">
+            {warning}
+          </p>
+        )}
+        <button type="button" onClick={() => void load()} className={BTN_OUTLINE}>
+          {t("submittedRefresh")}
+        </button>
       </div>
     );
   } else {

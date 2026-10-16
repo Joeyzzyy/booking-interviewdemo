@@ -11,7 +11,7 @@ interface InterviewItem {
   id: string;
   token: string;
   worker_name: string;
-  status: "pending" | "in_progress" | "completed";
+  status: "pending" | "in_progress" | "processing" | "completed";
   report: { score?: number; summary?: string } | null;
   created_at: string;
 }
@@ -39,6 +39,7 @@ interface Report {
 const STATUS_COLOR: Record<string, string> = {
   pending: "default",
   in_progress: "gold",
+  processing: "processing",
   completed: "green",
 };
 

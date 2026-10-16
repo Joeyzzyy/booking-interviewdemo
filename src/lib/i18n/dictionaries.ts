@@ -547,7 +547,7 @@ const yue = {
         linkModalTitle: "面試連結已生成（已複製）",
       },
       records: {
-        status: { pending: "未開始", in_progress: "進行中", completed: "已完成" },
+        status: { pending: "未開始", in_progress: "進行中", processing: "解析中", completed: "已完成" },
         colWorker: "工人",
         colStatus: "狀態",
         colScore: "評分",
@@ -1192,7 +1192,7 @@ const cmn: Messages = {
         linkModalTitle: "面试链接已生成（已复制）",
       },
       records: {
-        status: { pending: "未开始", in_progress: "进行中", completed: "已完成" },
+        status: { pending: "未开始", in_progress: "进行中", processing: "解析中", completed: "已完成" },
         colWorker: "工人",
         colStatus: "状态",
         colScore: "评分",
@@ -1869,7 +1869,7 @@ const en: Messages = {
         linkModalTitle: "Interview link generated (copied)",
       },
       records: {
-        status: { pending: "Not started", in_progress: "In progress", completed: "Completed" },
+        status: { pending: "Not started", in_progress: "In progress", processing: "Analyzing", completed: "Completed" },
         colWorker: "Helper",
         colStatus: "Status",
         colScore: "Score",

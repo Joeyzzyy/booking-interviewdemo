@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { getSupabase } from "@/lib/booking/db";
 import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
 import { generateReport, segmentAnswers, transcribeAudio, transcribeVideo } from "@/lib/interview/ai";
@@ -5,16 +6,18 @@ import { toUserMessage } from "@/lib/interview/ai-errors";
 import { getActiveQuestionsForOwner, getInterviewByToken } from "@/lib/interview/store";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 整場音頻轉寫（可能 10+ 分鐘）+ 切分 + 報告，畀足時間
+export const maxDuration = 300; // 後台任務：整場音頻轉寫（可能 10+ 分鐘）+ 切分 + 報告
 // Gemini API 封鎖香港區域，函數跑新加坡節點繞開（其他區域無影響）
 export const preferredRegion = "sin1";
 
 /**
  * POST /api/interview/[token]/session
  * body: { videoPath, audioPath?, events?: { questionId, at }[] }
- * 全程一次連續錄製嘅統一提交：
- * 整段轉寫 → LLM 按題切分出逐題回答 → 寫入 interview_answers（共用整場視頻）→
- * 生成整體報告 → 標記面試完成。
+ *
+ * 全程一次連續錄製嘅統一提交（後台任務模式）：
+ * 1. 樂觀鎖認領：interviews.status pending/in_progress → processing（防併發重複跑）
+ * 2. 秒回 { ok: true, processing: true } —— 用戶上傳完即刻可以閂頁
+ * 3. after() 後台慢慢跑：整段轉寫 → LLM 按題切分 → 寫作答 → 生成整體報告 → 標記完成
  */
 export async function POST(
   request: Request,
@@ -26,7 +29,7 @@ export async function POST(
   const interview = await getInterviewByToken(token);
   if (!interview) return Response.json({ error: "連結不存在" }, { status: 404 });
   if (interview.status === "completed") {
-    return Response.json({ ok: true }); // 冪等：重複提交直接畀過
+    return Response.json({ ok: true, processing: false }); // 冪等：已完成直接畀過
   }
 
   let body: {
@@ -56,106 +59,160 @@ export async function POST(
 
   const questions = await getActiveQuestionsForOwner(interview.customer_id);
 
-  // ---- 1) 整段轉寫（失敗唔阻流程：照樣標記完成，報告標註無轉寫） ----
-  let transcript = "";
-  let warning: string | undefined;
-
-  // 路線 1（優先）：客戶端預抽嘅 WAV → MiniMax asr-1.0 / 硅基流動
-  if (audioPath) {
-    const { data: audioData, error: audioErr } = await supabase.storage
-      .from(INTERVIEW_BUCKET)
-      .download(audioPath);
-    if (audioErr || !audioData) {
-      console.error("[interview] 音頻下載失敗（回落視頻轉寫）:", audioErr);
-    } else {
-      try {
-        transcript = await transcribeAudio(
-          Buffer.from(await audioData.arrayBuffer()),
-          audioPath.split("/").pop() || "session.wav"
-        );
-      } catch (e) {
-        console.error("[interview] 音頻轉寫失敗（回落視頻轉寫）:", e);
-        warning = toUserMessage(e);
-      }
-    }
-  }
-
-  // 路線 2（兜底）：冇音頻或轉寫為空 → 視頻轉寫鏈（硅基流動 → Gemini 直接吃視頻）
-  if (!transcript) {
-    const { data: videoData, error: dlErr } = await supabase.storage
-      .from(INTERVIEW_BUCKET)
-      .download(videoPath);
-    if (dlErr || !videoData) {
-      console.error("[interview] 視頻下載失敗:", dlErr);
-      return Response.json({ error: "視頻讀取失敗，請重新上傳" }, { status: 500 });
-    }
-    const videoBuffer = Buffer.from(await videoData.arrayBuffer());
-    try {
-      transcript = await transcribeVideo(videoBuffer, videoPath.split("/").pop() || "session.webm", videoData.type);
-    } catch (e) {
-      console.error("[interview] 轉寫失敗（仍接受作答）:", e);
-      warning = toUserMessage(e);
-    }
-  }
-
-  // ---- 2) LLM 按題切分出逐題回答（無轉寫/切分失敗 → 該題標「（無轉寫）」） ----
-  let segmented: Record<string, string> = {};
-  if (transcript) {
-    try {
-      segmented = await segmentAnswers(
-        questions.map((q) => ({ id: q.id, question: q.question })),
-        transcript,
-        events
-      );
-    } catch (e) {
-      console.error("[interview] 逐題切分失敗（全部標無轉寫）:", e);
-      if (!warning) warning = toUserMessage(e);
-    }
-  }
-
-  // ---- 3) 寫入逐題作答（冪等：先清掉可能嘅舊記錄，再重新插入） ----
-  await supabase.from("interview_answers").delete().eq("interview_id", interview.id);
-  if (questions.length > 0) {
-    await supabase.from("interview_answers").insert(
-      questions.map((q) => ({
-        interview_id: interview.id,
-        question_id: q.id,
-        question_text: q.question,
-        attempt: 1,
-        video_path: videoPath,
-        transcript: segmented[q.id] || "",
-        passed: true,
-        feedback: null,
-      }))
-    );
-  }
-
-  // ---- 4) 生成整體報告（失敗唔卡住面試：fallback 標記完成，詳情透出 warning） ----
-  const qaList = questions.map((q) => ({
-    question: q.question,
-    answer: segmented[q.id] || "（無轉寫）",
-  }));
-  let report;
-  try {
-    report = await generateReport(interview.worker_name, interview.resume_text || "", qaList);
-  } catch (e) {
-    console.error("[interview] 報告生成失敗（以 fallback 標記完成）:", e);
-    if (!warning) warning = toUserMessage(e);
-    report = {
-      score: 0,
-      summary: `整體報告生成失敗，請聯絡管理員重新生成或參考逐題結果。\n\n${warning}`,
-      strengths: [],
-      concerns: [],
-      resumeMatch: "",
-      recommendation: "",
-      generatedBy: "none",
-    };
-  }
-
-  await supabase
+  // ---- 認領提交：第一句 update 成功先代表本請求獨佔後台任務 ----
+  const { data: claimed, error: claimErr } = await supabase
     .from("interviews")
-    .update({ status: "completed", report, completed_at: new Date().toISOString() })
-    .eq("id", interview.id);
+    .update({ status: "processing" })
+    .eq("id", interview.id)
+    .in("status", ["pending", "in_progress"])
+    .select("id");
+  if (claimErr) {
+    // DB 層錯誤（如約束未加 processing）要如實報俾前端重試，唔好靜默假裝已受理
+    console.error("[interview] 認領提交失敗:", claimErr);
+    return Response.json({ error: "提交初始化失敗，請重試" }, { status: 500 });
+  }
+  if (!claimed || claimed.length === 0) {
+    // 已經 processing（前一個提交正在後台跑）或已被併發標記完成：冪等放行，唔重複跑
+    return Response.json({ ok: true, processing: true });
+  }
 
-  return Response.json({ ok: true, ...(warning ? { warning } : {}) });
+  // ---- 後台任務：響應秒返之後繼續跑（同一函數調用的 waitUntil 生命週期） ----
+  const interviewId = interview.id;
+  after(async () => {
+    const supa = getSupabase();
+    if (!supa) return;
+    const finishFailed = async (reason: unknown) => {
+      console.error("[interview] 後台解析整體失敗（以 fallback 標記完成）:", reason);
+      await supa
+        .from("interviews")
+        .update({
+          status: "completed",
+          report: {
+            score: 0,
+            summary: "整體報告生成失敗，請聯絡管理員重新生成或參考逐題結果。",
+            strengths: [],
+            concerns: [],
+            resumeMatch: "",
+            recommendation: "",
+            generatedBy: "none",
+          },
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", interviewId);
+    };
+
+    try {
+      // ---- 1) 整段轉寫（失敗唔阻流程：照樣標記完成，報告標註無轉寫） ----
+      let transcript = "";
+      let warning: string | undefined;
+
+      // 路線 1（優先）：客戶端預抽嘅 WAV → MiniMax asr-1.0 / 硅基流動
+      if (audioPath) {
+        const { data: audioData, error: audioErr } = await supa.storage
+          .from(INTERVIEW_BUCKET)
+          .download(audioPath);
+        if (audioErr || !audioData) {
+          console.error("[interview] 音頻下載失敗（回落視頻轉寫）:", audioErr);
+        } else {
+          try {
+            transcript = await transcribeAudio(
+              Buffer.from(await audioData.arrayBuffer()),
+              audioPath.split("/").pop() || "session.wav"
+            );
+          } catch (e) {
+            console.error("[interview] 音頻轉寫失敗（回落視頻轉寫）:", e);
+            warning = toUserMessage(e);
+          }
+        }
+      }
+
+      // 路線 2（兜底）：冇音頻或轉寫為空 → 視頻轉寫鏈（硅基流動 → Gemini 直接吃視頻）
+      if (!transcript) {
+        const { data: videoData, error: dlErr } = await supa.storage
+          .from(INTERVIEW_BUCKET)
+          .download(videoPath);
+        if (dlErr || !videoData) {
+          console.error("[interview] 後台視頻下載失敗:", dlErr);
+          await finishFailed(dlErr);
+          return;
+        }
+        const videoBuffer = Buffer.from(await videoData.arrayBuffer());
+        try {
+          transcript = await transcribeVideo(
+            videoBuffer,
+            videoPath.split("/").pop() || "session.webm",
+            videoData.type
+          );
+        } catch (e) {
+          console.error("[interview] 轉寫失敗（仍接受作答）:", e);
+          warning = toUserMessage(e);
+        }
+      }
+
+      // ---- 2) LLM 按題切分出逐題回答（無轉寫/切分失敗 → 該題標「（無轉寫）」） ----
+      let segmented: Record<string, string> = {};
+      if (transcript) {
+        try {
+          segmented = await segmentAnswers(
+            questions.map((q) => ({ id: q.id, question: q.question })),
+            transcript,
+            events
+          );
+        } catch (e) {
+          console.error("[interview] 逐題切分失敗（全部標無轉寫）:", e);
+          if (!warning) warning = toUserMessage(e);
+        }
+      }
+
+      // ---- 3) 寫入逐題作答（冪等：先清掉可能嘅舊記錄，再重新插入） ----
+      await supa.from("interview_answers").delete().eq("interview_id", interviewId);
+      if (questions.length > 0) {
+        await supa.from("interview_answers").insert(
+          questions.map((q) => ({
+            interview_id: interviewId,
+            question_id: q.id,
+            question_text: q.question,
+            attempt: 1,
+            video_path: videoPath,
+            transcript: segmented[q.id] || "",
+            passed: true,
+            feedback: null,
+          }))
+        );
+      }
+
+      // ---- 4) 生成整體報告（失敗唔卡住面試：fallback 標記完成） ----
+      const qaList = questions.map((q) => ({
+        question: q.question,
+        answer: segmented[q.id] || "（無轉寫）",
+      }));
+      let report;
+      try {
+        report = await generateReport(interview.worker_name, interview.resume_text || "", qaList);
+      } catch (e) {
+        console.error("[interview] 報告生成失敗（以 fallback 標記完成）:", e);
+        if (!warning) warning = toUserMessage(e);
+        report = {
+          score: 0,
+          summary: `整體報告生成失敗，請聯絡管理員重新生成或參考逐題結果。\n\n${warning}`,
+          strengths: [],
+          concerns: [],
+          resumeMatch: "",
+          recommendation: "",
+          generatedBy: "none",
+        };
+      }
+
+      await supa
+        .from("interviews")
+        .update({ status: "completed", report, completed_at: new Date().toISOString() })
+        .eq("id", interviewId);
+      console.log(`[interview] 後台解析完成: ${interviewId}`);
+    } catch (e) {
+      await finishFailed(e);
+    }
+  });
+
+  // 秒回：前端立刻放行（遮罩解除、進入「已提交」狀態）
+  return Response.json({ ok: true, processing: true });
 }

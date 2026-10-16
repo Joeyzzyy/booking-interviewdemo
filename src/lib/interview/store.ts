@@ -10,7 +10,7 @@ export interface Interview {
   token: string;
   worker_name: string;
   resume_text: string | null;
-  status: "pending" | "in_progress" | "completed";
+  status: "pending" | "in_progress" | "processing" | "completed";
   report: Record<string, unknown> | null;
   customer_id: string | null;
   created_at: string;
