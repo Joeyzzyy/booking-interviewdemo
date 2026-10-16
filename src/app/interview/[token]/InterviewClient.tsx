@@ -356,6 +356,14 @@ export default function InterviewClient({ token }: { token: string }) {
     }
   };
 
+  // 作答階段掛載後，畫中畫 video 元素係新節點，需重新綁定流（setup 階段綁定嘅係舊節點）
+  useEffect(() => {
+    if (phase.name === "question" && streamRef.current) {
+      attachStream(streamRef.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase.name]);
+
   /** 進入設備檢查：必須攞到鏡頭 + 咪高峰，否則唔畀開始 */
   const requestDevices = async () => {
     setSetupState("asking");
@@ -745,22 +753,18 @@ export default function InterviewClient({ token }: { token: string }) {
     body = (
       <>
         <LangSelector lang={lang} onChange={setLang} label={t("langLabel")} />
-        {/* 錄製狀態條：紅點 + 畫中畫預覽（鏡頭全程開著） */}
+        {/* 錄製狀態：畫中畫預覽（鏡頭全程開著）+ 進度 + 咪高峰實時音量 */}
         <div className="mb-5 flex items-center gap-3">
           <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border border-[#e6e9f2] bg-black">
             <video ref={liveVideoRef} playsInline muted className="h-full w-full object-cover" />
-            <span className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
+            <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-bold text-white">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#ff4d4d]" aria-hidden="true" />
               {t("recOn")}
             </span>
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between text-[12px] font-semibold text-[#8b95ad]">
-              <span>{t("progressOf", { x: qIndex + 1, n: questions.length })}</span>
-              <span className="flex items-center gap-1.5 text-[#d64545]">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#d64545]" aria-hidden="true" />
-                {t("recOn")}
-              </span>
+            <div className="text-[12px] font-semibold text-[#8b95ad]">
+              {t("progressOf", { x: qIndex + 1, n: questions.length })}
             </div>
             <div className="mt-2 flex gap-1.5">
               {questions.map((q, i) => (
@@ -770,6 +774,16 @@ export default function InterviewClient({ token }: { token: string }) {
                   className={`h-1.5 flex-1 rounded-full ${i <= qIndex ? "bg-[#35a07a]" : "bg-[#e6e9f2]"}`}
                 />
               ))}
+            </div>
+            {/* 咪高峰實時音量（作答全程可見，隨時確認收音正常） */}
+            <div className="mt-2 flex items-center gap-1.5">
+              <Mic size={12} className="shrink-0 text-[#35a07a]" aria-hidden="true" />
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#e6e9f2]">
+                <div
+                  className={`h-full rounded-full transition-[width] duration-75 ${micLevel > 0.5 ? "bg-[#35a07a]" : "bg-[#8fd3b8]"}`}
+                  style={{ width: `${Math.round(micLevel * 100)}%` }}
+                />
+              </div>
             </div>
           </div>
         </div>
