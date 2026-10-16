@@ -82,12 +82,24 @@ async function siliconflowStt(fileBuffer: Buffer, filename: string, contentType:
 
 /**
  * 純音頻（客戶端預抽嘅 WAV）→ 文字。
- * MiniMax asr-1.0 優先（粵語效果好）；硅基流動 SenseVoice 兜底（wav 直接可用）。
+ * MiniMax asr-1.0 優先（粵語效果好，內置 5xx 重試）；失敗且有 STT_API_KEY 時
+ * 即場回落硅基流動 SenseVoice（wav 直接可用，唔使行慢速視頻鏈）。
  * 兩個 key 都未配置 → 返回空字串（調用方回落視頻轉寫鏈）。
  */
 export async function transcribeAudio(audioBuffer: Buffer, filename: string): Promise<string> {
   if (isMinimaxEnabled()) {
-    return minimaxStt(audioBuffer, filename);
+    try {
+      return await minimaxStt(audioBuffer, filename);
+    } catch (e) {
+      if (!process.env.STT_API_KEY) throw e;
+      console.error("[stt] MiniMax 轉寫失敗，回落硅基流動：", e);
+      try {
+        return await siliconflowStt(audioBuffer, filename, "audio/wav");
+      } catch (fallbackErr) {
+        console.error("[stt] 硅基流動回落都失敗：", fallbackErr);
+        throw e; // 透出主 provider（MiniMax）嘅錯誤詳情俾用戶截圖
+      }
+    }
   }
   if (process.env.STT_API_KEY) {
     return siliconflowStt(audioBuffer, filename, "audio/wav");
@@ -157,27 +169,43 @@ function hasLlm(): boolean {
   return Boolean(process.env.MINIMAX_API_KEY || process.env.GEMINI_API_KEY);
 }
 
-/** 逐題判斷：工人回答是否有效回應了問題（及考察要點） */
-export async function judgeAnswer(
-  question: string,
-  focus: string | null,
-  transcript: string
-): Promise<JudgeResult> {
-  if (!hasLlm()) {
-    return { passed: true, feedback: "（AI 未配置，自動通過）" };
-  }
-  if (!transcript) {
-    return { passed: false, feedback: "聽唔到回答內容，請靠近咪高峰大聲少少再答一次。" };
-  }
+/**
+ * 整場轉寫按題切分（全程連續錄製模式）：
+ * 工人一次過錄完所有題目，LLM 把整段逐字稿按題目歸屬切分出每題回答。
+ * 返回 { questionId → 該題回答文字 }；切分失敗/無轉寫時返回空對象（調用方標「（無轉寫）」）。
+ * events（切題時間線，秒）可選附上，幫助 LLM 對應題目順序。
+ */
+export async function segmentAnswers(
+  questions: { id: string; question: string }[],
+  transcript: string,
+  events: { questionId: string; at: number }[] = []
+): Promise<Record<string, string>> {
+  if (!hasLlm() || !transcript.trim()) return {};
+  const qLines = questions.map((q, i) => `Q${i + 1}（id=${q.id}）：${q.question}`).join("\n");
+  const evLines = events
+    .map((e) => {
+      const idx = questions.findIndex((q) => q.id === e.questionId);
+      return idx >= 0 ? `第 ${e.at} 秒切到 Q${idx + 1}` : null;
+    })
+    .filter(Boolean)
+    .join("；");
   const raw = await llmJson(
-    "你係外傭面試官助手。判斷工人嘅口頭回答是否有效回應咗問題。有效標準：內容與問題相關、有具體實質內容（唔係得一句「知道」「可以」等敷衍）。回答語言可能係普通話、粵語或英文。只輸出 JSON：{\"passed\": boolean, \"feedback\": string}，feedback 用繁體中文，不通過時簡短話畀工人知要補充咩（30 字內），通過時留空字串。",
-    `問題：${question}\n${focus ? `考察要點：${focus}\n` : ""}工人回答轉寫：${transcript}`
+    "你係面試記錄整理助手。工人用一次過連續錄音回答咗一系列問題（題目順序與編號如下，工人可能跳答、重答或按順序作答）。請把整段逐字稿按題目歸屬切分：每題抽出工人對該題嘅實際回答原文（可適度去掉口頭禪重複字，但唔好改寫意思、唔好補充內容）。某題完全搵唔到對應回答時，該題答案留空字串。只輸出 JSON：{\"answers\": [{\"id\": \"題目 id\", \"answer\": \"該題回答\"}]}。",
+    `【題目】\n${qLines}\n\n${evLines ? `【切題時間線】${evLines}\n\n` : ""}【整段逐字稿】\n${transcript}`
   );
   try {
     const parsed = JSON.parse(raw);
-    return { passed: Boolean(parsed.passed), feedback: String(parsed.feedback || "") };
-  } catch {
-    return { passed: false, feedback: "系統分析失敗，請再答一次。" };
+    const out: Record<string, string> = {};
+    const valid = new Set(questions.map((q) => q.id));
+    for (const item of Array.isArray(parsed.answers) ? parsed.answers : []) {
+      if (item && valid.has(item.id) && typeof item.answer === "string") {
+        out[item.id] = item.answer.trim();
+      }
+    }
+    return out;
+  } catch (e) {
+    console.error("[interview] 逐題切分解析失敗:", e, raw.slice(0, 200));
+    return {};
   }
 }
 

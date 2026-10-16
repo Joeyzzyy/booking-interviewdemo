@@ -141,25 +141,42 @@ export async function minimaxVisionJson(
  * 語音轉寫（speech_to_text，asr-1.0）→ 文字。
  * 只接受純音頻容器（wav/mp3/aac/ogg）；拒絕帶視頻流嘅文件及 webm/matroska，
  * 所以調用方要傳客戶端預先抽好嘅 WAV。粵語（yue）轉寫效果好。
+ * 5xx / 網絡層屬瞬態錯誤（如 upstream 1033），自動重試 1 次先拋錯。
  */
 export async function minimaxStt(audioBuffer: Buffer, filename: string): Promise<string> {
   const form = new FormData();
   form.append("model", "asr-1.0");
   form.append("file", new Blob([new Uint8Array(audioBuffer)], { type: "audio/wav" }), filename);
   form.append("response_format", "json");
-  let res: Response;
-  try {
-    res = await fetch(`${BASE_URL}/v1/speech_to_text`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${getKey()}` },
-      body: form,
-    });
-  } catch (e) {
-    throw networkError("MiniMax（語音轉寫）", e, "asr-1.0");
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) {
+      console.warn("[minimax] STT 瞬態錯誤，1.5 秒後重試…");
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    let res: Response;
+    try {
+      res = await fetch(`${BASE_URL}/v1/speech_to_text`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getKey()}` },
+        body: form,
+      });
+    } catch (e) {
+      lastErr = networkError("MiniMax（語音轉寫）", e, "asr-1.0");
+      continue; // 網絡層失敗：重試
+    }
+    if (!res.ok) {
+      const err = classifyHttpError("MiniMax（語音轉寫）", res.status, await res.text(), "asr-1.0");
+      if (res.status >= 500) {
+        lastErr = err;
+        continue; // 上游 5xx（如 1033 識別失敗）：重試一次
+      }
+      throw err; // 4xx（key / 配額 / 格式問題）重試無用，直接拋
+    }
+    const data = await res.json();
+    return (data.text || "").trim();
   }
-  if (!res.ok) throw classifyHttpError("MiniMax（語音轉寫）", res.status, await res.text(), "asr-1.0");
-  const data = await res.json();
-  return (data.text || "").trim();
+  throw lastErr;
 }
 
 /** TTS（t2a_v2，hex 輸出）→ mp3 Buffer；base_resp.status_code !== 0 時拋錯（含 status_msg） */
