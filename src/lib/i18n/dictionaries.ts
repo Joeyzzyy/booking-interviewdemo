@@ -548,6 +548,7 @@ const yue = {
       },
       records: {
         status: { pending: "未開始", in_progress: "進行中", processing: "解析中", completed: "已完成" },
+        sessionVideo: "整場錄製視頻",
         colWorker: "工人",
         colStatus: "狀態",
         colScore: "評分",
@@ -1193,6 +1194,7 @@ const cmn: Messages = {
       },
       records: {
         status: { pending: "未开始", in_progress: "进行中", processing: "解析中", completed: "已完成" },
+        sessionVideo: "整场录制视频",
         colWorker: "工人",
         colStatus: "状态",
         colScore: "评分",
@@ -1870,6 +1872,7 @@ const en: Messages = {
       },
       records: {
         status: { pending: "Not started", in_progress: "In progress", processing: "Analyzing", completed: "Completed" },
+        sessionVideo: "Full session recording",
         colWorker: "Helper",
         colStatus: "Status",
         colScore: "Score",

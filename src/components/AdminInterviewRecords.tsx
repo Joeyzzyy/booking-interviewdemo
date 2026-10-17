@@ -20,6 +20,7 @@ interface Answer {
   id: string;
   question_text: string;
   attempt: number;
+  video_path?: string | null;
   video_url: string | null;
   transcript: string | null;
   passed: boolean | null;
@@ -197,12 +198,23 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
               return <Typography.Text type="danger">{tr.detailFailed}</Typography.Text>;
             if (!d) return <Typography.Text type="secondary">{tr.loading}</Typography.Text>;
             const r = d.interview.report;
+            // 整場連續錄製：全部作答共用同一個視頻文件 → 只在頂部展示一次，逐題僅顯示轉錄
+            //（舊流程逐題錄製的歷史數據 video_path 各不相同 → 保持逐題掛視頻原樣）
+            const videoPaths = [...new Set((d.answers || []).map((a) => a.video_path).filter(Boolean))];
+            const isSessionRecording = videoPaths.length === 1;
+            const sessionVideoUrl = isSessionRecording ? d.answers.find((a) => a.video_url)?.video_url ?? null : null;
             return (
               <Space direction="vertical" style={{ width: "100%" }} size={12}>
                 {d.interview.resume_url && (
                   <Button size="small" href={d.interview.resume_url} target="_blank">
                     {tr.downloadResume}
                   </Button>
+                )}
+                {isSessionRecording && sessionVideoUrl && (
+                  <div>
+                    <Typography.Title level={5} style={{ marginBottom: 8 }}>{tr.sessionVideo}</Typography.Title>
+                    <VideoWithCover src={sessionVideoUrl} controls preload="metadata" style={{ width: "100%", maxWidth: 480, borderRadius: 8, background: "#000" }} />
+                  </div>
                 )}
                 {r && (
                   <Card size="small" title={tr.reportTitle(r.score)} style={{ background: "#fffbe6" }}>
@@ -243,7 +255,7 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                           {a.feedback && (
                             <Typography.Text type="danger">{tr.aiFeedback(a.feedback)}</Typography.Text>
                           )}
-                          {a.video_url && (
+                          {!isSessionRecording && a.video_url && (
                             <VideoWithCover src={a.video_url} controls preload="metadata" style={{ width: "100%", maxWidth: 480, borderRadius: 8, background: "#000" }} />
                           )}
                         </Space>
