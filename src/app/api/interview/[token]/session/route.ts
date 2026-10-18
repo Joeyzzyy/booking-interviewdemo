@@ -4,6 +4,7 @@ import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
 import { generateReport, segmentAnswers, transcribeAudio, transcribeVideo } from "@/lib/interview/ai";
 import { toUserMessage } from "@/lib/interview/ai-errors";
 import { getActiveQuestionsForOwner, getInterviewByToken } from "@/lib/interview/store";
+import { buildSegments } from "@/lib/interview/wav-segment";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 後台任務：整場音頻轉寫（可能 10+ 分鐘）+ 切分 + 報告
@@ -105,6 +106,8 @@ export async function POST(
       // ---- 1) 整段轉寫（失敗唔阻流程：照樣標記完成，報告標註無轉寫） ----
       let transcript = "";
       let warning: string | undefined;
+      /** 整場 WAV 原始 buffer（切段用；冇音頻時為 null） */
+      let fullWav: Buffer | null = null;
 
       // 路線 1（優先）：客戶端預抽嘅 WAV → MiniMax asr-1.0 / 硅基流動
       if (audioPath) {
@@ -114,15 +117,18 @@ export async function POST(
         if (audioErr || !audioData) {
           console.error("[interview] 音頻下載失敗（回落視頻轉寫）:", audioErr);
         } else {
+          const wavBuffer = Buffer.from(await audioData.arrayBuffer());
           try {
             transcript = await transcribeAudio(
-              Buffer.from(await audioData.arrayBuffer()),
+              wavBuffer,
               audioPath.split("/").pop() || "session.wav"
             );
           } catch (e) {
             console.error("[interview] 音頻轉寫失敗（回落視頻轉寫）:", e);
             warning = toUserMessage(e);
           }
+          // 轉寫成唔成功都留住 buffer：切段靠時間線，唔依賴轉寫
+          if (wavBuffer.length > 44) fullWav = wavBuffer;
         }
       }
 
@@ -164,20 +170,66 @@ export async function POST(
         }
       }
 
-      // ---- 3) 寫入逐題作答（冪等：先清掉可能嘅舊記錄，再重新插入） ----
+      // ---- 3) 按時間線切出每題音頻段（僱主逐題試聽用；失敗唔阻流程） ----
+      // timeline 事件：每次切題都記錄 from/to，轉成「該題停留區間」
+      const timeline = events
+        .slice()
+        .sort((a, b) => a.at - b.at)
+        .map((e, i, arr) => ({
+          questionId: e.questionId,
+          from: e.at,
+          to: arr[i + 1] ? arr[i + 1].at : Number.MAX_SAFE_INTEGER,
+        }))
+        .filter((e) => e.to > e.from);
+      const segMap = new Map<string, { buffer: Buffer; startSec: number; endSec: number }>();
+      const audioSegPaths = new Map<string, { path: string; start: number; end: number }>();
+      if (fullWav && timeline.length > 0) {
+        try {
+          const segments = buildSegments(
+            fullWav,
+            timeline.map((t) => ({ questionId: t.questionId, from: t.from, to: t.to }))
+          );
+          for (const [qid, seg] of segments) {
+            const segPath = `videos/${interviewId}/segments/${qid}.wav`;
+            const { error: upErr } = await supa.storage
+              .from(INTERVIEW_BUCKET)
+              .upload(segPath, new Uint8Array(seg.buffer), {
+                contentType: "audio/wav",
+                upsert: true,
+              });
+            if (upErr) {
+              console.error(`[interview] 音頻段上傳失敗 (${qid}):`, upErr);
+              continue;
+            }
+            audioSegPaths.set(qid, { path: segPath, start: seg.startSec, end: seg.endSec });
+          }
+          console.log(`[interview] 音頻切段完成: ${audioSegPaths.size}/${timeline.length}`);
+        } catch (e) {
+          console.error("[interview] 音頻切段失敗（不影響轉錄與報告）:", e);
+        }
+      }
+
+      // ---- 4) 寫入逐題作答（冪等：先清掉可能嘅舊記錄，再重新插入） ----
       await supa.from("interview_answers").delete().eq("interview_id", interviewId);
       if (questions.length > 0) {
         await supa.from("interview_answers").insert(
-          questions.map((q) => ({
-            interview_id: interviewId,
-            question_id: q.id,
-            question_text: q.question,
-            attempt: 1,
-            video_path: videoPath,
-            transcript: segmented[q.id] || "",
-            passed: true,
-            feedback: null,
-          }))
+          questions.map((q) => {
+            const seg = audioSegPaths.get(q.id);
+            return {
+              interview_id: interviewId,
+              question_id: q.id,
+              question_text: q.question,
+              attempt: 1,
+              video_path: videoPath,
+              transcript: segmented[q.id] || "",
+              passed: true,
+              feedback: null,
+              // 整場錄製定位信息：音頻段 + 起止秒數（切唔到段時為 null）
+              audio_path: seg?.path ?? null,
+              video_start: seg?.start ?? null,
+              video_end: seg?.end ?? null,
+            };
+          })
         );
       }
 

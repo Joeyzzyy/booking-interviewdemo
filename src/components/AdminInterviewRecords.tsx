@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { App, Button, Card, List, Space, Table, Tag, Typography } from "antd";
 import { CopyOutlined, DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
@@ -22,6 +22,9 @@ interface Answer {
   attempt: number;
   video_path?: string | null;
   video_url: string | null;
+  audio_url?: string | null;
+  video_start?: number | null;
+  video_end?: number | null;
   transcript: string | null;
   passed: boolean | null;
   feedback: string | null;
@@ -58,6 +61,8 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
   >({});
   // 詳情默認展開：載入後自動展開全部行
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  /** 頂部整場視頻播放器 ref：逐題秒數點擊跳轉用 */
+  const sessionVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -213,7 +218,13 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                 {isSessionRecording && sessionVideoUrl && (
                   <div>
                     <Typography.Title level={5} style={{ marginBottom: 8 }}>{tr.sessionVideo}</Typography.Title>
-                    <VideoWithCover src={sessionVideoUrl} controls preload="metadata" style={{ width: "100%", maxWidth: 480, borderRadius: 8, background: "#000" }} />
+                    <VideoWithCover
+                      src={sessionVideoUrl}
+                      controls
+                      preload="metadata"
+                      style={{ width: "100%", maxWidth: 480, borderRadius: 8, background: "#000" }}
+                      onLoadedData={(e) => { sessionVideoRef.current = e.currentTarget; }}
+                    />
                   </div>
                 )}
                 {r && (
@@ -241,12 +252,32 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                     renderItem={(a) => (
                       <List.Item>
                         <Space direction="vertical" style={{ width: "100%" }}>
-                          <Space>
+                          <Space wrap>
                             <strong>{a.question_text}</strong>
                             <Tag color={a.passed ? "green" : "red"}>
                               {tr.attempt(a.attempt)} · {a.passed ? tr.passed : tr.failed}
                             </Tag>
+                            {/* 整場錄製：該題在視頻中的定位秒數，點擊跳轉頂部視頻播放 */}
+                            {isSessionRecording && a.video_start != null && a.video_end != null && (
+                              <Typography.Link
+                                onClick={() => {
+                                  const v = sessionVideoRef.current;
+                                  if (!v) return;
+                                  try {
+                                    v.currentTime = a.video_start!;
+                                    void v.play().catch(() => {});
+                                    v.scrollIntoView({ behavior: "smooth", block: "center" });
+                                  } catch { /* 視頻未緩衝好時忽略 */ }
+                                }}
+                              >
+                                ⏱ {tr.videoAt(a.video_start, a.video_end)}
+                              </Typography.Link>
+                            )}
                           </Space>
+                          {/* 整場錄製：該題切出嘅音頻段（僱主逐題試聽） */}
+                          {isSessionRecording && a.audio_url && (
+                            <audio controls preload="none" src={a.audio_url} style={{ width: "100%", maxWidth: 420, height: 36 }} />
+                          )}
                           {a.transcript && (
                             <Typography.Paragraph type="secondary" style={{ marginBottom: 4 }}>
                               {a.transcript}

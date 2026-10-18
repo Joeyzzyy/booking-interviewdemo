@@ -440,15 +440,13 @@ export default function InterviewClient({ token }: { token: string }) {
   };
 
   // ---------- 全程連續錄製 ----------
-  /** 記錄到訪題目與切題時間線（畀後端切分參考） */
+  /** 記錄到訪題目與切題時間線（後端按此切段音頻：每次切題都記，含翻題重答） */
   const markVisit = (q: Question) => {
     setVisitedIds((prev) => (prev.includes(q.id) ? prev : [...prev, q.id]));
-    if (!eventsRef.current.some((e) => e.questionId === q.id)) {
-      eventsRef.current.push({
-        questionId: q.id,
-        at: Math.round((Date.now() - recordStartRef.current) / 1000),
-      });
-    }
+    eventsRef.current.push({
+      questionId: q.id,
+      at: Math.round((Date.now() - recordStartRef.current) / 1000),
+    });
   };
 
   const startSession = () => {

@@ -27,9 +27,10 @@ export async function GET(
     .eq("interview_id", id)
     .order("created_at", { ascending: true });
 
-  // 批量生成視頻/簡歷 signed URL（1 小時）
+  // 批量生成視頻/音頻段/簡歷 signed URL（1 小時）
   const paths = [
     ...(answers || []).map((a) => a.video_path).filter(Boolean),
+    ...(answers || []).map((a) => a.audio_path).filter(Boolean),
     interview.resume_file_path,
   ].filter(Boolean) as string[];
   const urlMap = new Map<string, string>();
@@ -50,6 +51,7 @@ export async function GET(
     answers: (answers || []).map((a) => ({
       ...a,
       video_url: a.video_path ? urlMap.get(a.video_path) || null : null,
+      audio_url: a.audio_path ? urlMap.get(a.audio_path) || null : null,
     })),
   });
 }
