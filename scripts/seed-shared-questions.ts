@@ -1,10 +1,11 @@
 /**
- * 公共題庫種子腳本：《DOMESTIC HELPER CV DATA COLLECTION INTERVIEW FORM》72 題
+ * 公共題庫種子腳本：Basic（CV 核實表）72 題 + Advanced（自製 CV 測試）64 題
  *
  * 用法：
  *   npm run seed:questions                    # 插入缺失題目 + 為缺譯文/音頻嘅題目生成資產
  *   npm run seed:questions -- --force         # 全部重新生成 5 語譯文 + TTS 音頻
  *   npm run seed:questions -- --limit 3       # 只處理前 3 題（試跑用）
+ *   npm run seed:questions -- --set advanced  # 只種 Advanced 題庫（8 章節 64 題）
  *   npm run seed:questions -- --force --lang yue        # 只重新生成粵語音頻
  *   npm run seed:questions -- --force --lang zh,yue     # 只重新生成普通話 + 粵語
  *
@@ -65,7 +66,13 @@ async function main() {
 
   const { getSupabase } = await import("../src/lib/booking/db");
   const { generateQuestionAssets } = await import("../src/lib/interview/tts");
-  const { SHARED_QUESTIONS } = await import("../src/lib/interview/shared-questions");
+  const { SHARED_QUESTIONS, ADVANCED_QUESTIONS } = await import("../src/lib/interview/shared-questions");
+
+  /** --set advanced：只種 Advanced 題庫；--set basic：只種 Basic；缺省 = 全部 */
+  const SET_FILTER = process.argv.includes("--set") ? process.argv[process.argv.indexOf("--set") + 1] : "";
+  const SHARED_SET = SET_FILTER === "advanced" ? [] : SHARED_QUESTIONS;
+  const ADVANCED_SET = SET_FILTER === "basic" ? [] : ADVANCED_QUESTIONS;
+  const ALL_SEED = [...SHARED_SET, ...ADVANCED_SET];
 
   const supabase = getSupabase();
   if (!supabase) {
@@ -73,9 +80,9 @@ async function main() {
     process.exit(1);
   }
 
-  const queue = LIMIT > 0 ? SHARED_QUESTIONS.slice(0, LIMIT) : SHARED_QUESTIONS;
+  const queue = LIMIT > 0 ? ALL_SEED.slice(0, LIMIT) : ALL_SEED;
   const langNote = LANG_FILTER?.length ? `，限 ${TARGET_LANGS.join("/")} 語音頻` : "";
-  console.log(`公共題庫種子：共 ${queue.length} 題${FORCE ? "（強制重新生成）" : ""}${langNote}\n`);
+  console.log(`公共題庫種子：共 ${queue.length} 題（Basic ${SHARED_SET.length} + Advanced ${ADVANCED_SET.length}）${FORCE ? "（強制重新生成）" : ""}${langNote}\n`);
 
   // 已有公共題（customer_id IS NULL），按題目原文索引
   const { data: existingRows, error: loadErr } = await supabase

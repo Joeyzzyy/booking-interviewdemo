@@ -22,17 +22,22 @@
 - `/` 品牌首頁
 - 登入彈窗（全站任意位置觸發）/ `/login` 深鏈回退
 - `/account` 賬號中心：綁定 / 解綁電郵與手機號（至少保留一種，暫不支援註銷）
-- `/booking` 預約工作台：發起預約 / 我的套票（餘額+購買）/ 我的預約 / AI 面試（Beta）
+- `/booking` 預約工作台：發起預約 / 我的套票（餘額+購買）/ 我的預約 / AI 面試（付費訂閱）
 
-**AI 視頻面試（Beta，所有登入用戶可用）**
+**AI 視頻面試（月費訂閱制，Stripe subscription）**
+- **Basic Plan（核實 CV）HK$199/月**：72 題 CV 核實面試 + AI 簡歷匹配報告 + 逐題轉寫回放
+- **Advanced Plan（自製 CV）HK$399/月**：自選 8 大測試章節出題（基本資料/性格/IQ・AQ・EQ・記憶/長者照顧/寵物/家務烹飪/小童及青少年/嬰幼兒，64 題）+ **AI 按作答生成工人 CV（可下載）**；含 Basic 全部功能
+- 訂閱狀態 Stripe webhook 同步（`subscriptions` 表，`supabase/interview-plans.sql`）；升級自動取消舊訂閱；取消於本期結束時失效
+- 無訂閱用戶於 `/booking` AI 面試分頁看到方案卡片；`POST /api/my/interviews` 無有效訂閱返回 402
 - `/booking?tab=questions / create / records` 設置題庫、發起面試、查看記錄；**面試按用戶隔離**
-- **公共題庫**：《DOMESTIC HELPER CV DATA COLLECTION INTERVIEW FORM》72 題（`customer_id IS NULL`），
-  所有登入用戶可見、按 9 個章節分類展示，用戶側只讀；用戶可另加自定義問題，面試出題 = 公共題 + 自定義題
-- `/interview/<token>` 工人端作答（免登入），按面試歸屬人的題庫出題（公共題排前，自定義題排後）
-- **作答流程**：設備檢查（強制鏡頭開啟 + 咪高峰音量條/3 秒試錄回放）→ 全程一次連續錄製（鏡頭不關、畫中畫預覽）→ 自由「上一題/下一題」切換作答 → 結束統一提交；後端整段轉寫 → LLM 按題切分回答 → 生成整體報告
+- **公共題庫**：《DOMESTIC HELPER CV DATA COLLECTION INTERVIEW FORM》72 題（Basic，9 章節）+ Advanced 測試 64 題（8 章節）（`customer_id IS NULL`），
+  用戶側只讀；用戶可另加自定義問題；Basic 面試出 Basic 題庫 + 自定義題，Advanced 面試只出勾選章節 + 自定義題
+- `/interview/<token>` 工人端作答（免登入）
+- **作答流程**：設備檢查（強制鏡頭開啟 + 咪高峰音量條/3 秒試錄回放）→ 全程一次連續錄製（鏡頭不關、畫中畫預覽）→ 自由「上一題/下一題」切換作答 → 結束統一提交；後端整段轉寫 → LLM 按題切分回答 → 生成整體報告（Advanced 另生成結構化 CV）
 - **多語言**：題目新增/修改時自動翻譯 5 語（英/印尼/菲/普/粵）並生成 TTS 語音存儲；
   工人端可切換語言（全頁文案 + 題目語音播放，可反覆播放；題庫內可逐語言試聽）
-- 資料表（`interview_questions` / `interviews` / `interview_answers`）與主站預約系統完全獨立，後續可隨時拆分成獨立服務
+- 題庫種子：`npm run seed:questions`（`--set advanced` 只種 Advanced 64 題；`--force` 重生成譯文/TTS）
+- 資料表（`interview_questions` / `interviews` / `interview_answers` / `subscriptions`）與主站預約系統完全獨立，後續可隨時拆分成獨立服務
 
 **後台（管理端，Ant Design）**
 - `/admin` 預約訂單管理（視頻面試題庫/發起/記錄為前台功能，登入後於 `/booking` 使用）

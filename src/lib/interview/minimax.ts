@@ -20,7 +20,7 @@ import {
 } from "./ai-errors";
 
 const BASE_URL = process.env.MINIMAX_BASE_URL || "https://api.minimax.io";
-const TEXT_MODEL = process.env.MINIMAX_TEXT_MODEL || "MiniMax-M2";
+const TEXT_MODEL = process.env.MINIMAX_TEXT_MODEL || "MiniMax-M2.5";
 const VISION_MODEL = process.env.MINIMAX_VISION_MODEL || "MiniMax-M3";
 const TTS_MODEL = process.env.MINIMAX_TTS_MODEL || "speech-2.8-turbo";
 const TTS_VOICE = process.env.MINIMAX_TTS_VOICE || "English_expressive_narrator";

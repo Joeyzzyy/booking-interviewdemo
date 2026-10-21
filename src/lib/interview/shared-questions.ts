@@ -25,12 +25,33 @@ export const QUESTION_SECTIONS: QuestionSection[] = [
   { key: "legal", label: { yue: "法律同意與聲明", zh: "法律同意与声明", en: "Legal Consents & Declarations", id: "Persetujuan & Pernyataan Hukum", tl: "Mga Legal na Pahintulot at Deklarasyon" } },
 ];
 
-/** 語言（站點 yue/cmn/en 或工人端 en/id/tl/zh/yue）→ 章節顯示名 */
+/**
+ * Advanced Plan（自製 CV）測試章節 —— 8 個分類，題目見 ADVANCED_QUESTIONS。
+ * 與 QUESTION_SECTIONS 同構；僅 Advanced 訂閱用戶發起面試時可勾選出題。
+ */
+export const ADVANCED_SECTIONS: QuestionSection[] = [
+  { key: "basic-info", label: { yue: "基本資料", zh: "基本资料", en: "Basic Information", id: "Informasi Dasar", tl: "Pangunahing Impormasyon" } },
+  { key: "personality", label: { yue: "性格測試", zh: "性格测试", en: "Personality Test", id: "Tes Kepribadian", tl: "Pagsusuri ng Pagkatao" } },
+  { key: "aptitude", label: { yue: "IQ / AQ / EQ / 記憶測試", zh: "IQ / AQ / EQ / 记忆测试", en: "IQ / AQ / EQ / Memory Test", id: "Tes IQ / AQ / EQ / Memori", tl: "Pagsusuri ng IQ / AQ / EQ / Memorya" } },
+  { key: "elderly-care", label: { yue: "長者照顧", zh: "长者照顾", en: "Elderly Care", id: "Perawatan Lansia", tl: "Pag-aalaga sa Matatanda" } },
+  { key: "pet-care", label: { yue: "寵物照顧測試", zh: "宠物照顾测试", en: "Pet Care Test", id: "Tes Perawatan Hewan Peliharaan", tl: "Pagsusuri sa Pag-aalaga ng Alagang Hayop" } },
+  { key: "housework-cooking", label: { yue: "家務與烹飪測試", zh: "家务与烹饪测试", en: "Housework & Cooking Test", id: "Tes Pekerjaan Rumah & Memasak", tl: "Pagsusuri sa Gawaing Bahay at Pagluluto" } },
+  { key: "child-care", label: { yue: "小童及青少年照顧測試", zh: "小童及青少年照顾测试", en: "Child & Teen Care Test", id: "Tes Perawatan Anak & Remaja", tl: "Pagsusuri sa Pag-aalaga ng Bata at Teenager" } },
+  { key: "infant-care", label: { yue: "嬰幼兒照顧測試", zh: "婴幼儿照顾测试", en: "Infant Care Test", id: "Tes Perawatan Bayi & Balita", tl: "Pagsusuri sa Pag-aalaga ng Sanggol" } },
+];
+
+/** 全部章節（Basic 題庫 9 章 + Advanced 8 章） */
+export const ALL_QUESTION_SECTIONS: QuestionSection[] = [
+  ...QUESTION_SECTIONS,
+  ...ADVANCED_SECTIONS,
+];
+
+/** 語言（站點 yue/cmn/en 或工人端 en/id/tl/zh/yue）→ 章節顯示名（含 Advanced 章節） */
 export function sectionLabel(
   key: string,
   locale: "yue" | "cmn" | "zh" | "en" | "id" | "tl"
 ): string {
-  const section = QUESTION_SECTIONS.find((s) => s.key === key);
+  const section = ALL_QUESTION_SECTIONS.find((s) => s.key === key);
   if (!section) return key;
   if (locale === "zh" || locale === "cmn") return section.label.zh;
   return section.label[locale] || section.label.en;
@@ -133,4 +154,91 @@ export const SHARED_QUESTIONS: SharedQuestion[] = [
   // ─── Section 9: Legal Consents & Declarations ───
   { section: "legal", question: "Do you grant consent for your personal data and profile to be published on our agency website or branches for prospective employers?" },
   { section: "legal", question: "Do you declare that all information provided in this CV is true, accurate, and complete, acknowledging full legal liability for any false details?" },
+];
+
+/**
+ * Advanced Plan（自製 CV）公共題庫：8 個測試章節 × 8 題 = 64 題。
+ * 題目原文為英文；5 語譯文 + TTS 由 seed 腳本生成。
+ * 與 SHARED_QUESTIONS 一併由 scripts/seed-shared-questions.ts 入庫。
+ */
+export const ADVANCED_QUESTIONS: SharedQuestion[] = [
+  // ─── 2.1 Basic Information ───
+  { section: "basic-info", question: "Please introduce yourself: your full name, age, nationality, and hometown." },
+  { section: "basic-info", question: "What is your highest level of education, and which school did you attend?" },
+  { section: "basic-info", question: "Are you married? Do you have children? How old are they?" },
+  { section: "basic-info", question: "What is your religion, and do you have any dietary restrictions?" },
+  { section: "basic-info", question: "How many siblings do you have, and what is your position in the family?" },
+  { section: "basic-info", question: "What languages can you speak and understand? Please rate each one." },
+  { section: "basic-info", question: "Do you have any work experience outside your home country? Where and for how long?" },
+  { section: "basic-info", question: "When are you available to start work, and how soon can you travel to Hong Kong?" },
+
+  // ─── 2.2 Personality Test ───
+  { section: "personality", question: "How would your previous employer describe your personality in three words?" },
+  { section: "personality", question: "When you make a mistake at work, what do you usually do?" },
+  { section: "personality", question: "If your employer gives you feedback you disagree with, how do you respond?" },
+  { section: "personality", question: "Do you prefer working independently or following instructions? Why?" },
+  { section: "personality", question: "Describe a time you felt stressed at work and how you handled it." },
+  { section: "personality", question: "If a family member in your home country has an emergency while you are working, what would you do?" },
+  { section: "personality", question: "What do you usually do in your free time? How do you recharge?" },
+  { section: "personality", question: "Are you more of a morning person or a night person? How does that affect your work?" },
+
+  // ─── 2.3 IQ / AQ / EQ / Memory Test ───
+  { section: "aptitude", question: "If a recipe says to cook rice for 20 minutes and vegetables for 10 minutes, and both must be ready at the same time, when should you start each one?" },
+  { section: "aptitude", question: "You have HK$100. You spend HK$35 on vegetables and HK$20 on rice. How much change should you get back?" },
+  { section: "aptitude", question: "Please repeat these five items after me: apple,钥匙， Monday, green, 7." },
+  { section: "aptitude", question: "A bus leaves at 8:15 AM and the journey takes 45 minutes. What time does it arrive?" },
+  { section: "aptitude", question: "If the employer changes your schedule at the last minute, how would you feel and what would you do?" },
+  { section: "aptitude", question: "Your employer seems upset but hasn't told you why. What would you do?" },
+  { section: "aptitude", question: "Describe a difficult situation at work you faced and the steps you took to solve it." },
+  { section: "aptitude", question: "You notice a colleague doing their job incorrectly. Would you tell anyone? Why or why not?" },
+
+  // ─── 2.4 Elderly Care ───
+  { section: "elderly-care", question: "Have you cared for an elderly person before? Please describe their condition and what you did daily." },
+  { section: "elderly-care", question: "An elderly person refuses to eat. What would you try?" },
+  { section: "elderly-care", question: "What would you do if an elderly person falls down and cannot get up?" },
+  { section: "elderly-care", question: "How do you help an elderly person take a bath safely?" },
+  { section: "elderly-care", question: "What should you watch for when giving medicine to an elderly person?" },
+  { section: "elderly-care", question: "An elderly person with dementia keeps asking the same question. How do you respond?" },
+  { section: "elderly-care", question: "How would you keep an elderly person company and support their emotional well-being?" },
+  { section: "elderly-care", question: "Do you know how to measure blood pressure or blood sugar? Please explain." },
+
+  // ─── 2.5 Pet Care Test ───
+  { section: "pet-care", question: "Have you taken care of pets before? What kind of animals?" },
+  { section: "pet-care", question: "How many times a day should a dog be fed and walked?" },
+  { section: "pet-care", question: "A dog is barking loudly at night. What would you check and do?" },
+  { section: "pet-care", question: "How do you clean a cat's litter box, and how often?" },
+  { section: "pet-care", question: "What would you do if a pet looks sick or refuses to eat?" },
+  { section: "pet-care", question: "Are you comfortable giving a pet a bath? How would you do it?" },
+  { section: "pet-care", question: "How would you keep a pet safe when the employer is not home?" },
+  { section: "pet-care", question: "Are you afraid of any animals? Would that affect your work?" },
+
+  // ─── 2.6 Housework & Cooking Test ───
+  { section: "housework-cooking", question: "Walk me through your daily routine for cleaning a home from morning to evening." },
+  { section: "housework-cooking", question: "Name three Chinese dishes you can cook well and describe how you cook one of them." },
+  { section: "housework-cooking", question: "How do you wash and iron clothes without damaging them?" },
+  { section: "housework-cooking", question: "How would you clean a bathroom thoroughly? What products and steps?" },
+  { section: "housework-cooking", question: "The employer asks for a meal in 30 minutes but you haven't prepared anything. What do you do?" },
+  { section: "housework-cooking", question: "How do you keep the kitchen clean while cooking to prevent pests?" },
+  { section: "housework-cooking", question: "Do you know how to use a washing machine, microwave, and rice cooker?" },
+  { section: "housework-cooking", question: "How would you plan grocery shopping for a week for a family of four?" },
+
+  // ─── 2.7 Child & Teen Care Test ───
+  { section: "child-care", question: "Have you taken care of children or teenagers before? What ages?" },
+  { section: "child-care", question: "A 6-year-old refuses to do homework and starts crying. What would you do?" },
+  { section: "child-care", question: "How would you prepare simple, healthy meals and snacks for children?" },
+  { section: "child-care", question: "What safety rules would you follow when taking a child to the playground?" },
+  { section: "child-care", question: "A teenager talks back to you and ignores your instructions. How do you handle it?" },
+  { section: "child-care", question: "What would you do if a child has a fever while the parents are at work?" },
+  { section: "child-care", question: "How do you help children build good habits, like tidying up toys or brushing teeth?" },
+  { section: "child-care", question: "Do you know how to help a child with basic schoolwork, like reading or simple math?" },
+
+  // ─── 2.8 Infant Care Test ───
+  { section: "infant-care", question: "Have you cared for a newborn or infant before? Please describe your experience." },
+  { section: "infant-care", question: "How often does a newborn baby need to be fed, and how do you prepare formula milk?" },
+  { section: "infant-care", question: "How do you bathe a baby safely? Describe the steps." },
+  { section: "infant-care", question: "How do you change a diaper and prevent diaper rash?" },
+  { section: "infant-care", question: "What are the signs that a baby is unwell and needs a doctor?" },
+  { section: "infant-care", question: "How do you put a baby to sleep safely? What should you never do?" },
+  { section: "infant-care", question: "A baby is crying non-stop. Walk me through what you would check." },
+  { section: "infant-care", question: "How would you keep bottles and feeding equipment clean and sterilized?" },
 ];

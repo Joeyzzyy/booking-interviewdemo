@@ -9,6 +9,7 @@ import AdminTheme from "@/components/admin/AdminTheme";
 import ProfileOnboarding from "@/components/ProfileOnboarding";
 import AdminInterviews from "@/components/AdminInterviews";
 import AdminInterviewRecords from "@/components/AdminInterviewRecords";
+import SubscriptionPanel from "@/components/SubscriptionPanel";
 import BoardPanel from "@/components/BoardPanel";
 import { useLanguage, LOCALES } from "@/lib/i18n";
 import { apiErrorText } from "@/lib/i18n/api-errors";
@@ -109,6 +110,8 @@ export default function BookingClient() {
   };
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  /** AI 面試訂閱：null = 無有效訂閱 */
+  const [subscription, setSubscription] = useState<{ plan: "basic" | "advanced" } | null>(null);
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [buying, setBuying] = useState<string | null>(null);
@@ -174,6 +177,18 @@ export default function BookingClient() {
     }
   }, []);
 
+  const loadSubscription = useCallback(async () => {
+    try {
+      const res = await fetch("/api/subscription", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setSubscription(data.active && data.subscription ? { plan: data.subscription.plan } : null);
+      }
+    } catch {
+      /* 忽略 */
+    }
+  }, []);
+
   const checkAuth = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me", { cache: "no-store" });
@@ -189,14 +204,15 @@ export default function BookingClient() {
           companyName: data.customer.companyName || null,
           labourRegNo: data.customer.labourRegNo || null,
         });
-        await Promise.all([loadMyBookings(), loadBalances()]);
+        await Promise.all([loadMyBookings(), loadBalances(), loadSubscription()]);
       } else {
         setAccount(null);
+        setSubscription(null);
       }
     } finally {
       setAuthChecked(true);
     }
-  }, [loadMyBookings, loadBalances]);
+  }, [loadMyBookings, loadBalances, loadSubscription]);
 
   useEffect(() => {
     void (async () => {
@@ -502,14 +518,7 @@ export default function BookingClient() {
                 { key: "booking", label: t.workspace.tabs.booking, icon: <CalendarPlus size={14} aria-hidden="true" /> },
                 {
                   key: "interview",
-                  label: (
-                    <span className="inline-flex items-center gap-1.5">
-                      {t.workspace.tabs.interview}
-                      <span className="rounded-full bg-[#35a07a]/12 px-1.5 py-0.5 font-mono text-[8px] font-bold tracking-wider text-[#2a8163]">
-                        BETA
-                      </span>
-                    </span>
-                  ),
+                  label: t.workspace.tabs.interview,
                   icon: <Sparkles size={14} aria-hidden="true" />,
                 },
                 { key: "board", label: t.workspace.tabs.board, icon: <MessageSquareText size={14} aria-hidden="true" /> },
@@ -716,45 +725,58 @@ export default function BookingClient() {
             </div>
           )}
 
-          {/* ============ AI 面試 · 題庫管理（按用戶隔離） ============ */}
+          {/* ============ AI 面試 · 題庫管理（按用戶隔離；需有效訂閱） ============ */}
           {tab === "questions" && (
-            <div>
-              <p className="mb-6 max-w-[720px] text-[13px] leading-[1.85] text-[#5d6b85]">
-                {t.workspace.interview.questionsIntro}
-              </p>
-              <AdminTheme>
-                <AdminInterviews apiBase="/api/my" section="questions" />
-              </AdminTheme>
-            </div>
+            subscription ? (
+              <div>
+                <p className="mb-6 max-w-[720px] text-[13px] leading-[1.85] text-[#5d6b85]">
+                  {t.workspace.interview.questionsIntro}
+                </p>
+                <AdminTheme>
+                  <AdminInterviews apiBase="/api/my" section="questions" />
+                </AdminTheme>
+              </div>
+            ) : (
+              <SubscriptionPanel onChanged={() => void loadSubscription()} />
+            )
           )}
 
-          {/* ============ AI 面試 · 發起面試 ============ */}
+          {/* ============ AI 面試 · 發起面試（需有效訂閱） ============ */}
           {tab === "create" && (
-            <div>
-              <p className="mb-6 max-w-[720px] text-[13px] leading-[1.85] text-[#5d6b85]">
-                {t.workspace.interview.createIntro}
-              </p>
-              <AdminTheme>
-                <AdminInterviews
-                  apiBase="/api/my"
-                  section="create"
-                  onCreated={(info) => {
-                    setCreatedIv(info);
-                    switchTab("records"); // 自動切到面試記錄；彈窗關閉後即見記錄頁
-                  }}
-                />
-              </AdminTheme>
-            </div>
+            subscription ? (
+              <div>
+                <p className="mb-6 max-w-[720px] text-[13px] leading-[1.85] text-[#5d6b85]">
+                  {t.workspace.interview.createIntro}
+                </p>
+                <AdminTheme>
+                  <AdminInterviews
+                    apiBase="/api/my"
+                    section="create"
+                    entitlement={subscription.plan}
+                    onCreated={(info) => {
+                      setCreatedIv(info);
+                      switchTab("records"); // 自動切到面試記錄；彈窗關閉後即見記錄頁
+                    }}
+                  />
+                </AdminTheme>
+              </div>
+            ) : (
+              <SubscriptionPanel onChanged={() => void loadSubscription()} />
+            )
           )}
 
-          {/* ============ AI 面試 · 面試記錄 ============ */}
+          {/* ============ AI 面試 · 面試記錄（需有效訂閱） ============ */}
           {tab === "records" && (
-            <div>
-              <h2 className="mb-4 text-[16px] font-bold text-[#161b2e]">{t.workspace.interview.recordsTitle}</h2>
-              <AdminTheme>
-                <AdminInterviewRecords apiBase="/api/my" />
-              </AdminTheme>
-            </div>
+            subscription ? (
+              <div>
+                <h2 className="mb-4 text-[16px] font-bold text-[#161b2e]">{t.workspace.interview.recordsTitle}</h2>
+                <AdminTheme>
+                  <AdminInterviewRecords apiBase="/api/my" />
+                </AdminTheme>
+              </div>
+            ) : (
+              <SubscriptionPanel onChanged={() => void loadSubscription()} />
+            )
           )}
 
           {/* ============ 發起預約 ============ */}

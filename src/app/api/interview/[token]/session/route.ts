@@ -1,9 +1,9 @@
 import { after } from "next/server";
 import { getSupabase } from "@/lib/booking/db";
 import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
-import { generateReport, segmentAnswers, transcribeAudio, transcribeVideo } from "@/lib/interview/ai";
+import { generateCv, generateReport, segmentAnswers, transcribeAudio, transcribeVideo } from "@/lib/interview/ai";
 import { toUserMessage } from "@/lib/interview/ai-errors";
-import { getActiveQuestionsForOwner, getInterviewByToken } from "@/lib/interview/store";
+import { getInterviewByToken, getQuestionsForInterview } from "@/lib/interview/store";
 import { buildSegments } from "@/lib/interview/wav-segment";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +58,7 @@ export async function POST(
     .filter((e) => typeof e.questionId === "string" && typeof e.at === "number")
     .map((e) => ({ questionId: e.questionId as string, at: Math.max(0, Math.round(e.at as number)) }));
 
-  const questions = await getActiveQuestionsForOwner(interview.customer_id);
+  const questions = await getQuestionsForInterview(interview);
 
   // ---- 認領提交：第一句 update 成功先代表本請求獨佔後台任務 ----
   const { data: claimed, error: claimErr } = await supabase
@@ -255,9 +255,19 @@ export async function POST(
         };
       }
 
+      // ---- 5) Advanced（自製 CV）：按作答生成結構化 CV（失敗唔卡住面試） ----
+      let cv: unknown = null;
+      if (interview.plan === "advanced") {
+        try {
+          cv = await generateCv(interview.worker_name, qaList);
+        } catch (e) {
+          console.error("[interview] CV 生成失敗（面試照常完成）:", e);
+        }
+      }
+
       await supa
         .from("interviews")
-        .update({ status: "completed", report, completed_at: new Date().toISOString() })
+        .update({ status: "completed", report, cv, completed_at: new Date().toISOString() })
         .eq("id", interviewId);
       console.log(`[interview] 後台解析完成: ${interviewId}`);
     } catch (e) {

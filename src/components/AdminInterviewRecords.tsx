@@ -40,6 +40,47 @@ interface Report {
   generatedBy: "ai" | "none";
 }
 
+/** Advanced（自製 CV）生成的結構化 CV */
+interface WorkerCv {
+  fullName: string;
+  summary: string;
+  basicInfo: { label: string; value: string }[];
+  languages: string[];
+  workExperience: string[];
+  skills: string[];
+  careExperience: { label: string; value: string }[];
+  education: string;
+  availability: string;
+  additionalNotes: string;
+}
+
+/** CV → 純文本（下載用） */
+function cvToText(cv: WorkerCv, sectionTitles: Record<string, string>): string {
+  const lines: string[] = [cv.fullName, "=".repeat(cv.fullName.length), ""];
+  if (cv.summary) lines.push(cv.summary, "");
+  if (cv.basicInfo.length > 0) {
+    lines.push(sectionTitles.basicInfo, "-".repeat(20));
+    for (const p of cv.basicInfo) lines.push(`${p.label}：${p.value}`);
+    lines.push("");
+  }
+  if (cv.languages.length > 0) lines.push(sectionTitles.languages, cv.languages.join("、"), "");
+  if (cv.workExperience.length > 0) {
+    lines.push(sectionTitles.workExperience, "-".repeat(20));
+    for (const w of cv.workExperience) lines.push(`・${w}`);
+    lines.push("");
+  }
+  if (cv.skills.length > 0) lines.push(sectionTitles.skills, cv.skills.join("、"), "");
+  if (cv.careExperience.length > 0) {
+    lines.push(sectionTitles.careExperience, "-".repeat(20));
+    for (const p of cv.careExperience) lines.push(`${p.label}：${p.value}`);
+    lines.push("");
+  }
+  if (cv.education) lines.push(sectionTitles.education, cv.education, "");
+  if (cv.availability) lines.push(sectionTitles.availability, cv.availability, "");
+  if (cv.additionalNotes) lines.push(sectionTitles.additionalNotes, cv.additionalNotes, "");
+  return lines.join("\n");
+}
+
 const STATUS_COLOR: Record<string, string> = {
   pending: "default",
   in_progress: "gold",
@@ -57,7 +98,7 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [details, setDetails] = useState<
-    Record<string, { interview: { resume_text: string | null; resume_url: string | null; report: Report | null }; answers: Answer[] } | null>
+    Record<string, { interview: { resume_text: string | null; resume_url: string | null; report: Report | null; plan?: string | null; cv?: WorkerCv | null }; answers: Answer[] } | null>
   >({});
   // 詳情默認展開：載入後自動展開全部行
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
@@ -245,6 +286,77 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                     {r.resumeMatch && <p><strong>{tr.resumeMatch}</strong>{r.resumeMatch}</p>}
                     {r.recommendation && <p><strong>{tr.recommendation}</strong>{r.recommendation}</p>}
                   </Card>
+                )}
+                {/* Advanced（自製 CV）：AI 按作答生成的結構化 CV */}
+                {d.interview.plan === "advanced" && (
+                  d.interview.cv ? (
+                    <Card
+                      size="small"
+                      title={tr.cvTitle}
+                      style={{ background: "#f0f5ff" }}
+                      extra={
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            const cv = d.interview.cv!;
+                            const blob = new Blob([cvToText(cv, tr.cvSections)], { type: "text/plain;charset=utf-8" });
+                            const a = document.createElement("a");
+                            a.href = URL.createObjectURL(blob);
+                            a.download = `${cv.fullName || iv.worker_name}-CV.txt`;
+                            a.click();
+                            URL.revokeObjectURL(a.href);
+                          }}
+                        >
+                          {tr.cvDownload}
+                        </Button>
+                      }
+                    >
+                      {(() => {
+                        const cv = d.interview.cv!;
+                        const Sec = ({ title, children }: { title: string; children: React.ReactNode }) => (
+                          <div style={{ marginBottom: 12 }}>
+                            <Typography.Title level={5} style={{ marginBottom: 4 }}>{title}</Typography.Title>
+                            {children}
+                          </div>
+                        );
+                        return (
+                          <>
+                            <Typography.Paragraph>{cv.summary}</Typography.Paragraph>
+                            {cv.basicInfo.length > 0 && (
+                              <Sec title={tr.cvSections.basicInfo}>
+                                {cv.basicInfo.map((p, i) => <div key={i}><strong>{p.label}：</strong>{p.value}</div>)}
+                              </Sec>
+                            )}
+                            {cv.languages.length > 0 && (
+                              <Sec title={tr.cvSections.languages}>
+                                <div>{cv.languages.join("、")}</div>
+                              </Sec>
+                            )}
+                            {cv.workExperience.length > 0 && (
+                              <Sec title={tr.cvSections.workExperience}>
+                                <ul style={{ margin: 0, paddingInlineStart: 18 }}>{cv.workExperience.map((w, i) => <li key={i}>{w}</li>)}</ul>
+                              </Sec>
+                            )}
+                            {cv.skills.length > 0 && (
+                              <Sec title={tr.cvSections.skills}>
+                                <div>{cv.skills.join("、")}</div>
+                              </Sec>
+                            )}
+                            {cv.careExperience.length > 0 && (
+                              <Sec title={tr.cvSections.careExperience}>
+                                {cv.careExperience.map((p, i) => <div key={i}><strong>{p.label}：</strong>{p.value}</div>)}
+                              </Sec>
+                            )}
+                            {cv.education && <Sec title={tr.cvSections.education}><div>{cv.education}</div></Sec>}
+                            {cv.availability && <Sec title={tr.cvSections.availability}><div>{cv.availability}</div></Sec>}
+                            {cv.additionalNotes && <Sec title={tr.cvSections.additionalNotes}><div>{cv.additionalNotes}</div></Sec>}
+                          </>
+                        );
+                      })()}
+                    </Card>
+                  ) : iv.status === "completed" ? (
+                    <Typography.Text type="secondary">{tr.cvMissing}</Typography.Text>
+                  ) : null
                 )}
                 {d.answers.length > 0 ? (
                   <List

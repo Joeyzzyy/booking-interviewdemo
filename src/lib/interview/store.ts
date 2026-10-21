@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/booking/db";
+import { ADVANCED_SECTIONS } from "@/lib/interview/shared-questions";
 
 export const MAX_ATTEMPTS = 3; // 每題最多作答次數
 export const MAX_VIDEO_SECONDS = 90; // 單題錄製上限（前端強制）
@@ -13,6 +14,10 @@ export interface Interview {
   status: "pending" | "in_progress" | "processing" | "completed";
   report: Record<string, unknown> | null;
   customer_id: string | null;
+  /** 計劃類型：basic=核實 CV（公共題庫 9 章節）；advanced=自製 CV（勾選章節） */
+  plan?: "basic" | "advanced" | null;
+  /** advanced 選中的章節 key 數組（null/空 = 全部 Advanced 章節） */
+  sections?: string[] | null;
   created_at: string;
 }
 
@@ -34,7 +39,7 @@ export async function getInterviewByToken(token: string): Promise<Interview | nu
   if (!supabase) return null;
   const { data } = await supabase
     .from("interviews")
-    .select("id, token, worker_name, resume_text, status, report, customer_id, created_at")
+    .select("id, token, worker_name, resume_text, status, report, customer_id, plan, sections, created_at")
     .eq("token", token)
     .maybeSingle();
   return (data as Interview) || null;
@@ -60,6 +65,25 @@ export async function getActiveQuestionsForOwner(ownerId: string | null): Promis
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
   return (data as Question[]) || [];
+}
+
+/**
+ * 按面試計劃取題：
+ * - advanced：只出 Advanced 章節（sections 為空則全部 8 章）+ 該用戶自定義題
+ * - basic / 無 plan（舊面試）：只出 Basic 題庫 9 章節（不含 Advanced 章節）+ 自定義題
+ */
+export async function getQuestionsForInterview(interview: Interview): Promise<Question[]> {
+  const all = await getActiveQuestionsForOwner(interview.customer_id);
+  const advancedKeys = new Set(ADVANCED_SECTIONS.map((s) => s.key));
+  if (interview.plan === "advanced") {
+    const picked = Array.isArray(interview.sections)
+      ? interview.sections.filter((s) => advancedKeys.has(s))
+      : [];
+    const scope = picked.length > 0 ? new Set(picked) : advancedKeys;
+    return all.filter((q) => (q.category ? scope.has(q.category) : true)); // 自定義題（無分類）保留
+  }
+  // basic：排除 Advanced 章節（含自定義題）
+  return all.filter((q) => (q.category ? !advancedKeys.has(q.category) : true));
 }
 
 /** 共用示範題庫（後台未指定歸屬人的題目） */

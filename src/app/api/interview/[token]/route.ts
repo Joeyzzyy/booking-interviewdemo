@@ -1,9 +1,9 @@
 import { getSupabase } from "@/lib/booking/db";
 import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
 import {
-  getActiveQuestionsForOwner,
   getAnswerProgress,
   getInterviewByToken,
+  getQuestionsForInterview,
 } from "@/lib/interview/store";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +23,8 @@ export async function GET(
   const interview = await getInterviewByToken(token);
   if (!interview) return Response.json({ error: "連結不存在或已失效" }, { status: 404 });
 
-  // 按該場面試的歸屬人取題（面試屬於哪位用戶，就用誰的題庫）
-  const questions = await getActiveQuestionsForOwner(interview.customer_id);
+  // 按該場面試的計劃取題（basic=CV 題庫 9 章；advanced=勾選的測試章節）
+  const questions = await getQuestionsForInterview(interview);
   const progress = await getAnswerProgress(interview.id);
 
   // 批量生成 TTS 音頻簽名 URL（1 小時）

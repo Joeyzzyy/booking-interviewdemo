@@ -5,11 +5,13 @@ import {
   App,
   Button,
   Card,
+  Checkbox,
   Collapse,
   Form,
   Input,
   List,
   Popconfirm,
+  Radio,
   Space,
   Tag,
   Typography,
@@ -24,7 +26,7 @@ import {
 } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import { useLanguage } from "@/lib/i18n";
-import { QUESTION_SECTIONS, sectionLabel } from "@/lib/interview/shared-questions";
+import { ADVANCED_SECTIONS, ALL_QUESTION_SECTIONS, sectionLabel } from "@/lib/interview/shared-questions";
 
 interface Question {
   id: string;
@@ -56,12 +58,15 @@ export default function AdminInterviews({
   apiBase = "/api/admin",
   section = "all",
   onCreated,
+  entitlement,
 }: {
   apiBase?: string;
   /** 渲染範圍：all=題庫+發起（後台用）；questions=僅題庫；create=僅發起面試 */
   section?: "all" | "questions" | "create";
   /** 創建成功回調（由父層負責彈窗/切換 tab）；不傳則用內建 antd 彈窗 */
   onCreated?: (info: { token: string; link: string }) => void;
+  /** 用戶訂閱權限（undefined = 後台/舊行為：basic、簡歷必填）；advanced 可選自製 CV + 章節 */
+  entitlement?: "basic" | "advanced";
 }) {
   const { message, modal } = App.useApp();
   const { t, locale } = useLanguage();
@@ -102,12 +107,16 @@ export default function AdminInterviews({
   };
   const [newQ, setNewQ] = useState({ question: "", focus: "" });
   const [fileList, setFileList] = useState<UploadFile[]>([]);
-  const [form] = Form.useForm<{ workerName: string; resumeText?: string }>();
-  // 簡歷必填（文件或文字至少一種）：沒有簡歷 AI 無法做匹配分析
+  const [form] = Form.useForm<{ workerName: string; resumeText?: string; plan?: string; sections?: string[] }>();
+  // 簡歷必填（文件或文字至少一種）：basic（核實 CV）冇簡歷 AI 無法做匹配分析；advanced（自製 CV）可選
   const workerNameValue = Form.useWatch("workerName", form);
   const resumeTextValue = Form.useWatch("resumeText", form);
+  const planValue = Form.useWatch("plan", form);
+  /** advanced 訂閱用戶可選自製 CV；否則固定 basic */
+  const canUseAdvanced = entitlement === "advanced";
+  const effectivePlan = canUseAdvanced && planValue === "advanced" ? "advanced" : "basic";
   const resumeProvided = Boolean((resumeTextValue || "").trim()) || fileList.length > 0;
-  const canCreate = Boolean((workerNameValue || "").trim()) && resumeProvided;
+  const canCreate = Boolean((workerNameValue || "").trim()) && (effectivePlan === "advanced" || resumeProvided);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -130,7 +139,7 @@ export default function AdminInterviews({
   }, [load]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  /** 題目按分類分組：表單 9 章節（固定順序）→ 其他未知分類 → 自定義問題（最後） */
+  /** 題目按分類分組：Basic 9 章 + Advanced 8 章（固定順序）→ 其他未知分類 → 自定義問題（最後） */
   const groups = useMemo(() => {
     const byCat = new Map<string, Question[]>();
     for (const q of questions) {
@@ -139,7 +148,7 @@ export default function AdminInterviews({
       byCat.get(key)!.push(q);
     }
     const ordered: { key: string; label: string; items: Question[] }[] = [];
-    for (const s of QUESTION_SECTIONS) {
+    for (const s of ALL_QUESTION_SECTIONS) {
       const items = byCat.get(s.key);
       if (items?.length) ordered.push({ key: s.key, label: sectionLabel(s.key, locale), items });
       byCat.delete(s.key);
@@ -235,12 +244,17 @@ export default function AdminInterviews({
     }
   };
 
-  const createInterview = async (values: { workerName: string; resumeText?: string }) => {
+  const createInterview = async (values: { workerName: string; resumeText?: string; plan?: string; sections?: string[] }) => {
     setCreating(true);
     try {
       const fd = new FormData();
       fd.set("workerName", values.workerName);
       fd.set("resumeText", values.resumeText || "");
+      fd.set("plan", effectivePlan);
+      if (effectivePlan === "advanced") {
+        const picked = (values.sections || []).length > 0 ? values.sections! : ADVANCED_SECTIONS.map((s) => s.key);
+        fd.set("sections", picked.join(","));
+      }
       const file = fileList[0]?.originFileObj;
       if (file) fd.set("resume", file);
       const res = await fetch(`${apiBase}/interviews`, { method: "POST", body: fd });
@@ -395,10 +409,33 @@ export default function AdminInterviews({
           >
             <Input placeholder={tcr.workerNameLabel} />
           </Form.Item>
+          {canUseAdvanced && (
+            <Form.Item name="plan" label={tcr.planLabel} initialValue="advanced">
+              <Radio.Group
+                optionType="button"
+                buttonStyle="solid"
+                options={[
+                  { label: tcr.planAdvanced, value: "advanced" },
+                  { label: tcr.planBasic, value: "basic" },
+                ]}
+              />
+            </Form.Item>
+          )}
+          {effectivePlan === "advanced" && (
+            <Form.Item name="sections" label={tcr.sectionsLabel} initialValue={ADVANCED_SECTIONS.map((s) => s.key)}>
+              <Checkbox.Group
+                className="grid grid-cols-2 gap-y-2"
+                options={ADVANCED_SECTIONS.map((s) => ({
+                  label: sectionLabel(s.key, locale),
+                  value: s.key,
+                }))}
+              />
+            </Form.Item>
+          )}
           <Form.Item
             label={tcr.resumeFileLabel}
-            required
-            tooltip={tcr.resumeTooltip}
+            required={effectivePlan === "basic"}
+            tooltip={effectivePlan === "advanced" ? tcr.resumeOptional : tcr.resumeTooltip}
           >
             <Upload
               fileList={fileList}
@@ -411,7 +448,7 @@ export default function AdminInterviews({
             </Upload>
           </Form.Item>
           <Form.Item name="resumeText" label={tcr.resumeTextLabel}>
-            <Input.TextArea rows={4} placeholder={tcr.resumeTextPlaceholder} />
+            <Input.TextArea rows={4} placeholder={effectivePlan === "advanced" ? tcr.resumeOptional : tcr.resumeTextPlaceholder} />
           </Form.Item>
           <Button
             type="primary"

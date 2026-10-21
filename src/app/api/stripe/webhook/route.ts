@@ -1,5 +1,6 @@
 import { getSupabase } from "@/lib/booking/db";
 import { creditPasses } from "@/lib/booking/passes";
+import { syncSubscription, type InterviewPlanKey } from "@/lib/interview/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -9,9 +10,9 @@ export const dynamic = "force-dynamic";
  * 接入步驟：
  * 1. Stripe Dashboard → Developers → Webhooks → Add endpoint：
  *    URL = https://<你的域名>/api/stripe/webhook
- *    監聽事件 = checkout.session.completed
+ *    監聽事件 = checkout.session.completed + customer.subscription.created/updated/deleted
  * 2. 把 Signing secret 填進環境變量 STRIPE_WEBHOOK_SECRET
- * 3. STRIPE_SECRET_KEY 填好後，套票購買全鏈路自動生效
+ * 3. STRIPE_SECRET_KEY 填好後，套票購買 + 訂閱全鏈路自動生效
  */
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_SECRET_KEY;
@@ -67,6 +68,62 @@ export async function POST(request: Request) {
       return Response.json({ error: "入賬失敗" }, { status: 500 });
     }
     console.log(`[stripe] pass_order ${passOrderId} 入賬 ${quantity} 張 ${serviceKey}`);
+    return Response.json({ received: true });
+  }
+
+  // ---- 月費訂閱（AI 面試 Basic / Advanced）：訂閱狀態同步 ----
+  if (
+    event.type === "customer.subscription.created" ||
+    event.type === "customer.subscription.updated" ||
+    event.type === "customer.subscription.deleted"
+  ) {
+    const sub = event.data.object;
+    const { customerId, plan } = (sub.metadata || {}) as { customerId?: string; plan?: string };
+    if (!customerId || (plan !== "basic" && plan !== "advanced")) {
+      console.error("[stripe] subscription webhook 缺少 metadata:", sub.id);
+      return Response.json({ received: true });
+    }
+    const status =
+      event.type === "customer.subscription.deleted"
+        ? "canceled"
+        : sub.cancel_at_period_end
+          ? "canceling"
+          : "active";
+    const ok = await syncSubscription({
+      customerId,
+      plan: plan as InterviewPlanKey,
+      status,
+      stripeSubscriptionId: sub.id,
+      currentPeriodEnd: new Date((sub as { current_period_end?: number }).current_period_end || Date.now()).toISOString(),
+    });
+    if (!ok) {
+      // 同步失敗要讓 Stripe 重試
+      return Response.json({ error: "訂閱同步失敗" }, { status: 500 });
+    }
+    console.log(`[stripe] subscription ${sub.id} → ${status} (${plan})`);
+
+    // 升級語義：同用戶其他生效中訂閱立即取消（避免 Basic + Advanced 雙重扣費）
+    if (status === "active") {
+      const supabase = getSupabase();
+      if (supabase) {
+        const { data: others } = await supabase
+          .from("subscriptions")
+          .select("id, stripe_subscription_id")
+          .eq("customer_id", customerId)
+          .in("status", ["active", "canceling"])
+          .neq("stripe_subscription_id", sub.id);
+        for (const o of others || []) {
+          const sid = o.stripe_subscription_id as string;
+          try {
+            await stripe.subscriptions.cancel(sid);
+            await supabase.from("subscriptions").update({ status: "canceled" }).eq("id", o.id);
+            console.log(`[stripe] 升級：已取消舊訂閱 ${sid}`);
+          } catch (e) {
+            console.error(`[stripe] 取消舊訂閱 ${sid} 失敗:`, e);
+          }
+        }
+      }
+    }
   }
 
   return Response.json({ received: true });

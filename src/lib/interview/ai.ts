@@ -256,3 +256,65 @@ export async function generateReport(
     throw parseError("MiniMax / Gemini（報告生成）", raw);
   }
 }
+
+/** Advanced（自製 CV）生成的結構化 CV；欄位值全部為面試作答提取/整理的文字 */
+export interface WorkerCv {
+  fullName: string;
+  summary: string;
+  basicInfo: { label: string; value: string }[];
+  languages: string[];
+  workExperience: string[];
+  skills: string[];
+  careExperience: { label: string; value: string }[];
+  education: string;
+  availability: string;
+  additionalNotes: string;
+  generatedBy: "ai" | "none";
+}
+
+/**
+ * 自製 CV：工人姓名 + 全部問答逐字稿 → 結構化 CV（提取作答中的事實資料，唔好虛構）。
+ * 失敗拋出異常，由調用方決定降級（面試照常完成）。
+ */
+export async function generateCv(
+  workerName: string,
+  qaList: { question: string; answer: string }[]
+): Promise<WorkerCv> {
+  if (!hasLlm()) {
+    throw new Error("AI 未配置（MINIMAX_API_KEY / GEMINI_API_KEY），未能生成 CV");
+  }
+  const qa = qaList
+    .map((q, i) => `Q${i + 1} ${q.question}\nA：${q.answer}`)
+    .join("\n\n");
+  const raw = await llmJson(
+    "你係外傭 CV 整理助手。根據工人視頻面試逐字稿，為工人製作一份結構化 CV。只提取作答中明確提到嘅事實（姓名、年齡、國籍、學歷、語言、工作經驗、技能、照顧經驗、可到崗時間等），唔好虛構、唔好推測；搵唔到嘅欄位留空字串/空數組。語言能力用簡短清單（如 \"English（fluent）\"）。照顧經驗按類型（長者/寵物/家務烹飪/小童/嬰幼兒）逐項一句話。全部用繁體中文。只輸出 JSON：{\"fullName\": string, \"summary\": string(50字內個人簡介), \"basicInfo\": [{\"label\": string, \"value\": string}](如年齡/國籍/宗教/婚姻狀況等), \"languages\": string[], \"workExperience\": string[](每段一句話), \"skills\": string[], \"careExperience\": [{\"label\": string, \"value\": string}], \"education\": string, \"availability\": string, \"additionalNotes\": string(其他值得僱主留意嘅事項，冇則空)}。",
+    `工人姓名：${workerName}\n\n【面試問答】\n${qa}`
+  );
+  try {
+    const parsed = JSON.parse(raw);
+    const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+    const list = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean) : []);
+    const pairs = (v: unknown) =>
+      Array.isArray(v)
+        ? v
+            .filter((p) => p && typeof p.label === "string" && typeof p.value === "string")
+            .map((p) => ({ label: p.label.trim(), value: p.value.trim() }))
+            .filter((p) => p.label && p.value)
+        : [];
+    return {
+      fullName: str(parsed.fullName) || workerName,
+      summary: str(parsed.summary),
+      basicInfo: pairs(parsed.basicInfo),
+      languages: list(parsed.languages),
+      workExperience: list(parsed.workExperience),
+      skills: list(parsed.skills),
+      careExperience: pairs(parsed.careExperience),
+      education: str(parsed.education),
+      availability: str(parsed.availability),
+      additionalNotes: str(parsed.additionalNotes),
+      generatedBy: "ai",
+    };
+  } catch {
+    throw parseError("MiniMax / Gemini（CV 生成）", raw);
+  }
+}
