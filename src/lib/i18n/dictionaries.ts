@@ -42,29 +42,43 @@ const yue = {
     title: "工人服務・一站辦妥",
     subtitle: "由工人抵埗第一刻開始，接機、驗身、入屋跟進，每項服務都有專人對接，僱主全程掌握進度。",
     perTime: "/ 次",
-    pack: (price: number) => `10 次套票 HK$${price}`,
     bookNow: "進入工作台",
     items: {
-      medical: {
-        label: "陪同驗身",
-        description: "專人陪同工人到指定診所進行驗身，協助登記及溝通。",
-        includes: ["專人陪同往返診所", "協助登記及文件處理", "即時向僱主匯報結果"],
-      },
       pickup: {
         label: "工人接機",
-        description: "專人於香港國際機場接工人，安全送達指定地點。",
-        includes: ["航班動態實時跟蹤", "接機並送達指定地址", "即時向僱主報平安"],
+        description: "專人於香港國際機場接工人，安全送達指定地點。接機時段只設上午 11:00 及下午 3:00 兩個選擇。",
+        includes: ["航班動態實時跟蹤", "接機並送達指定地址", "即時向僱主報平安", "接機時段 11:00 / 15:00 二選一"],
       },
       combo: {
         label: "驗身 + 接機",
-        description: "接機與陪同驗身一併安排，工人到埗後流程無縫銜接。",
-        includes: ["航班動態實時跟蹤", "接機並陪同驗身", "送達指定地址", "即時向僱主匯報"],
+        description: "接機與陪同驗身一併安排，工人到埗後流程無縫銜接；驗身報告經 WhatsApp 發送。",
+        includes: ["航班動態實時跟蹤", "接機並陪同驗身", "送達指定地址", "驗身報告經 WhatsApp 發送"],
       },
-      "full-pack": {
-        label: "全部打包服務",
-        description: "接機、驗身、入屋跟進等一站式安排，全程專人跟進。",
-        includes: ["航班動態實時跟蹤", "接機並陪同驗身", "送達指定地址", "入屋跟進及後續支援"],
+      settlement: {
+        label: "上門 Settlement（接走姐姐）",
+        description: "專人上門辦理工人 settlement 手續並接走姐姐，車費另計。",
+        includes: ["專人上門辦理手續", "協助 settlement 文件處理", "接走姐姐並安全送達", "車費另計"],
       },
+      "nurse-training": {
+        label: "印尼護士上門培訓",
+        description: "印尼籍護士上門為工人提供專業培訓，每小時 $500 或以上，視乎培訓內容而定。",
+        includes: ["印尼籍護士上門", "按需求定制培訓內容", "每小時 $500 或以上"],
+      },
+      "onjob-training": {
+        label: "On Job Training（煮飯 / 清潔）",
+        description: "到戶實操培訓，涵蓋煮飯、清潔等日常家務；以 4 小時為起計單位。",
+        includes: ["到戶實操指導", "煮飯 / 清潔等家務技能", "4 小時起計"],
+      },
+      boarding: {
+        label: "Boarding House（工人宿舍）",
+        description: "工人到埗前後的短期宿舍安排，按晚收費，靈活彈性。",
+        includes: ["安全衛生住宿環境", "按晚收費，靈活安排"],
+      },
+    },
+    units: {
+      perHourFrom: "/ 小時起",
+      perHourMin4: "/ 小時（4 小時起計）",
+      perNight: "/ 晚",
     },
   },
   process: {
@@ -79,7 +93,7 @@ const yue = {
       },
       {
         title: "購買套票",
-        desc: "按需購買單次或 10 次套票，收費透明，餘額隨時在賬戶內查看。",
+        desc: "按需購買套票，收費透明，餘額隨時在賬戶內查看。",
       },
       {
         title: "提交預約",
@@ -213,10 +227,7 @@ const yue = {
       title: "我的套票",
       remaining: (n: number) => `剩餘 ${n} 次`,
       noPasses: "未購套票",
-      singlePrice: (price: number) => `單次 HK$${price}`,
-      packPrice: (price: number) => `10 次套票 HK$${price}`,
-      buy1: "買 1 張",
-      buy10: "買 10 張",
+      buy: "購買套票",
       redirecting: "跳轉中…",
     },
     orders: {
@@ -278,6 +289,7 @@ const yue = {
       fields: {
         employerName: "僱主姓名",
         optional: "選填",
+        selectPrompt: "請選擇",
         phone: "聯絡電話",
         phonePlaceholder: "例如：9123 4567",
         whatsapp: "WhatsApp",
@@ -291,10 +303,17 @@ const yue = {
         remarkPlaceholder: "其他需要我們留意的事項",
       },
       serviceFields: {
+        flightNo: { label: "航班編號", placeholder: "例如：CX906" },
+        arrivalDate: { label: "抵達日期" },
+        pickupTime: { label: "接機時間", placeholder: "請選擇接機時段" },
         medicalDate: { label: "期望驗身日期" },
         medicalArea: { label: "診所 / 地區偏好", placeholder: "例如：旺角、灣仔指定診所" },
-        flightNo: { label: "航班編號", placeholder: "例如：CX906" },
-        arrivalTime: { label: "抵達日期及時間" },
+        settleDate: { label: "上門日期" },
+        settleAddress: { label: "上門地址", placeholder: "例如：九龍塘 XX 道 X 號" },
+        trainDate: { label: "期望培訓日期" },
+        trainTopic: { label: "培訓內容", placeholder: "例如：照顧嬰兒、煮中餐" },
+        checkinDate: { label: "入住日期" },
+        checkoutDate: { label: "退房日期" },
       },
       upload: {
         hint: (maxFiles: number) =>
@@ -688,29 +707,43 @@ const cmn: Messages = {
     title: "工人服务・一站办妥",
     subtitle: "从工人抵达第一刻开始，接机、验身、入户跟进，每项服务都有专人对接，雇主全程掌握进度。",
     perTime: "/ 次",
-    pack: (price: number) => `10 次套票 HK$${price}`,
     bookNow: "进入工作台",
     items: {
-      medical: {
-        label: "陪同验身",
-        description: "专人陪同工人到指定诊所进行验身，协助登记及沟通。",
-        includes: ["专人陪同往返诊所", "协助登记及文件处理", "即时向雇主汇报结果"],
-      },
       pickup: {
         label: "工人接机",
-        description: "专人在香港国际机场接工人，安全送达指定地点。",
-        includes: ["航班动态实时跟踪", "接机并送达指定地址", "即时向雇主报平安"],
+        description: "专人在香港国际机场接工人，安全送达指定地点。接机时段只设上午 11:00 及下午 3:00 两个选择。",
+        includes: ["航班动态实时跟踪", "接机并送达指定地址", "即时向雇主报平安", "接机时段 11:00 / 15:00 二选一"],
       },
       combo: {
         label: "验身 + 接机",
-        description: "接机与陪同验身一并安排，工人到埠后流程无缝衔接。",
-        includes: ["航班动态实时跟踪", "接机并陪同验身", "送达指定地址", "即时向雇主汇报"],
+        description: "接机与陪同验身一并安排，工人到埠后流程无缝衔接；验身报告经 WhatsApp 发送。",
+        includes: ["航班动态实时跟踪", "接机并陪同验身", "送达指定地址", "验身报告经 WhatsApp 发送"],
       },
-      "full-pack": {
-        label: "全部打包服务",
-        description: "接机、验身、入户跟进等一站式安排，全程专人跟进。",
-        includes: ["航班动态实时跟踪", "接机并陪同验身", "送达指定地址", "入户跟进及后续支援"],
+      settlement: {
+        label: "上门 Settlement（接走姐姐）",
+        description: "专人上门办理工人 settlement 手续并接走姐姐，车费另计。",
+        includes: ["专人上门办理手续", "协助 settlement 文件处理", "接走姐姐并安全送达", "车费另计"],
       },
+      "nurse-training": {
+        label: "印尼护士上门培训",
+        description: "印尼籍护士上门为工人提供专业培训，每小时 $500 或以上，视乎培训内容而定。",
+        includes: ["印尼籍护士上门", "按需求定制培训内容", "每小时 $500 或以上"],
+      },
+      "onjob-training": {
+        label: "On Job Training（煮饭 / 清洁）",
+        description: "到户实操培训，涵盖煮饭、清洁等日常家务；以 4 小时为起计单位。",
+        includes: ["到户实操指导", "煮饭 / 清洁等家务技能", "4 小时起计"],
+      },
+      boarding: {
+        label: "Boarding House（工人宿舍）",
+        description: "工人到埠前后的短期宿舍安排，按晚收费，灵活弹性。",
+        includes: ["安全卫生住宿环境", "按晚收费，灵活安排"],
+      },
+    },
+    units: {
+      perHourFrom: "/ 小时起",
+      perHourMin4: "/ 小时（4 小时起计）",
+      perNight: "/ 晚",
     },
   },
   process: {
@@ -725,7 +758,7 @@ const cmn: Messages = {
       },
       {
         title: "购买套票",
-        desc: "按需购买单次或 10 次套票，收费透明，余额随时在账户内查看。",
+        desc: "按需购买套票，收费透明，余额随时在账户内查看。",
       },
       {
         title: "提交预约",
@@ -859,10 +892,7 @@ const cmn: Messages = {
       title: "我的套票",
       remaining: (n: number) => `剩余 ${n} 次`,
       noPasses: "未购套票",
-      singlePrice: (price: number) => `单次 HK$${price}`,
-      packPrice: (price: number) => `10 次套票 HK$${price}`,
-      buy1: "买 1 张",
-      buy10: "买 10 张",
+      buy: "购买套票",
       redirecting: "跳转中…",
     },
     orders: {
@@ -925,6 +955,7 @@ const cmn: Messages = {
       fields: {
         employerName: "雇主姓名",
         optional: "选填",
+        selectPrompt: "请选择",
         phone: "联系电话",
         phonePlaceholder: "例如：9123 4567",
         whatsapp: "WhatsApp",
@@ -938,10 +969,17 @@ const cmn: Messages = {
         remarkPlaceholder: "其他需要我们留意的事项",
       },
       serviceFields: {
+        flightNo: { label: "航班编号", placeholder: "例如：CX906" },
+        arrivalDate: { label: "抵达日期" },
+        pickupTime: { label: "接机时间", placeholder: "请选择接机时段" },
         medicalDate: { label: "期望验身日期" },
         medicalArea: { label: "诊所 / 地区偏好", placeholder: "例如：旺角、湾仔指定诊所" },
-        flightNo: { label: "航班编号", placeholder: "例如：CX906" },
-        arrivalTime: { label: "抵达日期及时间" },
+        settleDate: { label: "上门日期" },
+        settleAddress: { label: "上门地址", placeholder: "例如：九龙塘 XX 道 X 号" },
+        trainDate: { label: "期望培训日期" },
+        trainTopic: { label: "培训内容", placeholder: "例如：照顾婴儿、煮中餐" },
+        checkinDate: { label: "入住日期" },
+        checkoutDate: { label: "退房日期" },
       },
       upload: {
         hint: (maxFiles: number) =>
@@ -1340,47 +1378,58 @@ const en: Messages = {
     subtitle:
       "From the moment your helper arrives—airport pickup, medical check-ups and home settling-in—every service comes with a dedicated coordinator, and employers stay informed throughout.",
     perTime: "/ session",
-    pack: (price: number) => `10-session pack HK$${price}`,
     bookNow: "Go to Workspace",
     items: {
-      medical: {
-        label: "Accompanied medical exam",
-        description: "Our staff accompany your helper to the designated clinic, assisting with registration and communication.",
-        includes: [
-          "Dedicated escort to and from the clinic",
-          "Assistance with registration and paperwork",
-          "Instant result updates to the employer",
-        ],
-      },
       pickup: {
         label: "Helper airport pickup",
-        description: "Our staff meet your helper at Hong Kong International Airport and deliver them safely to the designated location.",
+        description: "Our staff meet your helper at Hong Kong International Airport and deliver her safely to the designated location. Two pickup slots only: 11:00 AM and 3:00 PM.",
         includes: [
           "Real-time flight tracking",
           "Airport pickup and door-to-door delivery",
           "Instant safe-arrival notice to the employer",
+          "Pickup slot: 11:00 AM / 3:00 PM",
         ],
       },
       combo: {
         label: "Medical exam + pickup",
-        description: "Airport pickup and the accompanied medical exam arranged together, so the process flows seamlessly after arrival.",
+        description: "Airport pickup and the accompanied medical exam arranged together, so the process flows seamlessly after arrival. The medical report is sent via WhatsApp.",
         includes: [
           "Real-time flight tracking",
           "Pickup with accompanied medical exam",
           "Delivery to the designated address",
-          "Instant updates to the employer",
+          "Medical report sent via WhatsApp",
         ],
       },
-      "full-pack": {
-        label: "Full package",
-        description: "One-stop arrangements covering pickup, medical exam and home settling-in, with a dedicated coordinator throughout.",
+      settlement: {
+        label: "Home settlement (pick up helper)",
+        description: "Our staff visit your home to handle the helper's settlement procedures and take her to her next destination. Transport fare is charged separately.",
         includes: [
-          "Real-time flight tracking",
-          "Pickup with accompanied medical exam",
-          "Delivery to the designated address",
-          "Home settling-in and follow-up support",
+          "Door-to-door settlement handling",
+          "Assistance with settlement paperwork",
+          "Taking the helper to her next destination safely",
+          "Transport fare charged separately",
         ],
       },
+      "nurse-training": {
+        label: "In-home nurse training",
+        description: "An Indonesian nurse provides professional in-home training for your helper, from HK$500 per hour depending on the training content.",
+        includes: ["Indonesian nurse visits your home", "Customised training content", "From HK$500 per hour"],
+      },
+      "onjob-training": {
+        label: "On-job training (cooking / cleaning)",
+        description: "Hands-on training at your home covering cooking, cleaning and other household skills; billed in 4-hour blocks.",
+        includes: ["Hands-on guidance at your home", "Cooking / cleaning and other household skills", "Billed in 4-hour blocks"],
+      },
+      boarding: {
+        label: "Boarding house (helper hostel)",
+        description: "Short-term accommodation for helpers around their arrival, charged per night with flexible arrangements.",
+        includes: ["Safe and clean accommodation", "Charged per night, flexible arrangements"],
+      },
+    },
+    units: {
+      perHourFrom: "/ hr from",
+      perHourMin4: "/ hr (4-hr minimum)",
+      perNight: "/ night",
     },
   },
   process: {
@@ -1395,7 +1444,7 @@ const en: Messages = {
       },
       {
         title: "Buy a pass pack",
-        desc: "Purchase single sessions or a 10-session pack as needed. Pricing is transparent and your balance is always visible in your account.",
+        desc: "Purchase passes as needed. Pricing is transparent and your balance is always visible in your account.",
       },
       {
         title: "Submit a booking",
@@ -1533,10 +1582,7 @@ const en: Messages = {
       title: "My passes",
       remaining: (n: number) => `${n} remaining`,
       noPasses: "No passes",
-      singlePrice: (price: number) => `Single HK$${price}`,
-      packPrice: (price: number) => `10-session pack HK$${price}`,
-      buy1: "Buy 1",
-      buy10: "Buy 10",
+      buy: "Buy pass",
       redirecting: "Redirecting…",
     },
     orders: {
@@ -1601,6 +1647,7 @@ const en: Messages = {
       fields: {
         employerName: "Employer name",
         optional: "Optional",
+        selectPrompt: "Please select",
         phone: "Contact phone",
         phonePlaceholder: "e.g. 9123 4567",
         whatsapp: "WhatsApp",
@@ -1614,10 +1661,17 @@ const en: Messages = {
         remarkPlaceholder: "Anything else we should know",
       },
       serviceFields: {
+        flightNo: { label: "Flight number", placeholder: "e.g. CX906" },
+        arrivalDate: { label: "Arrival date" },
+        pickupTime: { label: "Pickup time", placeholder: "Select a pickup slot" },
         medicalDate: { label: "Preferred medical exam date" },
         medicalArea: { label: "Clinic / area preference", placeholder: "e.g. designated clinic in Mong Kok or Wan Chai" },
-        flightNo: { label: "Flight number", placeholder: "e.g. CX906" },
-        arrivalTime: { label: "Arrival date & time" },
+        settleDate: { label: "Visit date" },
+        settleAddress: { label: "Visit address", placeholder: "e.g. 12 XX Road, Kowloon Tong" },
+        trainDate: { label: "Preferred training date" },
+        trainTopic: { label: "Training topics", placeholder: "e.g. infant care, Chinese cooking" },
+        checkinDate: { label: "Check-in date" },
+        checkoutDate: { label: "Check-out date" },
       },
       upload: {
         hint: (maxFiles: number) =>

@@ -18,7 +18,6 @@ export async function createPassCheckoutSession(params: {
   passOrderId: string;
   customer: Customer;
   service: ServiceItem;
-  quantity: 1 | 10;
   amountHkd: number;
 }): Promise<{ id: string; url: string | null } | null> {
   const secret = process.env.STRIPE_SECRET_KEY;
@@ -28,7 +27,7 @@ export async function createPassCheckoutSession(params: {
   const stripe = new Stripe(secret);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const { passOrderId, customer, service, quantity, amountHkd } = params;
+  const { passOrderId, customer, service, amountHkd } = params;
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -39,7 +38,7 @@ export async function createPassCheckoutSession(params: {
           currency: "hkd",
           unit_amount: amountHkd * 100,
           product_data: {
-            name: `${service.label}套票 × ${quantity}`,
+            name: `${service.label}套票`,
             description: service.description,
           },
         },
@@ -53,7 +52,7 @@ export async function createPassCheckoutSession(params: {
       passOrderId,
       customerId: customer.id,
       serviceKey: service.key,
-      quantity: String(quantity),
+      quantity: "1",
     },
     success_url: `${siteUrl}/booking?purchase=success`,
     cancel_url: `${siteUrl}/booking?purchase=cancelled`,

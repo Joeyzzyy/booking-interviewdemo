@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/passes/checkout
- * body: { serviceKey, quantity: 1 | 10 }
+ * body: { serviceKey, quantity: 1 }
  * 建 pass_order（pending）→ 創建 Stripe Checkout Session → 返回付款頁 URL。
  */
 export async function POST(request: Request) {
@@ -27,11 +27,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "請求格式錯誤" }, { status: 400 });
   }
   const service = getService(body.serviceKey || "");
-  const quantity = body.quantity === 10 ? 10 : body.quantity === 1 ? 1 : null;
-  if (!service || !quantity) {
-    return Response.json({ error: "請選擇服務及套票數量", code: "CHECKOUT_PARAMS" }, { status: 400 });
+  if (!service || body.quantity !== 1) {
+    return Response.json({ error: "請選擇服務項目", code: "CHECKOUT_PARAMS" }, { status: 400 });
   }
-  const amountHkd = quantity === 10 ? service.pricePack10 : service.priceSingle;
+  const amountHkd = service.priceHkd;
 
   // 1) 建待付款訂單
   const { data: order, error: insertErr } = await supabase
@@ -39,7 +38,7 @@ export async function POST(request: Request) {
     .insert({
       customer_id: customer.id,
       service_key: service.key,
-      quantity,
+      quantity: 1,
       amount_hkd: amountHkd,
       status: "pending",
     })
@@ -57,7 +56,6 @@ export async function POST(request: Request) {
       passOrderId: order.id,
       customer,
       service,
-      quantity,
       amountHkd,
     });
   } catch (e) {

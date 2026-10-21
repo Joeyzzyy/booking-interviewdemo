@@ -231,15 +231,15 @@ export default function BookingClient() {
     window.history.replaceState(null, "", t === "book" ? "/booking" : `/booking?tab=${t}`);
   };
 
-  const buyPass = async (key: string, quantity: 1 | 10) => {
-    setBuying(`${key}-${quantity}`);
+  const buyPass = async (key: string) => {
+    setBuying(key);
     setPurchaseMsg(null);
     setPurchaseFlash(null);
     try {
       const res = await fetch("/api/passes/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceKey: key, quantity }),
+        body: JSON.stringify({ serviceKey: key, quantity: 1 }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -631,30 +631,19 @@ export default function BookingClient() {
                         ))}
                       </ul>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <span className="rounded-lg bg-black/[0.04] px-2.5 py-1 text-[12.5px] font-bold text-[#3d4763]">
-                          {t.workspace.passes.singlePrice(s.priceSingle)}
-                        </span>
                         <span className="rounded-lg bg-[#e9f5f0] px-2.5 py-1 text-[12.5px] font-extrabold text-[#2a8163]">
-                          {t.workspace.passes.packPrice(s.pricePack10)}
+                          HK${s.priceHkd}
+                          {s.priceUnit ? ` ${t.services.units[s.priceUnit]}` : ` ${t.services.perTime}`}
                         </span>
                       </div>
-                      <div className="mt-auto flex gap-2 pt-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          disabled={buying !== null}
-                          onClick={() => void buyPass(s.key, 1)}
-                        >
-                          {buying === `${s.key}-1` ? t.workspace.passes.redirecting : t.workspace.passes.buy1}
-                        </Button>
+                      <div className="mt-auto pt-4">
                         <Button
                           size="sm"
-                          className="flex-1"
+                          className="w-full"
                           disabled={buying !== null}
-                          onClick={() => void buyPass(s.key, 10)}
+                          onClick={() => void buyPass(s.key)}
                         >
-                          {buying === `${s.key}-10` ? t.workspace.passes.redirecting : t.workspace.passes.buy10}
+                          {buying === s.key ? t.workspace.passes.redirecting : t.workspace.passes.buy}
                         </Button>
                       </div>
                     </div>
@@ -806,8 +795,10 @@ export default function BookingClient() {
                         {svcText(s.key)?.description ?? s.description}
                       </span>
                       <span className={`mt-auto pt-1 text-[15px] font-extrabold ${selected ? "text-white" : "text-[#2a8163]"}`}>
-                        HK${s.priceSingle}
-                        <span className={`ml-1 text-[11px] font-semibold ${selected ? "text-white/75" : "text-[#8b95ad]"}`}>{t.services.perTime}</span>
+                        HK${s.priceHkd}
+                        <span className={`ml-1 text-[11px] font-semibold ${selected ? "text-white/75" : "text-[#8b95ad]"}`}>
+                          {s.priceUnit ? t.services.units[s.priceUnit] : t.services.perTime}
+                        </span>
                       </span>
                     </button>
                   );
@@ -923,7 +914,23 @@ export default function BookingClient() {
                           const tf = (t.workspace.book.serviceFields as Record<string, { label: string; placeholder?: string }>)[f.key];
                           return (
                           <Field key={f.key} label={tf?.label ?? f.label} required={f.required}>
-                            {f.type === "textarea" ? (
+                            {f.type === "select" ? (
+                              <select
+                                name={`detail_${f.key}`}
+                                required={f.required}
+                                defaultValue=""
+                                className="w-full cursor-pointer appearance-none rounded-xl border border-black/[0.08] bg-white px-4 py-3 text-[16px] text-[#161b2e] outline-none transition-colors focus:border-[#35a07a]/40 disabled:opacity-60 sm:text-[14px]"
+                              >
+                                <option value="" disabled>
+                                  {tf?.placeholder ?? f.placeholder ?? t.workspace.book.fields.selectPrompt}
+                                </option>
+                                {f.options?.map((o) => (
+                                  <option key={o} value={o}>
+                                    {o}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : f.type === "textarea" ? (
                               <Textarea name={`detail_${f.key}`} required={f.required} placeholder={tf?.placeholder ?? f.placeholder} />
                             ) : (
                               <Input

@@ -76,6 +76,9 @@ export async function POST(request: Request) {
     if (f.required && !v) {
       return Response.json({ error: `請填寫「${f.label}」` }, { status: 400 });
     }
+    if (f.type === "select" && f.options?.length && v && !f.options.includes(v)) {
+      return Response.json({ error: `「${f.label}」選項無效` }, { status: 400 });
+    }
     if (v) details[f.label] = v;
   }
 
@@ -126,7 +129,7 @@ export async function POST(request: Request) {
       order_no: generateOrderNo(),
       service_key: service.key,
       service_label: service.label,
-      price_hkd: service.priceSingle,
+      price_hkd: service.priceHkd,
       employer_name: employerName,
       phone,
       whatsapp,

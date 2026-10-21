@@ -1,17 +1,19 @@
 "use client";
 
-import { Stethoscope, Plane, CalendarCheck2, PackageCheck, ArrowRight, Check } from "lucide-react";
+import { Plane, CalendarCheck2, Home, Stethoscope, ChefHat, BedDouble, PackageCheck, ArrowRight, Check } from "lucide-react";
 import AuthGatedLink from "@/components/auth/AuthGatedLink";
 import SectionHeader from "@/components/brand/SectionHeader";
 import Reveal from "@/components/brand/Reveal";
 import { SERVICES } from "@/lib/booking/services";
 import { useLanguage } from "@/lib/i18n";
 
-const SERVICE_ICONS: Record<string, typeof Stethoscope> = {
-  medical: Stethoscope,
+const SERVICE_ICONS: Record<string, typeof Plane> = {
   pickup: Plane,
   combo: CalendarCheck2,
-  "full-pack": PackageCheck,
+  settlement: Home,
+  "nurse-training": Stethoscope,
+  "onjob-training": ChefHat,
+  boarding: BedDouble,
 };
 
 /** 服務項目（簡約版）：白卡 + 細邊框，僅保留必要信息 */
@@ -49,10 +51,9 @@ export default function ServicesSection() {
                   </ul>
                   <div className="mt-auto pt-6">
                     <p className="text-[15px] font-bold text-[#35a07a]">
-                      HK${s.priceSingle}
-                      <span className="ml-1 text-[12px] font-semibold text-[#8b95ad]">{t.services.perTime}</span>
-                      <span className="ml-2 text-[12px] font-semibold text-[#8b95ad]">
-                        {t.services.pack(s.pricePack10)}
+                      HK${s.priceHkd}
+                      <span className="ml-1 text-[12px] font-semibold text-[#8b95ad]">
+                        {s.priceUnit ? t.services.units[s.priceUnit] : t.services.perTime}
                       </span>
                     </p>
                     <AuthGatedLink
