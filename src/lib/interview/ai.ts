@@ -318,3 +318,148 @@ export async function generateCv(
     throw parseError("MiniMax / Gemini（CV 生成）", raw);
   }
 }
+
+// ---------- Advanced v2：外傭全方位履歷、健康與安全審查表（11 章結構） ----------
+
+/** 前僱主紀錄（迴圈：每位僱主一條） */
+export interface EmployerRecord {
+  location: string;
+  period: string;
+  houseSize: string;
+  served: string;
+  helpers: string;
+  duties: string;
+  reasonLeft: string;
+}
+
+/**
+ * Advanced v2（實時逐題）生成的結構化 CV，對照甲方《advanced CV template.pdf》11 章。
+ * 欄位值全部為面試作答提取/整理的文字，搵唔到留空。
+ */
+export interface WorkerCvV2 {
+  generatedBy: "ai" | "none";
+  fullName: string;
+  /** 一、個人紀錄 */
+  personalData: { label: string; value: string }[];
+  /** 二、家庭背景與思鄉風險評估 */
+  familyRisk: { item: string; detail: string; risk?: string }[];
+  /** 三、財政規劃與薪金分配 */
+  financial: {
+    yearsInHK: string;
+    remitPercent: string;
+    keepPercent: string;
+    purpose: string;
+    burden: string;
+  };
+  /** 四、工作經驗與意向 */
+  workDuties: { label: string; experienced: string; willing: string }[];
+  /** 五、前僱主工作紀錄（按僱主#1→#N 順序） */
+  employers: EmployerRecord[];
+  /** 六、一般諮詢 12 題 */
+  general12: { question: string; answer: string }[];
+  /** 七、身體與心智健康查核 */
+  health: { dimension: string; status: string; detail: string }[];
+  /** 八、社交媒體與手機使用規矩 */
+  social: { item: string; answer: string }[];
+  /** 九、安全背景與誠信審查 */
+  security: { dimension: string; status: string; detail: string }[];
+  /** 十、個人興趣與嗜好 */
+  hobbies: string;
+  /** 十一、作品照片說明（照片路徑另存 interviews.photos） */
+  photoNote: string;
+}
+
+/**
+ * 自製 CV v2：工人姓名 + 逐題問答 → 11 章審查表結構。
+ * 問答中「僱主#k」前綴嘅題目按順序歸入 employers[k-1] 嘅 6 個欄位。
+ * 失敗拋出異常，由調用方決定降級（面試照常完成）。
+ */
+export async function generateCvV2(
+  workerName: string,
+  qaList: { question: string; answer: string }[]
+): Promise<WorkerCvV2> {
+  if (!hasLlm()) {
+    throw new Error("AI 未配置（MINIMAX_API_KEY / GEMINI_API_KEY），未能生成 CV");
+  }
+  const qa = qaList
+    .map((q, i) => `Q${i + 1} ${q.question}\nA：${q.answer}`)
+    .join("\n\n");
+  const raw = await llmJson(
+    "你係外傭全方位履歷、健康與安全審查表整理助手。根據視頻面試嘅逐題問答，為工人製作《外傭全方位履歷、健康與安全審查表》。只提取作答中明確提到嘅事實，唔好虛構、唔好推測；搵唔到嘅欄位留空字串/空數組；全部用繁體中文。只輸出 JSON：{\"fullName\": string, \"personalData\": [{\"label\": string, \"value\": string}](姓名/國籍/年齡/傭工類型/宗教/婚姻狀況/身高體重/學歷/語言), \"familyRisk\": [{\"item\": string, \"detail\": string, \"risk\": string}](父親母親健康/丈夫職業同收入/子女數目同年齡/在港工作期間子女由邊個照顧/家人支持度/突發回鄉風險；risk 用 \"high\"|\"low\"|\"\"), \"financial\": {\"yearsInHK\": string, \"remitPercent\": string, \"keepPercent\": string, \"purpose\": string, \"burden\": string}(養家負擔評估), \"workDuties\": [{\"label\": string, \"experienced\": string, \"willing\": string}](照顧嬰兒/照顧小童/照顧長者/烹飪/一般家務/照顧寵物；experienced 同 willing 用「有/無」加一句補充), \"employers\": [{\"location\": string, \"period\": string, \"houseSize\": string, \"served\": string, \"helpers\": string, \"duties\": string, \"reasonLeft\": string}](按「僱主#k」分組，每位僱主一條，順序對應), \"general12\": [{\"question\": string, \"answer\": string}](一般諮詢12題逐題), \"health\": [{\"dimension\": string, \"status\": string, \"detail\": string}](睡眠/失眠打鼾/半夜照顧/情緒問題/焦慮症/抑鬱症/皮膚敏感/食物敏感/手術紀錄/長期病患/長期食藥/確診疾病), \"social\": [{\"item\": string, \"answer\": string}](社交媒體帳號/唔拍僱主家居上網承諾/工作時間禁用手機), \"security\": [{\"dimension\": string, \"status\": string, \"detail\": string}](拒簽紀錄/改名或生日/犯罪紀錄/隱瞞工作/財務借貸/前僱主推薦), \"hobbies\": string(興趣同放假活動), \"photoNote\": string(作品照片口頭描述，冇則空)}。",
+    `工人姓名：${workerName}\n\n【面試問答】\n${qa}`
+  );
+  try {
+    const parsed = JSON.parse(raw);
+    const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+    const list = (v: unknown) => (Array.isArray(v) ? v.map(String).filter(Boolean) : []);
+    const pairs = (v: unknown) =>
+      Array.isArray(v)
+        ? v
+            .filter((p) => p && typeof p.label === "string" && typeof p.value === "string")
+            .map((p) => ({ label: p.label.trim(), value: p.value.trim() }))
+            .filter((p) => p.label && p.value)
+        : [];
+    const rec = (v: unknown) => (v && typeof v === "object" ? (v as Record<string, unknown>) : {});
+    const qaPairs = (v: unknown): { key: string; answer: string }[] =>
+      Array.isArray(v)
+        ? v
+            .map(rec)
+            .map((p) => ({ key: str(p.question ?? p.item ?? p.dimension), answer: str(p.answer ?? p.detail ?? p.status ?? p.value) }))
+            .filter((p) => p.key)
+        : [];
+    const statusRows = (v: unknown) =>
+      Array.isArray(v)
+        ? v
+            .map(rec)
+            .map((p) => ({
+              dimension: str(p.dimension ?? p.item),
+              status: str(p.status),
+              detail: str(p.detail ?? p.answer ?? p.value),
+            }))
+            .filter((p) => p.dimension)
+        : [];
+    const financial = rec(parsed.financial);
+    const employers: unknown[] = Array.isArray(parsed.employers) ? parsed.employers : [];
+    return {
+      generatedBy: "ai" as const,
+      fullName: str(parsed.fullName) || workerName,
+      personalData: pairs(parsed.personalData),
+      familyRisk: statusRows(parsed.familyRisk).map((p) => ({
+        item: p.dimension,
+        detail: p.detail,
+        risk: "",
+      })),
+      financial: {
+        yearsInHK: str(financial.yearsInHK),
+        remitPercent: str(financial.remitPercent),
+        keepPercent: str(financial.keepPercent),
+        purpose: str(financial.purpose),
+        burden: str(financial.burden),
+      },
+      workDuties: statusRows(parsed.workDuties).map((p) => ({
+        label: p.dimension,
+        experienced: p.status,
+        willing: p.detail,
+      })),
+      employers: employers
+        .map(rec)
+        .map((e) => ({
+          location: str(e.location),
+          period: str(e.period),
+          houseSize: str(e.houseSize),
+          served: str(e.served),
+          helpers: str(e.helpers),
+          duties: str(e.duties),
+          reasonLeft: str(e.reasonLeft),
+        })),
+      general12: qaPairs(parsed.general12).map((p) => ({ question: p.key, answer: p.answer })),
+      health: statusRows(parsed.health),
+      social: qaPairs(parsed.social).map((p) => ({ item: p.key, answer: p.answer })),
+      security: statusRows(parsed.security),
+      hobbies: str(parsed.hobbies) || list(parsed.hobbies).join("、"),
+      photoNote: str(parsed.photoNote),
+    };
+  } catch {
+    throw parseError("MiniMax / Gemini（CV 生成 v2）", raw);
+  }
+}

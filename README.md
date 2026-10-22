@@ -26,17 +26,19 @@
 
 **AI 視頻面試（月費訂閱制，Stripe subscription）**
 - **Basic Plan（核實 CV）HK$199/月**：72 題 CV 核實面試 + AI 簡歷匹配報告 + 逐題轉寫回放
-- **Advanced Plan（自製 CV）HK$399/月**：自選 8 大測試章節出題（基本資料/性格/IQ・AQ・EQ・記憶/長者照顧/寵物/家務烹飪/小童及青少年/嬰幼兒，64 題）+ **AI 按作答生成工人 CV（可下載）**；含 Basic 全部功能
+- **Advanced Plan（自製 CV）HK$399/月**：**70 題全方位審查表實時逐題面試**（11 章：個人紀錄／家庭背景及思鄉風險／財政規劃／工作意向／前僱主動態迴圈／一般諮詢 12 題／健康查核／社交媒體規矩／誠信審查／興趣／作品照片）+ **AI 生成十一 章審查表 CV（可下載）** + 作品照片上傳；可按需附加 8 大測試章節（性格/IQ・AQ・EQ・記憶/長者照顧/寵物/家務烹飪/小童及青少年/嬰幼兒，64 題）
 - 訂閱狀態 Stripe webhook 同步（`subscriptions` 表，`supabase/interview-plans.sql`）；升級自動取消舊訂閱；取消於本期結束時失效
+- Advanced v2 遷移：`supabase/interview-advanced-v2.sql`（`interviews.mode` 面試模式 + `interviews.photos` 作品照片 + `interview_answers.attempt` 放寬到 4 供前僱主迴圈）
 - 無訂閱用戶於 `/booking` AI 面試分頁看到方案卡片；`POST /api/my/interviews` 無有效訂閱返回 402
 - `/booking?tab=questions / create / records` 設置題庫、發起面試、查看記錄；**面試按用戶隔離**
-- **公共題庫**：《DOMESTIC HELPER CV DATA COLLECTION INTERVIEW FORM》72 題（Basic，9 章節）+ Advanced 測試 64 題（8 章節）（`customer_id IS NULL`），
-  用戶側只讀；用戶可另加自定義問題；Basic 面試出 Basic 題庫 + 自定義題，Advanced 面試只出勾選章節 + 自定義題
+- **公共題庫**：《DOMESTIC HELPER CV DATA COLLECTION INTERVIEW FORM》72 題（Basic，9 章節）+ Advanced v2 主體審查表 70 題（11 章節，`adv-*`）+ Advanced 測試 64 題（8 章節）（`customer_id IS NULL`），
+  用戶側只讀；用戶可另加自定義問題；Basic 面試出 Basic 題庫 + 自定義題，Advanced 面試出 70 題主體 + 勾選測試章節 + 自定義題
 - `/interview/<token>` 工人端作答（免登入）
-- **作答流程**：設備檢查（強制鏡頭開啟 + 咪高峰音量條/3 秒試錄回放）→ 全程一次連續錄製（鏡頭不關、畫中畫預覽）→ 自由「上一題/下一題」切換作答 → 結束統一提交；後端整段轉寫 → LLM 按題切分回答 → 生成整體報告（Advanced 另生成結構化 CV）
+- **作答流程（Basic / 舊面試：連續錄製）**：設備檢查（強制鏡頭開啟 + 咪高峰音量條/3 秒試錄回放）→ 全程一次連續錄製（鏡頭不關、畫中畫預覽）→ 自由「上一題/下一題」切換作答 → 結束統一提交；後端整段轉寫 → LLM 按題切分回答 → 生成整體報告
+- **作答流程（Advanced v2：實時逐題）**：問一題錄一題（單題上限 90 秒）→ 即場轉寫落庫 → 自動下一題；答完「前僱主總數」題後按所選數量（0–4）動態展開每位僱主 6 條追問（TTS 複用模板音頻）；全部答完進入作品照片上傳步驟（2–3 張煮菜照 + 1–2 張工作照）→ 提交後 AI 生成報告 + 十一 章審查表 CV
 - **多語言**：題目新增/修改時自動翻譯 5 語（英/印尼/菲/普/粵）並生成 TTS 語音存儲；
   工人端可切換語言（全頁文案 + 題目語音播放，可反覆播放；題庫內可逐語言試聽）
-- 題庫種子：`npm run seed:questions`（`--set advanced` 只種 Advanced 64 題；`--force` 重生成譯文/TTS）
+- 題庫種子：`npm run seed:questions`（`--set advanced` 只種 Advanced 64 題；`--set core70` 只種 Advanced v2 主體 70 題；`--force` 重生成譯文/TTS）
 - 資料表（`interview_questions` / `interviews` / `interview_answers` / `subscriptions`）與主站預約系統完全獨立，後續可隨時拆分成獨立服務
 
 **後台（管理端，Ant Design）**

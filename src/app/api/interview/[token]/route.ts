@@ -45,6 +45,9 @@ export async function GET(
     {
       workerName: interview.worker_name,
       status: interview.status,
+      mode: interview.mode || "continuous",
+      plan: interview.plan || "basic",
+      photos: interview.photos || [],
       questions: questions.map((q) => {
         const audioUrls: Record<string, string> = {};
         for (const [lang, path] of Object.entries(q.audio || {})) {

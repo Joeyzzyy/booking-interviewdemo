@@ -40,13 +40,38 @@ export const ADVANCED_SECTIONS: QuestionSection[] = [
   { key: "infant-care", label: { yue: "嬰幼兒照顧測試", zh: "婴幼儿照顾测试", en: "Infant Care Test", id: "Tes Perawatan Bayi & Balita", tl: "Pagsusuri sa Pag-aalaga ng Sanggol" } },
 ];
 
-/** 全部章節（Basic 題庫 9 章 + Advanced 8 章） */
+// ════════════════════════════════════════════════════════════════
+// Advanced Plan v2 主體題庫：外傭全方位履歷、健康與安全審查表
+// 來源：甲方《advanced CV questions.pdf》70 題單一提問劇本（11 章）
+// - Q28 問前僱主總數；Q29–34 為迴圈模板（[k] = 第幾位僱主），
+//   客戶端按答案動態生成每位僱主的 6 題，TTS 音頻複用模板題
+// - Q70 作品照片走面試後獨立上傳步驟（photos 列），此處僅為口頭引導題
+// ════════════════════════════════════════════════════════════════
+
+/** Advanced v2 主體章節（70 題，必做）；與 ADVANCED_SECTIONS（8 章附加測試）並存 */
+export const CORE_SECTIONS: QuestionSection[] = [
+  { key: "adv-personal", label: { yue: "個人紀錄", zh: "个人纪录", en: "Personal Data", id: "Data Pribadi", tl: "Personal na Datos" } },
+  { key: "adv-family", label: { yue: "家庭背景及思鄉風險", zh: "家庭背景及思乡风险", en: "Family Background & Home Sick Risk", id: "Latar Belakang Keluarga & Risiko Homesick", tl: "Background ng Pamilya at Risiko ng Homesick" } },
+  { key: "adv-financial", label: { yue: "財政規劃與薪金分配", zh: "财政规划与薪金分配", en: "Financial Planning & Remittance", id: "Perencanaan Keuangan & Kiriman Uang", tl: "Pagpaplano ng Pinansya at Padala" } },
+  { key: "adv-willingness", label: { yue: "工作經驗與意向", zh: "工作经验与意向", en: "Working Experience & Priorities", id: "Pengalaman Kerja & Prioritas", tl: "Karanasan sa Trabaho at Prioridad" } },
+  { key: "adv-employer", label: { yue: "前僱主工作紀錄", zh: "前雇主工作纪录", en: "Last Employer Records", id: "Catatan Pekerjaan Majikan Terdahulu", tl: "Mga Rekord ng Dating Amo" } },
+  { key: "adv-general", label: { yue: "一般諮詢", zh: "一般咨询", en: "General Information", id: "Informasi Umum", tl: "Pangkalahatang Impormasyon" } },
+  { key: "adv-health", label: { yue: "身體與心智健康查核", zh: "身体与心智健康查核", en: "Physical & Mental Health", id: "Pemeriksaan Kesehatan Fisik & Mental", tl: "Pagsusuri ng Pisikal at Mental na Kalusugan" } },
+  { key: "adv-social", label: { yue: "社交媒體與手機使用規矩", zh: "社交媒体与手机使用规矩", en: "Social Media & Phone Usage Rules", id: "Aturan Media Sosial & Penggunaan HP", tl: "Mga Patakaran sa Social Media at Paggamit ng Telepono" } },
+  { key: "adv-security", label: { yue: "安全背景與誠信審查", zh: "安全背景与诚信审查", en: "Security & Legal Background", id: "Pemeriksaan Keamanan & Integritas", tl: "Pagsusuri ng Seguridad at Katapatan" } },
+  { key: "adv-hobbies", label: { yue: "個人興趣與嗜好", zh: "个人兴趣与嗜好", en: "Hobbies & Interests", id: "Hobi & Minat", tl: "Mga Hilig at Interes" } },
+  { key: "adv-portfolio", label: { yue: "實務作品照片", zh: "实务作品照片", en: "Portfolio & Dish Photos", id: "Foto Portofolio & Masakan", tl: "Mga Larawan ng Gawain at Luto" } },
+];
+
+/** 全部章節（Basic 題庫 9 章 + Advanced v2 主體 11 章 + Advanced 8 章附加測試） */
 export const ALL_QUESTION_SECTIONS: QuestionSection[] = [
   ...QUESTION_SECTIONS,
+  ...CORE_SECTIONS,
   ...ADVANCED_SECTIONS,
 ];
 
-/** 語言（站點 yue/cmn/en 或工人端 en/id/tl/zh/yue）→ 章節顯示名（含 Advanced 章節） */
+/** Basic 9 章 + Advanced 8 章附加測試的 key 集合（advanced plan 出題過濾用） */
+export const ADVANCED_SECTION_KEYS: string[] = ADVANCED_SECTIONS.map((s) => s.key);
 export function sectionLabel(
   key: string,
   locale: "yue" | "cmn" | "zh" | "en" | "id" | "tl"
@@ -242,3 +267,107 @@ export const ADVANCED_QUESTIONS: SharedQuestion[] = [
   { section: "infant-care", question: "A baby is crying non-stop. Walk me through what you would check." },
   { section: "infant-care", question: "How would you keep bottles and feeding equipment clean and sterilized?" },
 ];
+
+export const CORE70_QUESTIONS: SharedQuestion[] = [
+  // ─── 一、個人紀錄 Personal Data（Q1–9）───
+  { section: "adv-personal", question: "Can you tell me your full name?" },
+  { section: "adv-personal", question: "What is your nationality?" },
+  { section: "adv-personal", question: "How old are you?" },
+  { section: "adv-personal", question: "Are you currently overseas, finished contract, or broke contract?" },
+  { section: "adv-personal", question: "What is your religion?" },
+  { section: "adv-personal", question: "What is your marital status (single, married, or divorced)?" },
+  { section: "adv-personal", question: "What is your height and weight?" },
+  { section: "adv-personal", question: "What is your highest completed education level?" },
+  { section: "adv-personal", question: "Can you speak Cantonese, English, or Mandarin fluently?" },
+
+  // ─── 二、家庭背景及思鄉風險（Q10–17）───
+  { section: "adv-family", question: "Are your parents healthy or deceased?" },
+  { section: "adv-family", question: "How many brothers and sisters do you have? What is your position in the family?" },
+  { section: "adv-family", question: "What is your husband's occupation back home?" },
+  { section: "adv-family", question: "Roughly what is your husband's monthly income?" },
+  { section: "adv-family", question: "How many children do you have and how old are they?" },
+  { section: "adv-family", question: "While you work in Hong Kong, who will take care of your children?" },
+  { section: "adv-family", question: "Does your husband and family fully support your decision to work in Hong Kong?" },
+  { section: "adv-family", question: "Under what family emergency at home would you feel forced to request leave and return home?" },
+
+  // ─── 三、財政規劃與薪金分配（Q18–21）───
+  { section: "adv-financial", question: "How many years do you plan or hope to work in Hong Kong in total?" },
+  { section: "adv-financial", question: "When you receive your monthly salary, about what percentage will you send home?" },
+  { section: "adv-financial", question: "About what percentage or amount will you keep for your own daily expenses?" },
+  { section: "adv-financial", question: "What is the money sent home mainly used for (e.g., family daily budget, house building, debt repayment, tuition)?" },
+
+  // ─── 四、工作經驗與意向（Q22–27）───
+  { section: "adv-willingness", question: "Do you have experience taking care of newborn babies (0-2 yrs old), and are you willing to do so?" },
+  { section: "adv-willingness", question: "Are you willing to take care of young children or teenagers?" },
+  { section: "adv-willingness", question: "Are you willing to care for elderly family members?" },
+  { section: "adv-willingness", question: "Are you willing to cook daily meals and learn Hong Kong style dishes?" },
+  { section: "adv-willingness", question: "Are you willing to do general house cleaning and laundry?" },
+  { section: "adv-willingness", question: "Are you willing to take care of pets like cats or dogs?" },
+
+  // ─── 五、前僱主工作紀錄（Q28 問數量；Q29–34 迴圈模板，[k]=第幾位僱主）───
+  { section: "adv-employer", question: "How many past employers or work contracts have you had in total?" },
+  { section: "adv-employer", question: "For Employer #[k], where was the job located (e.g., Hong Kong, Singapore, home country)?" },
+  { section: "adv-employer", question: "What were the start and end dates (Month/Year) of employment for Employer #[k]?" },
+  { section: "adv-employer", question: "How large was the flat or house (in sq. ft.) for Employer #[k]?" },
+  { section: "adv-employer", question: "How many family members were there, and how many helpers were in the house for Employer #[k]?" },
+  { section: "adv-employer", question: "What were your exact daily duties for Employer #[k] (e.g., baby care, elder care, cooking, cleaning)?" },
+  { section: "adv-employer", question: "What was the main reason you left or finished the contract with Employer #[k]?" },
+
+  // ─── 六、一般諮詢 12 題（Q35–46）───
+  { section: "adv-general", question: "Do you smoke?" },
+  { section: "adv-general", question: "Do you drink alcohol?" },
+  { section: "adv-general", question: "Do you eat pork?" },
+  { section: "adv-general", question: "Are you willing to handle and cook pork?" },
+  { section: "adv-general", question: "Are you willing to take your day off on a weekday instead of Sunday?" },
+  { section: "adv-general", question: "Are you willing to work on your day off for extra payment?" },
+  { section: "adv-general", question: "Are you willing to work for a family without a private helper room?" },
+  { section: "adv-general", question: "Are you willing to share job duties with another helper in the same house?" },
+  { section: "adv-general", question: "Are you willing to take care of big dogs or large pets?" },
+  { section: "adv-general", question: "Do you accept security CCTV cameras in common non-private areas of the home?" },
+  { section: "adv-general", question: "Are you willing to care for disabled elderly (bathing, changing diapers, hospital visits)?" },
+  { section: "adv-general", question: "Do you have any tattoos on your body?" },
+
+  // ─── 七、身體與心智健康查核（Q47–58）───
+  { section: "adv-health", question: "What time do you usually go to sleep and wake up?" },
+  { section: "adv-health", question: "Do you suffer from insomnia, sleepwalking, or heavy snoring?" },
+  { section: "adv-health", question: "Are you able and willing to wake up at night to care for a baby or elderly person?" },
+  { section: "adv-health", question: "Have you ever experienced uncontrolled temper, extreme mood swings, or breakdowns?" },
+  { section: "adv-health", question: "Have you ever been diagnosed with anxiety or panic attacks?" },
+  { section: "adv-health", question: "Have you ever been diagnosed with depression or taken psychiatric medications?" },
+  { section: "adv-health", question: "Do you have eczema or skin allergies to dish soap or cleaners?" },
+  { section: "adv-health", question: "Do you have any food allergies (seafood, peanuts, G6PD)?" },
+  { section: "adv-health", question: "Have you ever had surgery, and in what year?" },
+  { section: "adv-health", question: "Do you have hypertension, heart disease, diabetes, or asthma?" },
+  { section: "adv-health", question: "Do you take any long-term daily medication?" },
+  { section: "adv-health", question: "Have you been diagnosed with hepatitis B, TB, or epilepsy?" },
+
+  // ─── 八、社交媒體與手機使用規矩（Q59–61）───
+  { section: "adv-social", question: "Do you run any public Facebook, Instagram, TikTok, or YouTube accounts?" },
+  { section: "adv-social", question: "Do you agree never to film or post pictures of your employer's home, family, or kids online?" },
+  { section: "adv-social", question: "Strictly no phone usage during work hours except rest time. Is this house rule acceptable?" },
+
+  // ─── 九、安全背景與誠信審查（Q62–67）───
+  { section: "adv-security", question: "Have you ever been rejected for any visa to Hong Kong or other countries?" },
+  { section: "adv-security", question: "Have you ever changed your legal name, surname, or date of birth in your passport?" },
+  { section: "adv-security", question: "Do you have any criminal or arrest records in Hong Kong or back home?" },
+  { section: "adv-security", question: "Is your CV work history 100 percent complete with no hidden short contracts?" },
+  { section: "adv-security", question: "Do you have active loans with finance companies or act as a loan guarantor?" },
+  { section: "adv-security", question: "Can you provide a reference letter or phone number of your last employer for verification?" },
+
+  // ─── 十、個人興趣與嗜好（Q68–69）───
+  { section: "adv-hobbies", question: "What are your favorite hobbies (e.g., cooking, baking, reading, gardening)?" },
+  { section: "adv-hobbies", question: "What do you usually do and where do you go on your day off?" },
+
+  // ─── 十一、實務作品照片（Q70，口頭引導；照片於面試後上傳步驟提交）───
+  { section: "adv-portfolio", question: "Can you share 2-3 photos of dishes you cooked yourself, and 1-2 photos showing your past work duties? After this interview, please upload them on the next screen." },
+];
+
+/** 前僱主迴圈模板題（CORE70_QUESTIONS 中 adv-employer 章節的 Q29–34，即索引 8–13） */
+export const EMPLOYER_LOOP_TEMPLATE = CORE70_QUESTIONS.filter(
+  (q) => q.section === "adv-employer"
+).slice(1);
+
+/** 迴圈模板題的 [k] 替換（英文+五語譯文同規則替換） */
+export function fillEmployerIndex(text: string, k: number): string {
+  return text.replace(/\[k\]/g, String(k));
+}

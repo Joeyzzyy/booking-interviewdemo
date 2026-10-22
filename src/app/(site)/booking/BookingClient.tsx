@@ -133,6 +133,9 @@ export default function BookingClient() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMsg, setOcrMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [ticket, setTicket] = useState<File | null>(null);
+  /** 服務專屬欄位（detail_${key}）受控值：機票 OCR 識別後回填用 */
+  const [details, setDetails] = useState<Record<string, string>>({});
+  const [ticketOcrLoading, setTicketOcrLoading] = useState(false);
   const [state, setState] = useState<SubmitState>({ phase: "idle" });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const passportInputRef = useRef<HTMLInputElement>(null);
@@ -352,6 +355,33 @@ export default function BookingClient() {
     }
     setUploadError("");
     setTicket(f);
+    void parseTicketOcr(f);
+  };
+
+  /** 機票 OCR：識別失敗唔打斷流程（僅 console.warn），檔案照樣保留 */
+  const parseTicketOcr = async (f: File) => {
+    setTicketOcrLoading(true);
+    try {
+      const form = new FormData();
+      form.append("file", f);
+      const res = await fetch("/api/bookings/parse-ticket", { method: "POST", body: form });
+      if (!res.ok) {
+        console.warn("[ticket-ocr] 識別失敗:", res.status, await res.text());
+        return;
+      }
+      const data = await res.json();
+      setDetails((d) => ({
+        ...d,
+        ...(data.flightNo ? { flightNo: String(data.flightNo) } : {}),
+        ...(data.arrivalDate ? { arrivalDate: String(data.arrivalDate) } : {}),
+        ...(data.passengerName ? { helperName: String(data.passengerName) } : {}),
+        ...(data.arrivalTime ? { arrivalTime: String(data.arrivalTime) } : {}),
+      }));
+    } catch (e) {
+      console.warn("[ticket-ocr] 識別失敗:", e);
+    } finally {
+      setTicketOcrLoading(false);
+    }
   };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -476,6 +506,7 @@ export default function BookingClient() {
                 setWorkerName("");
                 setPassport("");
                 setOcrMsg(null);
+                setDetails({});
                 switchTab("book");
               }}
             >
@@ -492,6 +523,7 @@ export default function BookingClient() {
                 setWorkerName("");
                 setPassport("");
                 setOcrMsg(null);
+                setDetails({});
                 switchTab("orders");
               }}
             >
@@ -792,7 +824,10 @@ export default function BookingClient() {
                       key={s.key}
                       type="button"
                       aria-pressed={selected}
-                      onClick={() => setServiceKey(s.key)}
+                      onClick={() => {
+                        setServiceKey(s.key);
+                        setDetails({});
+                      }}
                       className={`flex cursor-pointer flex-col gap-1.5 rounded-2xl border-2 p-4 text-left transition-all duration-200 ${
                         selected
                           ? "border-transparent bg-gradient-to-br from-[#4cb896] to-[#2a9470] text-white shadow-[0_12px_28px_rgba(42,148,112,0.35)]"
@@ -933,33 +968,47 @@ export default function BookingClient() {
                           </Field>
                         )}
                         {service.fields.map((f) => {
-                          const tf = (t.workspace.book.serviceFields as Record<string, { label: string; placeholder?: string }>)[f.key];
+                          const tf = (t.workspace.book.serviceFields as Record<
+                            string,
+                            { label: string; placeholder?: string; options?: string[] }
+                          >)[f.key];
+                          const setDetail = (v: string) => setDetails((d) => ({ ...d, [f.key]: v }));
                           return (
                           <Field key={f.key} label={tf?.label ?? f.label} required={f.required}>
                             {f.type === "select" ? (
                               <select
                                 name={`detail_${f.key}`}
                                 required={f.required}
-                                defaultValue=""
+                                value={details[f.key] ?? ""}
+                                onChange={(e) => setDetail(e.target.value)}
                                 className="w-full cursor-pointer appearance-none rounded-xl border border-black/[0.08] bg-white px-4 py-3 text-[16px] text-[#161b2e] outline-none transition-colors focus:border-[#35a07a]/40 disabled:opacity-60 sm:text-[14px]"
                               >
                                 <option value="" disabled>
                                   {tf?.placeholder ?? f.placeholder ?? t.workspace.book.fields.selectPrompt}
                                 </option>
-                                {f.options?.map((o) => (
+                                {(tf?.options ?? f.options)?.map((o) => (
                                   <option key={o} value={o}>
                                     {o}
                                   </option>
                                 ))}
                               </select>
                             ) : f.type === "textarea" ? (
-                              <Textarea name={`detail_${f.key}`} required={f.required} placeholder={tf?.placeholder ?? f.placeholder} />
+                              <Textarea
+                                name={`detail_${f.key}`}
+                                required={f.required}
+                                placeholder={tf?.placeholder ?? f.placeholder}
+                                value={details[f.key] ?? ""}
+                                onChange={(e) => setDetail(e.target.value)}
+                              />
                             ) : (
                               <Input
                                 name={`detail_${f.key}`}
                                 type={f.type}
                                 required={f.required}
                                 placeholder={tf?.placeholder ?? f.placeholder}
+                                min={f.type === "number" ? f.min : undefined}
+                                value={details[f.key] ?? ""}
+                                onChange={(e) => setDetail(e.target.value)}
                               />
                             )}
                           </Field>
@@ -1021,6 +1070,11 @@ export default function BookingClient() {
                       {needsTicket && (
                         <div className="mt-5">
                           <h3 className="mb-2 text-[14px] font-bold text-[#161b2e]">{t.workspace.book.ticket.title}</h3>
+                          {ticketOcrLoading && (
+                            <p className="mb-2 text-[12.5px] font-medium text-[#35a07a]">
+                              {t.workspace.book.ocr.loading}
+                            </p>
+                          )}
                           <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-dashed border-[#35a07a]/35 bg-[#e9f5f0]/40 px-5 py-4 transition-colors hover:border-[#35a07a]/60">
                             <span className="min-w-0 truncate text-[13px] text-[#3d4763]">
                               {ticket ? ticket.name : t.workspace.book.ticket.pick}

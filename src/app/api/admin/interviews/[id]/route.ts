@@ -27,11 +27,15 @@ export async function GET(
     .eq("interview_id", id)
     .order("created_at", { ascending: true });
 
-  // 批量生成視頻/音頻段/簡歷 signed URL（1 小時）
+  // 批量生成視頻/音頻段/簡歷/照片 signed URL（1 小時）
+  const photoPaths = Array.isArray(interview.photos)
+    ? interview.photos.map((p: { path?: string }) => p?.path).filter(Boolean)
+    : [];
   const paths = [
     ...(answers || []).map((a) => a.video_path).filter(Boolean),
     ...(answers || []).map((a) => a.audio_path).filter(Boolean),
     interview.resume_file_path,
+    ...photoPaths,
   ].filter(Boolean) as string[];
   const urlMap = new Map<string, string>();
   if (paths.length > 0) {
@@ -47,6 +51,14 @@ export async function GET(
     interview: {
       ...interview,
       resume_url: interview.resume_file_path ? urlMap.get(interview.resume_file_path) || null : null,
+      photos: Array.isArray(interview.photos)
+        ? interview.photos.map((p: { kind?: string; label?: string; path?: string }) => ({
+            kind: p.kind || "work",
+            label: p.label || "",
+            path: p.path || "",
+            url: p.path ? urlMap.get(p.path) || null : null,
+          }))
+        : [],
     },
     answers: (answers || []).map((a) => ({
       ...a,
@@ -76,11 +88,15 @@ export async function DELETE(
     .maybeSingle();
   if (!interview) return Response.json({ error: "面試不存在" }, { status: 404 });
 
-  // 清理 storage：視頻目錄 + 簡歷原件
+  // 清理 storage：視頻目錄 + 照片目錄 + 簡歷原件
   const { data: files } = await supabase.storage
     .from(INTERVIEW_BUCKET)
     .list(`videos/${id}`, { limit: 100 });
   const paths = (files || []).map((f) => `videos/${id}/${f.name}`);
+  const { data: photoFiles } = await supabase.storage
+    .from(INTERVIEW_BUCKET)
+    .list(`photos/${id}`, { limit: 100 });
+  for (const f of photoFiles || []) paths.push(`photos/${id}/${f.name}`);
   if (interview.resume_file_path) paths.push(interview.resume_file_path);
   if (paths.length > 0) {
     const { error: rmErr } = await supabase.storage.from(INTERVIEW_BUCKET).remove(paths);

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CircleCheck,
+  ImagePlus,
   Languages,
   Mic,
   Send,
@@ -20,7 +21,7 @@ import {
   tstr,
   type LocaleKey,
 } from "@/lib/interview/i18n";
-import { sectionLabel } from "@/lib/interview/shared-questions";
+import { sectionLabel, CORE70_QUESTIONS, EMPLOYER_LOOP_TEMPLATE, fillEmployerIndex } from "@/lib/interview/shared-questions";
 
 interface Question {
   id: string;
@@ -36,8 +37,43 @@ interface Question {
 interface InterviewInfo {
   workerName: string;
   status: "pending" | "in_progress" | "processing" | "completed";
+  /** continuous=整段錄製（Basic）；per-question=實時逐題（Advanced v2） */
+  mode?: "continuous" | "per-question";
   questions: Question[];
   progress: Record<string, { attempts: number; passed: boolean }>;
+}
+
+/** 實時逐題模式嘅運行時題目項（雇主迴圈按答案動態展開） */
+interface PerqItem {
+  /** 運行時唯一 key（迴圈實例帶 -eN 後綴） */
+  key: string;
+  /** 共享題目 id（TTS 音頻複用 + DB question_id） */
+  qid: string;
+  /** 展示/落庫用題目文字（已替換 [k] 並帶僱主#k 前綴） */
+  display: string;
+  /** 五語譯文（同替換規則） */
+  displayTrans: Record<string, string>;
+  category: string | null;
+  /** 雇主迴圈 = 第幾位僱主（1-4）；普通題 = 1 */
+  attempt: number;
+  /** 雇主迴圈徽標文案 */
+  employerLabel?: string;
+}
+
+/** 逐題模式常量（唔 import store.ts：避免 service key 打入客戶端 bundle） */
+const PERQ_MAX_EMPLOYERS = 4;
+const PERQ_MAX_SECONDS = 90;
+const EMPLOYER_COUNT_TEXT =
+  CORE70_QUESTIONS.find((q) => q.section === "adv-employer")?.question || "";
+
+const PHOTO_SLOTS = ["dish-1", "dish-2", "dish-3", "work-1", "work-2"] as const;
+type PhotoSlot = (typeof PHOTO_SLOTS)[number];
+
+interface PhotoEntry {
+  path: string;
+  preview: string;
+  label: string;
+  uploading: boolean;
 }
 
 type Phase =
@@ -46,6 +82,9 @@ type Phase =
   | { name: "consent" }
   | { name: "setup" }
   | { name: "question" }
+  | { name: "perq" }
+  | { name: "employerCount" }
+  | { name: "photos" }
   | { name: "processing"; step: "upload" | "submit"; pct: number }
   | { name: "submitted" }
   | { name: "finished" };
@@ -171,6 +210,18 @@ export default function InterviewClient({ token }: { token: string }) {
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  // 實時逐題（per-question）相關
+  const [perqList, setPerqList] = useState<PerqItem[]>([]);
+  const [perqIndex, setPerqIndex] = useState(0);
+  const [employerCount, setEmployerCount] = useState<number | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [savingPerq, setSavingPerq] = useState(false);
+  const [recSec, setRecSec] = useState(0);
+  const [photoState, setPhotoState] = useState<Record<string, PhotoEntry>>({});
+  const perqBusyRef = useRef(false);
+  const perqTimerRef = useRef(0);
+  const perqAutoStopRef = useRef(0);
+
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -190,10 +241,16 @@ export default function InterviewClient({ token }: { token: string }) {
     [lang]
   );
 
-  const questions = info?.questions ?? [];
+  const questions = useMemo(() => info?.questions ?? [], [info]);
   const currentQ: Question | null = questions[qIndex] ?? null;
   const isLast = qIndex >= questions.length - 1;
   const unansweredCount = questions.length - visitedIds.length;
+  const isPerq = info?.mode === "per-question";
+  const questionsById = useMemo(() => new Map(questions.map((q) => [q.id, q])), [questions]);
+  const currentPerq: PerqItem | null = perqList[perqIndex] ?? null;
+  const currentPerqBase: Question | null = currentPerq
+    ? questionsById.get(currentPerq.qid) ?? null
+    : null;
 
   /** 題目結構：連續相同分類歸為一個「系列」（自定義題目歸入 custom 系列，排最後） */
   const sections = useMemo(() => {
@@ -250,6 +307,8 @@ export default function InterviewClient({ token }: { token: string }) {
 
   const stopStream = () => {
     recorderRef.current = null;
+    clearTimeout(perqAutoStopRef.current);
+    clearInterval(perqTimerRef.current);
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((tr) => tr.stop());
       streamRef.current = null;
@@ -313,13 +372,17 @@ export default function InterviewClient({ token }: { token: string }) {
     [lang, speakFallback]
   );
 
-  // 進入新題目 / 切換語言時自動播放題目（僅作答階段；延後到宏任務，唔喺 effect 同步觸發 setState）
+  // 進入新題目 / 切換語言時自動播放題目（連續模式 question 或逐題模式 perq；延後到宏任務）
   useEffect(() => {
-    if (phase.name !== "question" || !currentQ) return;
-    const id = setTimeout(() => playQuestion(currentQ), 0);
+    const isContinuous = phase.name === "question";
+    const isPerqPhase = phase.name === "perq";
+    if (!isContinuous && !isPerqPhase) return;
+    const q = isPerqPhase ? currentPerqBase : currentQ;
+    if (!q) return;
+    const id = setTimeout(() => playQuestion(q), 0);
     return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentQ?.id, lang, phase.name]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 僅按題目 id / 語言 / 階段觸發，避免對象引用變化重播
+  }, [currentQ?.id, currentPerq?.key, lang, phase.name]);
 
   // ---------- 設備檢查：鏡頭 + 咪高峰 ----------
   const attachStream = (stream: MediaStream) => {
@@ -365,10 +428,12 @@ export default function InterviewClient({ token }: { token: string }) {
 
   // 作答階段掛載後，畫中畫 video 元素係新節點，需重新綁定流（setup 階段綁定嘅係舊節點）
   useEffect(() => {
-    if (phase.name === "question" && streamRef.current) {
+    if (
+      (phase.name === "question" || phase.name === "perq" || phase.name === "photos") &&
+      streamRef.current
+    ) {
       attachStream(streamRef.current);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase.name]);
 
   // 上傳堵頁：processing（上傳 + 提交）期間攔截關閉/刷新/返回；提交完成後自動解除
@@ -452,6 +517,14 @@ export default function InterviewClient({ token }: { token: string }) {
   const startSession = () => {
     const stream = streamRef.current;
     if (!stream || questions.length === 0) return;
+    // 實時逐題模式（Advanced v2）：唔開始連續錄製，逐題錄一題傳一題
+    if (isPerq) {
+      setPerqList(buildPerqList(null));
+      setPerqIndex(0);
+      setEmployerCount(null);
+      setPhase({ name: "perq" });
+      return;
+    }
     // VP8 優先：部分 Chrome 的 VP9 硬件編碼失敗會輸出 2×2 黑屏視頻
     const mimeType = ["video/webm;codecs=vp8,opus", "video/webm", "video/mp4"].find((m) =>
       MediaRecorder.isTypeSupported(m)
@@ -472,6 +545,222 @@ export default function InterviewClient({ token }: { token: string }) {
     setConfirmFinish(false);
     markVisit(questions[0]);
     setPhase({ name: "question" });
+  };
+
+  // ---------- 實時逐題模式（per-question，Advanced v2） ----------
+  /** 構建逐題運行時題單；employerCount 為 null 時未答前僱主數量（未展開迴圈） */
+  const buildPerqList = (count: number | null): PerqItem[] => {
+    const items: PerqItem[] = questions.map((q) => ({
+      key: q.id,
+      qid: q.id,
+      display: q.question,
+      displayTrans: q.translations || {},
+      category: q.category || null,
+      attempt: 1,
+    }));
+    if (count === null) return items;
+    const countIdx = items.findIndex((it) => it.display === EMPLOYER_COUNT_TEXT);
+    if (countIdx < 0 || count <= 0) return items; // N=0：跳過前僱主章節後續問題
+    // 展開迴圈：每位僱主 6 題（Q29–34 模板替換 [k]，TTS 音頻複用模板題）
+    const loopItems: PerqItem[] = [];
+    for (let k = 1; k <= count; k++) {
+      for (const tpl of EMPLOYER_LOOP_TEMPLATE) {
+        const base = questions.find((q) => q.question === tpl.question);
+        if (!base) continue;
+        const prefix = `${t("employerBadge", { k })} — `;
+        loopItems.push({
+          key: `${base.id}-e${k}`,
+          qid: base.id,
+          display: prefix + fillEmployerIndex(base.question, k),
+          displayTrans: Object.fromEntries(
+            Object.entries(base.translations || {}).map(([l, text]) => [
+              l,
+              prefix + fillEmployerIndex(text, k),
+            ])
+          ),
+          category: base.category || null,
+          attempt: k,
+          employerLabel: t("employerBadge", { k }),
+        });
+      }
+    }
+    return [...items.slice(0, countIdx + 1), ...loopItems, ...items.slice(countIdx + 1)];
+  };
+
+  /** 選定前僱主數量後重建題單並跳到迴圈第一題 */
+  const pickEmployerCount = (n: number) => {
+    const list = buildPerqList(n);
+    setEmployerCount(n);
+    setPerqList(list);
+    const countIdx = list.findIndex((it) => it.display === EMPLOYER_COUNT_TEXT);
+    setPerqIndex(countIdx >= 0 ? countIdx + 1 : 0);
+    setPhase({ name: "perq" });
+  };
+
+  /** 逐題模式：開始錄製本題回答 */
+  const perqStartRecording = () => {
+    const stream = streamRef.current;
+    if (!stream || perqBusyRef.current || recording) return;
+    const mimeType = ["video/webm;codecs=vp8,opus", "video/webm", "video/mp4"].find((m) =>
+      MediaRecorder.isTypeSupported(m)
+    );
+    const recorder = new MediaRecorder(stream, {
+      ...(mimeType ? { mimeType } : {}),
+      videoBitsPerSecond: VIDEO_BPS,
+      audioBitsPerSecond: AUDIO_BPS,
+    });
+    recorderRef.current = recorder;
+    chunksRef.current = [];
+    recorder.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
+    recorder.start(1000);
+    setRecording(true);
+    setError("");
+    setRecSec(0);
+    perqTimerRef.current = window.setInterval(() => setRecSec((s) => s + 1), 1000);
+    perqAutoStopRef.current = window.setTimeout(() => void perqStopAndSubmit(), PERQ_MAX_SECONDS * 1000);
+  };
+
+  /** 逐題模式：停止錄製 → 上傳視頻 + 音頻 → 提交該題作答 → 前進 */
+  const perqStopAndSubmit = async () => {
+    if (perqBusyRef.current) return;
+    const item = perqList[perqIndex];
+    if (!item) return;
+    perqBusyRef.current = true;
+    clearTimeout(perqAutoStopRef.current);
+    clearInterval(perqTimerRef.current);
+    try {
+      const blob = await stopSessionRecording();
+      if (!blob || blob.size === 0) throw new Error("錄製失敗，請再試一次");
+      setRecording(false);
+      setSavingPerq(true);
+
+      // 1) 該題視頻簽名上傳 + 直傳
+      const urlRes = await fetch(`/api/interview/${token}/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "question",
+          questionId: item.qid,
+          attempt: item.attempt,
+          size: blob.size,
+          contentType: blob.type || "video/webm",
+        }),
+      });
+      const urlData = await urlRes.json();
+      if (!urlRes.ok) throw new Error(urlData.error || "上傳初始化失敗");
+      await uploadWithProgress(urlData.signedUrl, blob, () => {});
+
+      // 2) 提取純音頻（16kHz mono WAV）並上傳（盡力而為：STT 優先吃 WAV）
+      let audioPath: string | undefined;
+      try {
+        const wav = await blobToWav(blob);
+        const audioUrlRes = await fetch(`/api/interview/${token}/upload-url`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind: "question",
+            questionId: item.qid,
+            attempt: item.attempt,
+            size: wav.size,
+            contentType: "audio/wav",
+          }),
+        });
+        if (audioUrlRes.ok) {
+          const audioUrlData = await audioUrlRes.json();
+          await uploadWithProgress(audioUrlData.signedUrl, wav, () => {});
+          audioPath = audioUrlData.path;
+        }
+      } catch {
+        /* 冇音頻都照提交（服務端回落視頻轉寫鏈） */
+      }
+
+      // 3) 提交該題作答（服務端轉寫並落庫）
+      const res = await fetch(`/api/interview/${token}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionId: item.qid,
+          questionText: item.display,
+          videoPath: urlData.path,
+          audioPath,
+          attempt: item.attempt,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "提交失敗，請重試");
+
+      setSavingPerq(false);
+      setError("");
+      // 前進：前僱主數量題 → 選擇數量步驟；最後一題 → 照片上傳；否則下一題
+      if (item.display === EMPLOYER_COUNT_TEXT && employerCount === null) {
+        setPhase({ name: "employerCount" });
+        return;
+      }
+      if (perqIndex >= perqList.length - 1) {
+        setPhase({ name: "photos" });
+        return;
+      }
+      setPerqIndex(perqIndex + 1);
+    } catch (e) {
+      setSavingPerq(false);
+      setRecording(false);
+      setError(e instanceof Error ? e.message : "提交失敗，請重試");
+    } finally {
+      perqBusyRef.current = false;
+    }
+  };
+
+  // ---------- 作品照片上傳（per-question 面試結束後） ----------
+  const uploadPhoto = async (slot: PhotoSlot, file: File) => {
+    setError("");
+    setPhotoState((s) => ({ ...s, [slot]: { ...s[slot], uploading: true } }));
+    try {
+      const urlRes = await fetch(`/api/interview/${token}/upload-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "photo", photoKey: slot, size: file.size, contentType: file.type }),
+      });
+      const urlData = await urlRes.json();
+      if (!urlRes.ok) throw new Error(urlData.error || "上傳初始化失敗");
+      await uploadWithProgress(urlData.signedUrl, file, () => {});
+      const preview = URL.createObjectURL(file);
+      setPhotoState((s) => ({
+        ...s,
+        [slot]: { path: urlData.path, preview, label: s[slot]?.label || "", uploading: false },
+      }));
+    } catch (e) {
+      setPhotoState((s) => ({ ...s, [slot]: { ...s[slot], uploading: false } }));
+      setError(e instanceof Error ? e.message : "照片上傳失敗，請重試");
+    }
+  };
+
+  /** 逐題模式最終提交：附上作品照片 → 觸發報告/CV 後台任務 */
+  const submitPerqSession = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const photos = PHOTO_SLOTS.filter((sl) => photoState[sl]?.path).map((sl) => ({
+        kind: sl.startsWith("dish") ? "dish" : "work",
+        label: photoState[sl].label || "",
+        path: photoState[sl].path,
+      }));
+      setPhase({ name: "processing", step: "submit", pct: 100 });
+      const res = await fetch(`/api/interview/${token}/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "per-question", photos }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "提交失敗");
+      stopStream();
+      setPhase({ name: "submitted" });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "提交失敗，請稍後再試");
+      setPhase({ name: "photos" });
+    } finally {
+      setBusy(false);
+    }
   };
 
   /** 切題（用戶手勢）：記錄到訪與時間線事件 */
@@ -610,7 +899,11 @@ export default function InterviewClient({ token }: { token: string }) {
         </p>
         <p className="mt-4 text-[14px] leading-[1.9] text-[#3d4763]">{t("welcome")}</p>
         <ul className="mt-4 space-y-2.5">
-          {(["ruleCount", "ruleRecord", "ruleNav", "ruleEnv"] as const).map((k) => (
+          {(
+            isPerq
+              ? (["ruleCount", "perqRule", "ruleEnv"] as const)
+              : (["ruleCount", "ruleRecord", "ruleNav", "ruleEnv"] as const)
+          ).map((k) => (
             <li key={k} className="flex gap-2.5 text-[13.5px] leading-[1.8] text-[#3d4763]">
               <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#35a07a]" aria-hidden="true" />
               <span>{k === "ruleCount" ? t(k, { n: questions.length }) : t(k)}</span>
@@ -785,8 +1078,216 @@ export default function InterviewClient({ token }: { token: string }) {
         </button>
       </div>
     );
+  } else if (phase.name === "perq") {
+    // 實時逐題：錄一題傳一題，唔可以返回上一題
+    body = (
+      <>
+        <LangSelector lang={lang} onChange={setLang} label={t("langLabel")} />
+        {/* 大畫面預覽（錄製中顯示 REC 徽標） */}
+        <div className="relative mb-4 overflow-hidden rounded-2xl border border-[#e6e9f2] bg-black">
+          <video ref={liveVideoRef} playsInline muted className="aspect-[3/4] max-h-[40vh] w-full object-cover" />
+          {recording && (
+            <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-bold text-white">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#ff4d4d]" aria-hidden="true" />
+              {t("recOn")} {recSec}s
+            </span>
+          )}
+        </div>
+
+        {/* 進度 */}
+        <div className="mb-3">
+          <div className="flex items-center justify-between text-[12px] font-semibold text-[#8b95ad]">
+            <span>{t("progressOf", { x: perqIndex + 1, n: perqList.length })}</span>
+            <span className="flex items-center gap-1.5" aria-label={t("micTestTitle")}>
+              <Mic size={12} className="text-[#35a07a]" aria-hidden="true" />
+              <span className="inline-block h-1.5 w-20 overflow-hidden rounded-full bg-[#e6e9f2]">
+                <span
+                  className={`block h-full rounded-full transition-[width] duration-75 ${micLevel > 0.5 ? "bg-[#35a07a]" : "bg-[#8fd3b8]"}`}
+                  style={{ width: `${Math.round(micLevel * 100)}%` }}
+                />
+              </span>
+            </span>
+          </div>
+          <div className="mt-1.5 flex gap-1">
+            {perqList.map((q, i) => (
+              <span
+                key={q.key}
+                aria-hidden="true"
+                className={`h-1 flex-1 rounded-full ${i <= perqIndex ? "bg-[#35a07a]" : "bg-[#e6e9f2]"}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* 當前所屬系列 / 僱主徽標 */}
+        {currentPerq && (
+          <div className="mb-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e9f5f0] px-3 py-1 text-[11.5px] font-bold text-[#2a8163]">
+              {currentPerq.employerLabel || sectionName(currentPerq.category || "custom")}
+            </span>
+          </div>
+        )}
+
+        {/* 題目卡 */}
+        {currentPerq && (
+          <div className="rounded-2xl border border-[#e6e9f2] bg-[#f8f9fc] p-5">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[16px] font-semibold leading-[1.7] text-[#161b2e]">
+                {currentPerq.displayTrans?.[lang] || currentPerq.display}
+              </p>
+              <button
+                type="button"
+                onClick={() => currentPerqBase && playQuestion(currentPerqBase)}
+                disabled={playing}
+                aria-label={t("replayQuestion")}
+                className="shrink-0 cursor-pointer rounded-full border border-[#e6e9f2] bg-white p-2 text-[#35a07a] transition-colors hover:border-[#35a07a]/50 disabled:opacity-50"
+              >
+                <Volume2 size={17} aria-hidden="true" />
+              </button>
+            </div>
+            <p className="mt-2 text-[12.5px] leading-[1.7] text-[#8b95ad]">
+              {t("answerHintPerq")}
+            </p>
+          </div>
+        )}
+
+        {error && (
+          <p className="mt-4 rounded-xl border border-[#f2caca] bg-[#fdf0f0] px-4 py-3 text-[13px] leading-[1.7] text-[#b03a3a]">
+            {error}
+          </p>
+        )}
+
+        {/* 錄製 / 提交控制 */}
+        <div className="mt-6">
+          {savingPerq ? (
+            <div className="flex items-center justify-center gap-2 rounded-full bg-[#f4f6fb] px-6 py-3 text-[14px] font-semibold text-[#5d6b85]">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#e9f5f0] border-t-[#35a07a]" />
+              {t("perqSaving")}
+            </div>
+          ) : recording ? (
+            <button type="button" onClick={() => void perqStopAndSubmit()} className={BTN_PRIMARY}>
+              <Send size={15} aria-hidden="true" />
+              {t("stopSubmit")}
+            </button>
+          ) : (
+            <button type="button" onClick={perqStartRecording} className={BTN_PRIMARY}>
+              <Video size={16} aria-hidden="true" />
+              {t("startAnswer")}
+            </button>
+          )}
+        </div>
+      </>
+    );
+  } else if (phase.name === "employerCount") {
+    // 前僱主迴圈：確認前僱主總數（甲方劇本 Q28 規則：0 跳過 / 1–4 逐位追問）
+    body = (
+      <>
+        <LangSelector lang={lang} onChange={setLang} label={t("langLabel")} />
+        <h1 className="text-[19px] font-bold text-[#161b2e]">{t("employerCountTitle")}</h1>
+        <p className="mt-3 text-[13.5px] leading-[1.8] text-[#5d6b85]">{t("employerCountHint")}</p>
+        <div className="mt-6 grid grid-cols-5 gap-2">
+          {Array.from({ length: PERQ_MAX_EMPLOYERS + 1 }, (_, n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => pickEmployerCount(n)}
+              className="cursor-pointer rounded-2xl border border-[#e6e9f2] bg-white py-4 text-[18px] font-bold text-[#3d4763] transition-colors hover:border-[#35a07a]/50 hover:bg-[#e9f5f0] hover:text-[#2a8163]"
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </>
+    );
+  } else if (phase.name === "photos") {
+    // 面試後作品照片：2–3 張煮菜照 + 1–2 張工作照（可跳過）
+    const groups: { title: string; slots: PhotoSlot[] }[] = [
+      { title: t("dishPhotos"), slots: ["dish-1", "dish-2", "dish-3"] },
+      { title: t("workPhotos"), slots: ["work-1", "work-2"] },
+    ];
+    body = (
+      <>
+        <LangSelector lang={lang} onChange={setLang} label={t("langLabel")} />
+        <h1 className="text-[19px] font-bold text-[#161b2e]">{t("photosTitle")}</h1>
+        <p className="mt-3 text-[13.5px] leading-[1.8] text-[#5d6b85]">{t("photosDesc")}</p>
+        {groups.map((g) => (
+          <div key={g.title} className="mt-5">
+            <p className="text-[13px] font-bold text-[#161b2e]">{g.title}</p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {g.slots.map((slot) => {
+                const entry = photoState[slot];
+                return entry?.path ? (
+                  <div key={slot} className="flex flex-col gap-1.5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={entry.preview}
+                      alt={entry.label || slot}
+                      className="h-24 w-full rounded-xl border border-[#e6e9f2] object-cover"
+                    />
+                    <input
+                      type="text"
+                      value={entry.label}
+                      maxLength={60}
+                      placeholder={t("photoLabelPlaceholder")}
+                      onChange={(e) =>
+                        setPhotoState((s) => ({
+                          ...s,
+                          [slot]: { ...s[slot], label: e.target.value },
+                        }))
+                      }
+                      className="w-full rounded-lg border border-[#e6e9f2] px-2 py-1.5 text-[11.5px] text-[#3d4763] outline-none focus:border-[#35a07a]/50"
+                    />
+                  </div>
+                ) : (
+                  <label
+                    key={slot}
+                    className={`flex h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[#c8cfdd] bg-[#f8f9fc] text-[11.5px] font-semibold text-[#8b95ad] transition-colors hover:border-[#35a07a]/50 hover:text-[#2a8163] ${entry?.uploading ? "pointer-events-none opacity-60" : ""}`}
+                  >
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      className="hidden"
+                      disabled={entry?.uploading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void uploadPhoto(slot, f);
+                        e.target.value = "";
+                      }}
+                    />
+                    {entry?.uploading ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#e9f5f0] border-t-[#35a07a]" />
+                        {t("photoUploading")}
+                      </span>
+                    ) : (
+                      <>
+                        <ImagePlus size={18} aria-hidden="true" />
+                        {t("addPhoto")}
+                      </>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        {error && (
+          <p className="mt-4 rounded-xl border border-[#f2caca] bg-[#fdf0f0] px-4 py-3 text-[13px] leading-[1.7] text-[#b03a3a]">
+            {error}
+          </p>
+        )}
+        <div className="mt-6 flex flex-col gap-2.5">
+          <button type="button" onClick={() => void submitPerqSession()} disabled={busy} className={BTN_PRIMARY}>
+            <Send size={15} aria-hidden="true" />
+            {t("submitFinal")}
+          </button>
+          <button type="button" onClick={() => void submitPerqSession()} disabled={busy} className={BTN_OUTLINE}>
+            {t("skipPhotos")}
+          </button>
+        </div>
+      </>
+    );
   } else {
-    // phase.name === "question"：全程錄製中的作答頁
     body = (
       <>
         <LangSelector lang={lang} onChange={setLang} label={t("langLabel")} />

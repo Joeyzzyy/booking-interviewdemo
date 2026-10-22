@@ -1,9 +1,15 @@
 import { getSupabase } from "@/lib/booking/db";
-import { ADVANCED_SECTIONS } from "@/lib/interview/shared-questions";
+import {
+  ADVANCED_SECTION_KEYS,
+  CORE_SECTIONS,
+} from "@/lib/interview/shared-questions";
 
 export const MAX_ATTEMPTS = 3; // 每題最多作答次數
+export const MAX_EMPLOYERS = 4; // 前僱主迴圈上限（甲方劇本 Q28 規則）
 export const MAX_VIDEO_SECONDS = 90; // 單題錄製上限（前端強制）
 export const MAX_VIDEO_SIZE = 60 * 1024 * 1024; // 60MB 直傳上限
+export const MAX_PHOTO_SIZE = 10 * 1024 * 1024; // 照片直傳上限
+export const PHOTO_ACCEPT = ["image/jpeg", "image/png"];
 export const VIDEO_ACCEPT = ["video/webm", "video/mp4"];
 
 export interface Interview {
@@ -14,10 +20,14 @@ export interface Interview {
   status: "pending" | "in_progress" | "processing" | "completed";
   report: Record<string, unknown> | null;
   customer_id: string | null;
-  /** 計劃類型：basic=核實 CV（公共題庫 9 章節）；advanced=自製 CV（勾選章節） */
+  /** 計劃類型：basic=核實 CV（公共題庫 9 章節）；advanced=自製 CV（70 題審查表主體 + 勾選測試章節） */
   plan?: "basic" | "advanced" | null;
-  /** advanced 選中的章節 key 數組（null/空 = 全部 Advanced 章節） */
+  /** advanced 選中的附加測試章節 key 數組（空 = 僅 70 題主體） */
   sections?: string[] | null;
+  /** 面試模式：continuous=整段錄製（Basic）；per-question=實時逐題（Advanced v2） */
+  mode?: "continuous" | "per-question";
+  /** 作品照片 [{kind, label, path}] */
+  photos?: { kind: string; label: string; path: string }[] | null;
   created_at: string;
 }
 
@@ -39,7 +49,7 @@ export async function getInterviewByToken(token: string): Promise<Interview | nu
   if (!supabase) return null;
   const { data } = await supabase
     .from("interviews")
-    .select("id, token, worker_name, resume_text, status, report, customer_id, plan, sections, created_at")
+    .select("id, token, worker_name, resume_text, status, report, customer_id, plan, sections, mode, photos, created_at")
     .eq("token", token)
     .maybeSingle();
   return (data as Interview) || null;
@@ -69,21 +79,28 @@ export async function getActiveQuestionsForOwner(ownerId: string | null): Promis
 
 /**
  * 按面試計劃取題：
- * - advanced：只出 Advanced 章節（sections 為空則全部 8 章）+ 該用戶自定義題
- * - basic / 無 plan（舊面試）：只出 Basic 題庫 9 章節（不含 Advanced 章節）+ 自定義題
+ * - advanced：v2 主體 70 題（adv-* 章節，必出）+ sections 勾選的附加測試章節 + 該用戶自定義題
+ * - basic / 無 plan（舊面試）：只出 Basic 題庫 9 章節（不含 adv-* 及測試章節）+ 自定義題
  */
 export async function getQuestionsForInterview(interview: Interview): Promise<Question[]> {
   const all = await getActiveQuestionsForOwner(interview.customer_id);
-  const advancedKeys = new Set(ADVANCED_SECTIONS.map((s) => s.key));
+  const advancedKeys = new Set(ADVANCED_SECTION_KEYS);
   if (interview.plan === "advanced") {
-    const picked = Array.isArray(interview.sections)
-      ? interview.sections.filter((s) => advancedKeys.has(s))
-      : [];
-    const scope = picked.length > 0 ? new Set(picked) : advancedKeys;
-    return all.filter((q) => (q.category ? scope.has(q.category) : true)); // 自定義題（無分類）保留
+    const picked = new Set(
+      Array.isArray(interview.sections)
+        ? interview.sections.filter((s) => advancedKeys.has(s))
+        : []
+    );
+    // 70 題主體永遠全出；僅當勾選時才加對應測試章節；自定義題（無分類）保留
+    return all.filter(
+      (q) => !q.category || !advancedKeys.has(q.category) || picked.has(q.category)
+    );
   }
-  // basic：排除 Advanced 章節（含自定義題）
-  return all.filter((q) => (q.category ? !advancedKeys.has(q.category) : true));
+  // basic：排除 Advanced 主體章節 + 附加測試章節（含自定義題）
+  const coreKeys = new Set(CORE_SECTIONS.map((s) => s.key));
+  return all.filter(
+    (q) => (q.category ? !advancedKeys.has(q.category) && !coreKeys.has(q.category) : true)
+  );
 }
 
 /** 共用示範題庫（後台未指定歸屬人的題目） */

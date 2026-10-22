@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { getSupabase } from "@/lib/booking/db";
 import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
-import { generateCv, generateReport, segmentAnswers, transcribeAudio, transcribeVideo } from "@/lib/interview/ai";
+import { generateCv, generateCvV2, generateReport, segmentAnswers, transcribeAudio, transcribeVideo } from "@/lib/interview/ai";
 import { toUserMessage } from "@/lib/interview/ai-errors";
 import { getInterviewByToken, getQuestionsForInterview } from "@/lib/interview/store";
 import { buildSegments } from "@/lib/interview/wav-segment";
@@ -13,12 +13,14 @@ export const preferredRegion = "sin1";
 
 /**
  * POST /api/interview/[token]/session
- * body: { videoPath, audioPath?, events?: { questionId, at }[] }
+ * 整場錄製（continuous）：body: { videoPath, audioPath?, events? }
+ * 逐題模式（per-question）：body: { mode: "per-question", photos? }
+ *   —— 每題已即時提交（/answer），此處僅觸發報告/CV 生成
  *
- * 全程一次連續錄製嘅統一提交（後台任務模式）：
+ * 流程：
  * 1. 樂觀鎖認領：interviews.status pending/in_progress → processing（防併發重複跑）
  * 2. 秒回 { ok: true, processing: true } —— 用戶上傳完即刻可以閂頁
- * 3. after() 後台慢慢跑：整段轉寫 → LLM 按題切分 → 寫作答 → 生成整體報告 → 標記完成
+ * 3. after() 後台慢慢跑：轉寫/切分（整場模式）→ 寫作答 → 報告 → CV → 標記完成
  */
 export async function POST(
   request: Request,
@@ -34,31 +36,51 @@ export async function POST(
   }
 
   let body: {
+    mode?: string;
     videoPath?: string;
     audioPath?: string;
     events?: { questionId?: string; at?: number }[];
+    photos?: { kind?: string; label?: string; path?: string }[];
   };
   try {
     body = await request.json();
   } catch {
     return Response.json({ error: "請求格式錯誤" }, { status: 400 });
   }
+  const perQuestion = body.mode === "per-question";
+  if (perQuestion && interview.mode !== "per-question") {
+    return Response.json({ error: "此面試模式不支持逐題提交" }, { status: 400 });
+  }
+
   const { videoPath, audioPath } = body;
-  if (!videoPath) {
+  if (!perQuestion && !videoPath) {
     return Response.json({ error: "缺少參數" }, { status: 400 });
   }
   // 防越權：路徑必須屬於本場面試
-  if (!videoPath.startsWith(`videos/${interview.id}/`)) {
+  if (videoPath && !videoPath.startsWith(`videos/${interview.id}/`)) {
     return Response.json({ error: "無效視頻" }, { status: 400 });
   }
   if (audioPath && !audioPath.startsWith(`videos/${interview.id}/`)) {
     return Response.json({ error: "無效音頻" }, { status: 400 });
   }
+  const photos = (Array.isArray(body.photos) ? body.photos : [])
+    .filter(
+      (p): p is { kind: string; label: string; path: string } =>
+        typeof p?.path === "string" && p.path.startsWith(`photos/${interview.id}/`)
+    )
+    .map((p) => ({
+      kind: typeof p.kind === "string" ? p.kind.slice(0, 16) : "work",
+      label: typeof p.label === "string" ? p.label.slice(0, 200) : "",
+      path: p.path,
+    }));
   const events = (Array.isArray(body.events) ? body.events : [])
     .filter((e) => typeof e.questionId === "string" && typeof e.at === "number")
     .map((e) => ({ questionId: e.questionId as string, at: Math.max(0, Math.round(e.at as number)) }));
 
-  const questions = await getQuestionsForInterview(interview);
+  const questions = perQuestion ? [] : await getQuestionsForInterview(interview);
+  const photosPayload = photos.length > 0 ? photos : null;
+  // 整場模式校驗後 videoPath 必存在；after() 閉包內 TS 無法收窄，先落本地常量
+  const sessionVideoPath = videoPath ?? "";
 
   // ---- 認領提交：第一句 update 成功先代表本請求獨佔後台任務 ----
   const { data: claimed, error: claimErr } = await supabase
@@ -103,6 +125,62 @@ export async function POST(
     };
 
     try {
+      // ============ 逐題模式（per-question）：每題已即時轉寫落庫，直接組 qaList 生成報告 ============
+      if (perQuestion) {
+        const { data: answerRows, error: ansErr } = await supa
+          .from("interview_answers")
+          .select("question_text, attempt, transcript")
+          .eq("interview_id", interviewId)
+          .order("created_at", { ascending: true });
+        if (ansErr) {
+          await finishFailed(ansErr);
+          return;
+        }
+        // 雇主迴圈嘅「僱主#k」前綴由客戶端寫入 question_text
+        const qaList = (answerRows || []).map((r) => ({
+          question: r.question_text,
+          answer: (r.transcript as string) || "（無轉寫）",
+        }));
+
+        let report;
+        try {
+          report = await generateReport(interview.worker_name, interview.resume_text || "", qaList);
+        } catch (e) {
+          console.error("[interview] 報告生成失敗（以 fallback 標記完成）:", e);
+          report = {
+            score: 0,
+            summary: "整體報告生成失敗，請聯絡管理員重新生成或參考逐題結果。",
+            strengths: [],
+            concerns: [],
+            resumeMatch: "",
+            recommendation: "",
+            generatedBy: "none" as const,
+          };
+        }
+
+        let cv: unknown = null;
+        if (interview.plan === "advanced") {
+          try {
+            cv = await generateCvV2(interview.worker_name, qaList);
+          } catch (e) {
+            console.error("[interview] CV 生成失敗（面試照常完成）:", e);
+          }
+        }
+
+        await supa
+          .from("interviews")
+          .update({
+            status: "completed",
+            report,
+            cv,
+            photos: photosPayload || interview.photos || [],
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", interviewId);
+        console.log(`[interview] 逐題模式後台解析完成: ${interviewId}（${qaList.length} 題作答）`);
+        return;
+      }
+
       // ---- 1) 整段轉寫（失敗唔阻流程：照樣標記完成，報告標註無轉寫） ----
       let transcript = "";
       let warning: string | undefined;
@@ -136,7 +214,7 @@ export async function POST(
       if (!transcript) {
         const { data: videoData, error: dlErr } = await supa.storage
           .from(INTERVIEW_BUCKET)
-          .download(videoPath);
+          .download(sessionVideoPath);
         if (dlErr || !videoData) {
           console.error("[interview] 後台視頻下載失敗:", dlErr);
           await finishFailed(dlErr);
@@ -146,7 +224,7 @@ export async function POST(
         try {
           transcript = await transcribeVideo(
             videoBuffer,
-            videoPath.split("/").pop() || "session.webm",
+            sessionVideoPath.split("/").pop() || "session.webm",
             videoData.type
           );
         } catch (e) {
@@ -220,7 +298,7 @@ export async function POST(
               question_id: q.id,
               question_text: q.question,
               attempt: 1,
-              video_path: videoPath,
+              video_path: sessionVideoPath,
               transcript: segmented[q.id] || "",
               passed: true,
               feedback: null,

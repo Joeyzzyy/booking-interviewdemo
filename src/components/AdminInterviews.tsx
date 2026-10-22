@@ -423,13 +423,16 @@ export default function AdminInterviews({
           )}
           {effectivePlan === "advanced" && (
             <Form.Item name="sections" label={tcr.sectionsLabel} initialValue={ADVANCED_SECTIONS.map((s) => s.key)}>
-              <Checkbox.Group
-                className="grid grid-cols-2 gap-y-2"
-                options={ADVANCED_SECTIONS.map((s) => ({
-                  label: sectionLabel(s.key, locale),
-                  value: s.key,
-                }))}
-              />
+              <div>
+                <p className="mb-2 text-[12.5px] leading-[1.7] text-[#8b95ad]">{tcr.sectionsHint}</p>
+                <Checkbox.Group
+                  className="grid grid-cols-2 gap-y-2"
+                  options={ADVANCED_SECTIONS.map((s) => ({
+                    label: sectionLabel(s.key, locale),
+                    value: s.key,
+                  }))}
+                />
+              </div>
             </Form.Item>
           )}
           <Form.Item

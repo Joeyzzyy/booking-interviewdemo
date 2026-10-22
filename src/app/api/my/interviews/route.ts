@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // advanced 章節（缺省/空 = 全部 8 章）
+  // advanced 附加測試章節（空 = 僅 70 題審查表主體）
   let sections: string[] | null = null;
   if (plan === "advanced") {
     const validKeys = new Set(ADVANCED_SECTIONS.map((s) => s.key));
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       .split(",")
       .map((s) => s.trim())
       .filter((s) => validKeys.has(s));
-    sections = picked.length > 0 ? picked : ADVANCED_SECTIONS.map((s) => s.key);
+    sections = picked.length > 0 ? picked : [];
   }
 
   let resumeText = String(form.get("resumeText") || "").trim();
@@ -136,6 +136,7 @@ export async function POST(request: Request) {
       customer_id: customer.id,
       plan,
       sections,
+      mode: plan === "advanced" ? "per-question" : "continuous",
     })
     .select("id, token")
     .single();

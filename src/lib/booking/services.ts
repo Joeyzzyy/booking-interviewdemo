@@ -4,15 +4,17 @@
  * 價格按業務價目表（HKD）：
  *   接機 $300（只設 11:00 / 15:00 兩個接機時段）、驗身+接機 $550、
  *   上門 Settlement $1000（車費另計）、印尼護士上門培訓 $500/小時起、
- *   On Job Training $700/小時（4 小時起計）、Boarding House $100/晚。
+ *   On Job Training $100/小時（4 小時起計）、Boarding House $100/晚。
  */
 
 export interface ServiceField {
   key: string;
   label: string;
-  type: "text" | "date" | "datetime-local" | "textarea" | "select";
+  type: "text" | "number" | "date" | "datetime-local" | "textarea" | "select";
   required?: boolean;
   placeholder?: string;
+  /** type 為 number 時的最小值（如小時數 4 小時起計） */
+  min?: number;
   /** type 為 select 時的可選值（後端校驗只接受這些值） */
   options?: string[];
 }
@@ -26,7 +28,7 @@ export interface ServiceItem {
   /** 單次價格（HKD；1 張套票 = 1 次/1 單位服務） */
   priceHkd: number;
   /** 計價單位鍵（對應 i18n services.units；缺省顯示「/ 次」） */
-  priceUnit?: "perHourFrom" | "perHourMin4" | "perNight";
+  priceUnit?: "perHourFrom" | "perHourMin4" | "hr" | "perNight";
   /** 服務專屬欄位（通用聯絡欄位之外） */
   fields: ServiceField[];
 }
@@ -53,6 +55,24 @@ const PICKUP_FIELDS: ServiceField[] = [
     required: true,
     placeholder: "請選擇接機時段",
     options: ["上午 11:00", "下午 3:00"],
+  },
+  {
+    key: "helperName",
+    label: "外傭全名",
+    type: "text",
+    placeholder: "例如：SANTOS MARIA",
+  },
+  {
+    key: "helperPhone",
+    label: "外傭電話",
+    type: "text",
+    placeholder: "例如：9123 4567",
+  },
+  {
+    key: "arrivalTime",
+    label: "到港時間",
+    type: "text",
+    placeholder: "15:30",
   },
 ];
 
@@ -134,16 +154,32 @@ export const SERVICES: ServiceItem[] = [
     includes: ["印尼籍護士上門", "按需求定制培訓內容", "每小時 $500 或以上"],
     priceHkd: 500,
     priceUnit: "perHourFrom",
-    fields: TRAINING_FIELDS,
+    fields: [
+      ...TRAINING_FIELDS,
+      {
+        key: "hours",
+        label: "小時數",
+        type: "number",
+        min: 1,
+      },
+    ],
   },
   {
     key: "onjob-training",
     label: "On Job Training（煮飯 / 清潔）",
     description: "到戶實操培訓，涵蓋煮飯、清潔等日常家務；以 4 小時為起計單位。",
     includes: ["到戶實操指導", "煮飯 / 清潔等家務技能", "4 小時起計"],
-    priceHkd: 700,
-    priceUnit: "perHourMin4",
-    fields: TRAINING_FIELDS,
+    priceHkd: 100,
+    priceUnit: "hr",
+    fields: [
+      ...TRAINING_FIELDS,
+      {
+        key: "hours",
+        label: "小時數",
+        type: "number",
+        min: 4,
+      },
+    ],
   },
   {
     key: "boarding",
@@ -164,6 +200,19 @@ export const SERVICES: ServiceItem[] = [
         label: "退房日期",
         type: "date",
         required: true,
+      },
+      {
+        key: "nights",
+        label: "晚數",
+        type: "number",
+        min: 1,
+      },
+      {
+        key: "location",
+        label: "宿舍地點",
+        type: "select",
+        placeholder: "請選擇宿舍地點",
+        options: ["銅鑼灣", "大角咀", "葵涌"],
       },
     ],
   },

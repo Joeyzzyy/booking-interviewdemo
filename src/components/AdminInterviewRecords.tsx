@@ -54,6 +54,42 @@ interface WorkerCv {
   additionalNotes: string;
 }
 
+/** Advanced v2（實時逐題）生成的 11 章審查表 CV；同舊結構以 personalData 區分 */
+interface WorkerCvV2 {
+  generatedBy: "ai" | "none";
+  fullName: string;
+  personalData: { label: string; value: string }[];
+  familyRisk: { item: string; detail: string; risk?: string }[];
+  financial: {
+    yearsInHK: string;
+    remitPercent: string;
+    keepPercent: string;
+    purpose: string;
+    burden: string;
+  };
+  workDuties: { label: string; experienced: string; willing: string }[];
+  employers: {
+    location: string;
+    period: string;
+    houseSize: string;
+    served: string;
+    helpers: string;
+    duties: string;
+    reasonLeft: string;
+  }[];
+  general12: { question: string; answer: string }[];
+  health: { dimension: string; status: string; detail: string }[];
+  social: { item: string; answer: string }[];
+  security: { dimension: string; status: string; detail: string }[];
+  hobbies: string;
+  photoNote: string;
+}
+
+type WorkerCvAny = WorkerCv | WorkerCvV2;
+
+const isCvV2 = (cv: WorkerCvAny): cv is WorkerCvV2 =>
+  Array.isArray((cv as WorkerCvV2).personalData);
+
 /** CV → 純文本（下載用） */
 function cvToText(cv: WorkerCv, sectionTitles: Record<string, string>): string {
   const lines: string[] = [cv.fullName, "=".repeat(cv.fullName.length), ""];
@@ -81,6 +117,76 @@ function cvToText(cv: WorkerCv, sectionTitles: Record<string, string>): string {
   return lines.join("\n");
 }
 
+/** CV v2（11 章審查表）→ 純文本（下載用） */
+function cvV2ToText(cv: WorkerCvV2, s: Record<string, string>): string {
+  const lines: string[] = [cv.fullName, "=".repeat(cv.fullName.length), ""];
+  if (cv.personalData.length > 0) {
+    lines.push(s.personalData, "-".repeat(20));
+    for (const p of cv.personalData) lines.push(`${p.label}：${p.value}`);
+    lines.push("");
+  }
+  if (cv.familyRisk.length > 0) {
+    lines.push(s.familyRisk, "-".repeat(20));
+    for (const p of cv.familyRisk) lines.push(`・${p.item}：${p.detail}`);
+    lines.push("");
+  }
+  const f = cv.financial;
+  if (f.yearsInHK || f.remitPercent || f.purpose || f.burden) {
+    lines.push(s.financial, "-".repeat(20));
+    if (f.yearsInHK) lines.push(`計劃在港工作年期：${f.yearsInHK}`);
+    if (f.remitPercent) lines.push(`寄回家鄉：${f.remitPercent}`);
+    if (f.keepPercent) lines.push(`自己留用：${f.keepPercent}`);
+    if (f.purpose) lines.push(`用途：${f.purpose}`);
+    if (f.burden) lines.push(`養家負擔評估：${f.burden}`);
+    lines.push("");
+  }
+  if (cv.workDuties.length > 0) {
+    lines.push(s.workDuties, "-".repeat(20));
+    for (const p of cv.workDuties)
+      lines.push(`・${p.label}：${[p.experienced, p.willing].filter(Boolean).join("；")}`);
+    lines.push("");
+  }
+  if (cv.employers.length > 0) {
+    lines.push(s.employers, "-".repeat(20));
+    cv.employers.forEach((e, i) => {
+      lines.push(`【僱主 #${i + 1}】`);
+      if (e.location) lines.push(`地點：${e.location}`);
+      if (e.period) lines.push(`工作日期：${e.period}`);
+      if (e.houseSize) lines.push(`單位面積：${e.houseSize}`);
+      if (e.served) lines.push(`照顧人數：${e.served}`);
+      if (e.helpers) lines.push(`傭工數目：${e.helpers}`);
+      if (e.duties) lines.push(`具體職責：${e.duties}`);
+      if (e.reasonLeft) lines.push(`離職原因：${e.reasonLeft}`);
+      lines.push("");
+    });
+  }
+  if (cv.general12.length > 0) {
+    lines.push(s.general12, "-".repeat(20));
+    for (const p of cv.general12) lines.push(`・${p.question}：${p.answer}`);
+    lines.push("");
+  }
+  if (cv.health.length > 0) {
+    lines.push(s.health, "-".repeat(20));
+    for (const p of cv.health)
+      lines.push(`・${p.dimension}：${[p.status, p.detail].filter(Boolean).join("；")}`);
+    lines.push("");
+  }
+  if (cv.social.length > 0) {
+    lines.push(s.social, "-".repeat(20));
+    for (const p of cv.social) lines.push(`・${p.item}：${p.answer}`);
+    lines.push("");
+  }
+  if (cv.security.length > 0) {
+    lines.push(s.security, "-".repeat(20));
+    for (const p of cv.security)
+      lines.push(`・${p.dimension}：${[p.status, p.detail].filter(Boolean).join("；")}`);
+    lines.push("");
+  }
+  if (cv.hobbies) lines.push(s.hobbies, cv.hobbies, "");
+  if (cv.photoNote) lines.push(s.photoNote, cv.photoNote, "");
+  return lines.join("\n");
+}
+
 const STATUS_COLOR: Record<string, string> = {
   pending: "default",
   in_progress: "gold",
@@ -98,7 +204,21 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [details, setDetails] = useState<
-    Record<string, { interview: { resume_text: string | null; resume_url: string | null; report: Report | null; plan?: string | null; cv?: WorkerCv | null }; answers: Answer[] } | null>
+    Record<
+      string,
+      {
+        interview: {
+          resume_text: string | null;
+          resume_url: string | null;
+          report: Report | null;
+          plan?: string | null;
+          mode?: string | null;
+          cv?: WorkerCvAny | null;
+          photos?: { kind: string; label: string; path: string; url: string | null }[];
+        };
+        answers: Answer[];
+      } | null
+    >
   >({});
   // 詳情默認展開：載入後自動展開全部行
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
@@ -287,7 +407,7 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                     {r.recommendation && <p><strong>{tr.recommendation}</strong>{r.recommendation}</p>}
                   </Card>
                 )}
-                {/* Advanced（自製 CV）：AI 按作答生成的結構化 CV */}
+                {/* Advanced（自製 CV）：AI 按作答生成的結構化 CV（v1 舊結構 / v2 十一 章審查表） */}
                 {d.interview.plan === "advanced" && (
                   d.interview.cv ? (
                     <Card
@@ -299,7 +419,10 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                           size="small"
                           onClick={() => {
                             const cv = d.interview.cv!;
-                            const blob = new Blob([cvToText(cv, tr.cvSections)], { type: "text/plain;charset=utf-8" });
+                            const text = isCvV2(cv)
+                              ? cvV2ToText(cv, tr.cvSectionsV2)
+                              : cvToText(cv, tr.cvSections);
+                            const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
                             const a = document.createElement("a");
                             a.href = URL.createObjectURL(blob);
                             a.download = `${cv.fullName || iv.worker_name}-CV.txt`;
@@ -319,6 +442,84 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                             {children}
                           </div>
                         );
+                        // ── v2：十一 章審查表 ──
+                        if (isCvV2(cv)) {
+                          const v2s = tr.cvSectionsV2;
+                          const f = cv.financial;
+                          return (
+                            <>
+                              {cv.personalData.length > 0 && (
+                                <Sec title={v2s.personalData}>
+                                  {cv.personalData.map((p, i) => <div key={i}><strong>{p.label}：</strong>{p.value}</div>)}
+                                </Sec>
+                              )}
+                              {cv.familyRisk.length > 0 && (
+                                <Sec title={v2s.familyRisk}>
+                                  {cv.familyRisk.map((p, i) => <div key={i}>・{p.item}：{p.detail}</div>)}
+                                </Sec>
+                              )}
+                              {(f.yearsInHK || f.remitPercent || f.purpose || f.burden) && (
+                                <Sec title={v2s.financial}>
+                                  {f.yearsInHK && <div>計劃在港工作年期：{f.yearsInHK}</div>}
+                                  {f.remitPercent && <div>寄回家鄉：{f.remitPercent}</div>}
+                                  {f.keepPercent && <div>自己留用：{f.keepPercent}</div>}
+                                  {f.purpose && <div>用途：{f.purpose}</div>}
+                                  {f.burden && <div>養家負擔評估：{f.burden}</div>}
+                                </Sec>
+                              )}
+                              {cv.workDuties.length > 0 && (
+                                <Sec title={v2s.workDuties}>
+                                  {cv.workDuties.map((p, i) => (
+                                    <div key={i}>・{p.label}：{[p.experienced, p.willing].filter(Boolean).join("；")}</div>
+                                  ))}
+                                </Sec>
+                              )}
+                              {cv.employers.length > 0 && (
+                                <Sec title={v2s.employers}>
+                                  {cv.employers.map((e, i) => (
+                                    <div key={i} style={{ marginBottom: 8 }}>
+                                      <strong>【僱主 #{i + 1}】</strong>
+                                      {e.location && <div>地點：{e.location}</div>}
+                                      {e.period && <div>工作日期：{e.period}</div>}
+                                      {e.houseSize && <div>單位面積：{e.houseSize}</div>}
+                                      {e.served && <div>照顧人數：{e.served}</div>}
+                                      {e.helpers && <div>傭工數目：{e.helpers}</div>}
+                                      {e.duties && <div>具體職責：{e.duties}</div>}
+                                      {e.reasonLeft && <div>離職原因：{e.reasonLeft}</div>}
+                                    </div>
+                                  ))}
+                                </Sec>
+                              )}
+                              {cv.general12.length > 0 && (
+                                <Sec title={v2s.general12}>
+                                  {cv.general12.map((p, i) => <div key={i}>・{p.question}：{p.answer}</div>)}
+                                </Sec>
+                              )}
+                              {cv.health.length > 0 && (
+                                <Sec title={v2s.health}>
+                                  {cv.health.map((p, i) => (
+                                    <div key={i}>・{p.dimension}：{[p.status, p.detail].filter(Boolean).join("；")}</div>
+                                  ))}
+                                </Sec>
+                              )}
+                              {cv.social.length > 0 && (
+                                <Sec title={v2s.social}>
+                                  {cv.social.map((p, i) => <div key={i}>・{p.item}：{p.answer}</div>)}
+                                </Sec>
+                              )}
+                              {cv.security.length > 0 && (
+                                <Sec title={v2s.security}>
+                                  {cv.security.map((p, i) => (
+                                    <div key={i}>・{p.dimension}：{[p.status, p.detail].filter(Boolean).join("；")}</div>
+                                  ))}
+                                </Sec>
+                              )}
+                              {cv.hobbies && <Sec title={v2s.hobbies}><div>{cv.hobbies}</div></Sec>}
+                              {cv.photoNote && <Sec title={v2s.photoNote}><div>{cv.photoNote}</div></Sec>}
+                            </>
+                          );
+                        }
+                        // ── v1 舊結構（舊面試兼容） ──
                         return (
                           <>
                             <Typography.Paragraph>{cv.summary}</Typography.Paragraph>
@@ -357,6 +558,30 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                   ) : iv.status === "completed" ? (
                     <Typography.Text type="secondary">{tr.cvMissing}</Typography.Text>
                   ) : null
+                )}
+                {/* 作品照片（per-question 面試結束後上傳） */}
+                {d.interview.photos && d.interview.photos.length > 0 && (
+                  <Card size="small" title={tr.cvSectionsV2.photos} style={{ background: "#f6ffed" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                      {d.interview.photos.map((p) => (
+                        <figure key={p.path} style={{ margin: 0, width: 160 }}>
+                          {p.url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={p.url}
+                              alt={p.label || p.kind}
+                              style={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 8, border: "1px solid #e6e9f2" }}
+                            />
+                          ) : (
+                            <div style={{ width: "100%", height: 160, borderRadius: 8, background: "#eee" }} />
+                          )}
+                          <figcaption style={{ fontSize: 12, color: "#5d6b85", marginTop: 4 }}>
+                            {p.label || (p.kind === "dish" ? "dish" : "work")}
+                          </figcaption>
+                        </figure>
+                      ))}
+                    </div>
+                  </Card>
                 )}
                 {d.answers.length > 0 ? (
                   <List
