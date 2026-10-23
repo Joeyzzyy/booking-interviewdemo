@@ -17,7 +17,15 @@ export const brand = {
 export const contact = {
   email: "hello@nexuslink.services",
   phone: "+852 0000 0000",
+  /**
+   * 公司 WhatsApp 號碼（wa.me 格式：純數字，帶區號，冇 + / 空格 / 連字號）。
+   * TODO: 用戶尚未提供實際號碼——收到後直接替換下面呢個值即可全站生效。
+   */
+  whatsappNumber: "85200000000",
 } as const;
+
+/** 全站 WhatsApp 對話鏈接 */
+export const whatsappLink = `https://wa.me/${contact.whatsappNumber}`;
 
 /** 滾動 reveal 統一參數（對齊 lighthare：0.85s cubic-bezier(.18,.7,.2,1)） */
 export const REVEAL_EASE = [0.18, 0.7, 0.2, 1] as const;

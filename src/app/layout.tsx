@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import LoginDialogProvider from "@/components/auth/LoginDialogProvider";
+import WhatsAppFloat from "@/components/WhatsAppFloat";
 import { LanguageProvider } from "@/lib/i18n";
 import "./globals.css";
 
@@ -23,6 +24,7 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col">
         <LanguageProvider>
           <LoginDialogProvider>{children}</LoginDialogProvider>
+          <WhatsAppFloat />
         </LanguageProvider>
       </body>
     </html>
