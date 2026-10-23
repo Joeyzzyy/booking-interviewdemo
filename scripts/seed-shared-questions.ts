@@ -68,13 +68,27 @@ async function main() {
   const { getSupabase } = await import("../src/lib/booking/db");
   const { generateQuestionAssets } = await import("../src/lib/interview/tts");
   const { SHARED_QUESTIONS, ADVANCED_QUESTIONS, CORE70_QUESTIONS } = await import("../src/lib/interview/shared-questions");
+  const {
+    BASIC50_QUESTIONS,
+    ASSESSMENT_QUESTIONS,
+    COMPREHENSIVE_ALL,
+  } = await import("../src/lib/interview/question-banks-v3");
 
-  /** --set advanced/basic/core70：只種對應題庫；缺省 = 全部 */
+  /** --set basic/advanced/core70/basic-v3/assessments：只種對應題庫；缺省 = 全部 */
   const SET_FILTER = process.argv.includes("--set") ? process.argv[process.argv.indexOf("--set") + 1] : "";
-  const SHARED_SET = SET_FILTER === "advanced" || SET_FILTER === "core70" ? [] : SHARED_QUESTIONS;
-  const ADVANCED_SET = SET_FILTER === "basic" || SET_FILTER === "core70" ? [] : ADVANCED_QUESTIONS;
-  const CORE_SET = SET_FILTER === "core70" ? CORE70_QUESTIONS : SET_FILTER === "" ? CORE70_QUESTIONS : [];
-  const ALL_SEED = [...SHARED_SET, ...CORE_SET, ...ADVANCED_SET];
+  const SHARED_SET = ["advanced", "core70", "basic-v3", "assessments"].includes(SET_FILTER) ? [] : SHARED_QUESTIONS;
+  const ADVANCED_SET = ["basic", "core70", "basic-v3", "assessments"].includes(SET_FILTER) ? [] : ADVANCED_QUESTIONS;
+  const CORE_SET = SET_FILTER === "core70" || SET_FILTER === "" ? CORE70_QUESTIONS : [];
+  const BASIC_V3_SET = SET_FILTER === "basic-v3" || SET_FILTER === "" ? BASIC50_QUESTIONS : [];
+  const ASSESS_SET = SET_FILTER === "assessments" || SET_FILTER === "" ? [...ASSESSMENT_QUESTIONS, ...COMPREHENSIVE_ALL] : [];
+  type SeedItem = { section: string; question: string; rubric?: Record<string, unknown> };
+  const ALL_SEED: SeedItem[] = [
+    ...SHARED_SET,
+    ...CORE_SET,
+    ...BASIC_V3_SET,
+    ...ASSESS_SET,
+    ...ADVANCED_SET,
+  ];
 
   const supabase = getSupabase();
   if (!supabase) {
@@ -84,7 +98,9 @@ async function main() {
 
   const queue = LIMIT > 0 ? ALL_SEED.slice(0, LIMIT) : ALL_SEED;
   const langNote = LANG_FILTER?.length ? `，限 ${TARGET_LANGS.join("/")} 語音頻` : "";
-  console.log(`公共題庫種子：共 ${queue.length} 題（Basic ${SHARED_SET.length} + Core70 ${CORE_SET.length} + Advanced ${ADVANCED_SET.length}）${FORCE ? "（強制重新生成）" : ""}${langNote}\n`);
+  console.log(
+    `公共題庫種子：共 ${queue.length} 題（Basic舊 ${SHARED_SET.length} + Core70 ${CORE_SET.length} + BasicV3 ${BASIC_V3_SET.length} + 評分表 ${ASSESS_SET.length} + Advanced舊 ${ADVANCED_SET.length}）${FORCE ? "（強制重新生成）" : ""}${langNote}\n`
+  );
 
   // 已有公共題（customer_id IS NULL），按「章節|題目原文」索引：
   // Basic / Core70 / Advanced 三套題庫可能出現相同題目原文（如國籍/年齡/宗教），
@@ -110,7 +126,7 @@ async function main() {
     const no = String(i + 1).padStart(2, " ");
     const short = item.question.length > 60 ? `${item.question.slice(0, 57)}…` : item.question;
 
-    // 1) 確保題目入庫（含分類 + 排序；只匹配同章節，跨章節同文題目另插新行）
+    // 1) 確保題目入庫（含分類 + 排序 + rubric；只匹配同章節，跨章節同文題目另插新行）
     let id = existing.get(`${item.section}|${item.question}`)?.id as string | undefined;
     if (!id) {
       const { data, error } = await supabase
@@ -120,6 +136,7 @@ async function main() {
           category: item.section,
           sort_order: i,
           customer_id: null,
+          ...(item.rubric ? { rubric: item.rubric } : {}),
         })
         .select("id")
         .single();
@@ -173,6 +190,31 @@ async function main() {
     } catch (e) {
       assetsFailed += 1;
       console.log(`\n✗ 生成失敗：${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    // 4) DISC 選擇題：翻譯選項文本（zh 原文 → id/tl/yue）並回寫 rubric
+    if (item.rubric?.kind === "choice" && id) {
+      const { translateQuestion } = await import("../src/lib/interview/tts");
+      const options = (item.rubric.options as { key: string; disc: string; text: Record<string, string> }[]) || [];
+      let changed = false;
+      for (const opt of options) {
+        if (!opt.text?.zh) continue;
+        if (opt.text.id && opt.text.tl && opt.text.yue) continue; // 已翻譯
+        try {
+          const t = await translateQuestion(opt.text.zh);
+          opt.text = { ...opt.text, id: t.id || opt.text.id || "", tl: t.tl || opt.text.tl || "", yue: t.yue || opt.text.yue || "" };
+          changed = true;
+        } catch (e) {
+          console.log(`\n⚠ DISC 選項翻譯失敗（${opt.key}）：${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      if (changed) {
+        const { error: rubErr } = await supabase
+          .from("interview_questions")
+          .update({ rubric: item.rubric })
+          .eq("id", id);
+        if (rubErr) console.log(`\n⚠ rubric 回寫失敗：${rubErr.message}`);
+      }
     }
   }
 

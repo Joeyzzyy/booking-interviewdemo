@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { getSupabase } from "@/lib/booking/db";
 import { INTERVIEW_BUCKET } from "@/app/api/admin/interviews/route";
 import { generateCv, generateCvV2, generateReport, segmentAnswers, transcribeAudio, transcribeVideo } from "@/lib/interview/ai";
+import { generateAssessments } from "@/lib/interview/scoring";
 import { toUserMessage } from "@/lib/interview/ai-errors";
 import { getInterviewByToken, getQuestionsForInterview } from "@/lib/interview/store";
 import { buildSegments } from "@/lib/interview/wav-segment";
@@ -142,9 +143,25 @@ export async function POST(
           answer: (r.transcript as string) || "（無轉寫）",
         }));
 
+        // 評分表章節：AI 按 rubric 逐題評分（失敗唔阻面試）
+        let assessments: unknown[] = [];
+        try {
+          assessments = await generateAssessments(interviewId);
+        } catch (e) {
+          console.error("[interview] 評分生成失敗（面試照常完成）:", e);
+        }
+        const assessSummary = (assessments as { title?: string; total?: number; max?: number; tierLabel?: string; section?: string; label?: string }[])
+          .map((a) =>
+            a.section === "disc"
+              ? `DISC 性格：${a.label}`
+              : `${a.title}：${a.total}/${a.max} 分（${a.tierLabel}）`
+          )
+          .join("；");
+
         let report;
         try {
           report = await generateReport(interview.worker_name, interview.resume_text || "", qaList);
+          if (assessSummary) report.summary = `${report.summary}\n\n【評分總覽】${assessSummary}`;
         } catch (e) {
           console.error("[interview] 報告生成失敗（以 fallback 標記完成）:", e);
           report = {
@@ -174,10 +191,11 @@ export async function POST(
             report,
             cv,
             photos: photosPayload || interview.photos || [],
+            assessments,
             completed_at: new Date().toISOString(),
           })
           .eq("id", interviewId);
-        console.log(`[interview] 逐題模式後台解析完成: ${interviewId}（${qaList.length} 題作答）`);
+        console.log(`[interview] 逐題模式後台解析完成: ${interviewId}（${qaList.length} 題作答，${assessments.length} 項評分）`);
         return;
       }
 

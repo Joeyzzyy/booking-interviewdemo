@@ -38,18 +38,20 @@ export async function POST(
     videoPath?: string;
     audioPath?: string;
     attempt?: number;
+    /** DISC 選擇題：直接提交選項 key（A/B/C/D），無需錄製 */
+    choice?: string;
   };
   try {
     body = await request.json();
   } catch {
     return Response.json({ error: "請求格式錯誤" }, { status: 400 });
   }
-  const { questionId, questionText, videoPath, audioPath } = body;
-  if (!questionId || typeof questionText !== "string" || !videoPath) {
+  const { questionId, questionText, videoPath, audioPath, choice } = body;
+  if (!questionId || typeof questionText !== "string" || (!videoPath && !choice)) {
     return Response.json({ error: "缺少參數" }, { status: 400 });
   }
-  // 防越權：路徑必須屬於本場面試嘅逐題目錄
-  if (!videoPath.startsWith(`videos/${interview.id}/q/`)) {
+  // 防越權：路徑必須屬於本場面試嘅逐題目錄（選擇題無視頻，跳過校驗）
+  if (videoPath && !videoPath.startsWith(`videos/${interview.id}/q/`)) {
     return Response.json({ error: "無效視頻" }, { status: 400 });
   }
   if (audioPath && !audioPath.startsWith(`videos/${interview.id}/q/`)) {
@@ -57,8 +59,8 @@ export async function POST(
   }
   const attempt = Math.min(Math.max(Math.floor(body.attempt || 1), 1), 4);
 
-  // ---- 轉寫：音頻優先，失敗回落視頻鏈；全部失敗照樣落庫（transcript 留空） ----
-  let transcript = "";
+  // ---- 轉寫：選擇題直接落庫 choice；其餘音頻優先，失敗回落視頻鏈 ----
+  let transcript = choice ? choice.slice(0, 8) : "";
   if (audioPath) {
     const { data: audioData, error: dlErr } = await supabase.storage
       .from(INTERVIEW_BUCKET)
@@ -76,7 +78,7 @@ export async function POST(
       }
     }
   }
-  if (!transcript) {
+  if (!transcript && videoPath) {
     const { data: videoData, error: dlErr } = await supabase.storage
       .from(INTERVIEW_BUCKET)
       .download(videoPath);
@@ -107,7 +109,7 @@ export async function POST(
     question_id: questionId,
     question_text: questionText.slice(0, 500),
     attempt,
-    video_path: videoPath,
+    video_path: videoPath || null,
     audio_path: audioPath || null,
     transcript,
     passed: true,

@@ -136,7 +136,8 @@ export async function POST(request: Request) {
       customer_id: customer.id,
       plan,
       sections,
-      mode: plan === "advanced" ? "per-question" : "continuous",
+      // Basic 與 Advanced 統一走實時逐題模式（2026-10 v3）
+      mode: "per-question",
     })
     .select("id, token")
     .single();

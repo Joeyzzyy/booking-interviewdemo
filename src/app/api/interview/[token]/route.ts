@@ -60,6 +60,7 @@ export async function GET(
           category: q.category || null,
           translations: q.translations || {},
           audio: audioUrls,
+          rubric: q.rubric || null,
         };
       }),
       progress,

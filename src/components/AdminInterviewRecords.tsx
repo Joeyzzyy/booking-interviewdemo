@@ -87,8 +87,47 @@ interface WorkerCvV2 {
 
 type WorkerCvAny = WorkerCv | WorkerCvV2;
 
+/** AI 評分結果（interviews.assessments） */
+interface AssessmentEntry {
+  section: string;
+  title?: string;
+  total?: number;
+  max?: number;
+  tier?: string;
+  tierLabel?: string;
+  modules?: { key: string; total: number; max: number }[];
+  items?: { question: string; answer: string; score: number; max: number; note: string }[];
+  counts?: { D: number; I: number; S: number; C: number };
+  dominant?: string;
+  secondary?: string;
+  label?: string;
+  description?: string;
+  note?: string;
+}
+
 const isCvV2 = (cv: WorkerCvAny): cv is WorkerCvV2 =>
   Array.isArray((cv as WorkerCvV2).personalData);
+
+const MODULE_LABELS: Record<string, string> = {
+  M1: "M1 記憶力",
+  M2: "M2 實用 IQ",
+  M3: "M3 情商 EQ",
+  M4: "M4 逆境 AQ",
+};
+
+const DISC_LABELS: Record<string, string> = {
+  D: "支配型（D）",
+  I: "影響型（I）",
+  S: "穩健型（S）",
+  C: "謹慎型（C）",
+};
+
+const TIER_COLOR: Record<string, string> = {
+  "highly-recommend": "green",
+  acceptable: "gold",
+  reject: "red",
+  failed: "default",
+};
 
 /** CV → 純文本（下載用） */
 function cvToText(cv: WorkerCv, sectionTitles: Record<string, string>): string {
@@ -215,6 +254,7 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
           mode?: string | null;
           cv?: WorkerCvAny | null;
           photos?: { kind: string; label: string; path: string; url: string | null }[];
+          assessments?: AssessmentEntry[];
         };
         answers: Answer[];
       } | null
@@ -558,6 +598,62 @@ export default function AdminInterviewRecords({ apiBase = "/api/admin" }: { apiB
                   ) : iv.status === "completed" ? (
                     <Typography.Text type="secondary">{tr.cvMissing}</Typography.Text>
                   ) : null
+                )}
+                {/* AI 評分（評分表測試章節 + DISC） */}
+                {d.interview.assessments && d.interview.assessments.length > 0 && (
+                  <Card size="small" title={tr.assessTitle} style={{ background: "#fffbe6" }}>
+                    {d.interview.assessments.map((a, ai) =>
+                      a.section === "disc" ? (
+                        <div key={`disc-${ai}`} style={{ marginBottom: 12 }}>
+                          <Space wrap>
+                            <Tag color="purple">DISC</Tag>
+                            <strong>{a.label}</strong>
+                            {a.secondary && (
+                              <Typography.Text type="secondary">
+                                輔助型：{DISC_LABELS[a.secondary] || a.secondary}
+                              </Typography.Text>
+                            )}
+                          </Space>
+                          <div style={{ marginTop: 6 }}>
+                            D {a.counts?.D ?? 0}・I {a.counts?.I ?? 0}・S {a.counts?.S ?? 0}・C {a.counts?.C ?? 0}
+                          </div>
+                          <Typography.Paragraph style={{ marginTop: 6, marginBottom: 0 }}>
+                            {a.description}
+                            {a.note ? `（${a.note}）` : ""}
+                          </Typography.Paragraph>
+                        </div>
+                      ) : (
+                        <div key={`sec-${ai}`} style={{ marginBottom: 14 }}>
+                          <Space wrap>
+                            <strong>{a.title}</strong>
+                            <Tag>{tr.assessScore(a.total ?? 0, a.max ?? 0)}</Tag>
+                            {a.tierLabel && <Tag color={TIER_COLOR[a.tier || ""] || "default"}>{a.tierLabel}</Tag>}
+                          </Space>
+                          {a.modules && a.modules.length > 0 && (
+                            <div style={{ marginTop: 4, fontSize: 12, color: "#5d6b85" }}>
+                              {tr.assessModule}：
+                              {a.modules.map((m) => `${MODULE_LABELS[m.key] || m.key} ${m.total}/${m.max}`).join("；")}
+                            </div>
+                          )}
+                          {a.items && a.items.length > 0 && (
+                            <ul style={{ margin: "6px 0 0", paddingInlineStart: 18 }}>
+                              {a.items.map((it, i) => (
+                                <li key={i} style={{ marginBottom: 4 }}>
+                                  <Tag color={it.score >= it.max ? "green" : it.score > 0 ? "gold" : "red"}>
+                                    {it.score}/{it.max}
+                                  </Tag>
+                                  {it.question}
+                                  {it.note && (
+                                    <Typography.Text type="secondary"> — {it.note}</Typography.Text>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </Card>
                 )}
                 {/* 作品照片（per-question 面試結束後上傳） */}
                 {d.interview.photos && d.interview.photos.length > 0 && (

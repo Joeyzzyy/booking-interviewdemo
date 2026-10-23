@@ -21,7 +21,19 @@ import {
   tstr,
   type LocaleKey,
 } from "@/lib/interview/i18n";
-import { sectionLabel, CORE70_QUESTIONS, EMPLOYER_LOOP_TEMPLATE, fillEmployerIndex } from "@/lib/interview/shared-questions";
+import { sectionLabel } from "@/lib/interview/shared-questions";
+import { LOOP_SECTIONS } from "@/lib/interview/question-banks-v3";
+
+/** 當前題目嘅迴圈章節定義（前雇主迴圈：basic 9 題/位、adv 6 題/位） */
+function loopDefOf(category: string | null | undefined) {
+  return category ? LOOP_SECTIONS[category] : undefined;
+}
+
+/** 判斷運行時題目是否為迴圈數量題 */
+function isLoopCountItem(item: { category: string | null; display: string }) {
+  const def = loopDefOf(item.category);
+  return Boolean(def && item.display === def.countText);
+}
 
 interface Question {
   id: string;
@@ -32,13 +44,20 @@ interface Question {
   translations: Record<string, string>;
   /** 各語言 TTS 音頻簽名 URL */
   audio: Record<string, string>;
+  /** 評分標準（binary/scale 評分題或 DISC choice 選擇題） */
+  rubric?: {
+    kind?: string;
+    options?: { key: string; disc?: string; text?: Record<string, string> }[];
+  } | null;
 }
 
 interface InterviewInfo {
   workerName: string;
   status: "pending" | "in_progress" | "processing" | "completed";
-  /** continuous=整段錄製（Basic）；per-question=實時逐題（Advanced v2） */
+  /** continuous=整段錄製（舊面試）；per-question=實時逐題 */
   mode?: "continuous" | "per-question";
+  /** basic / advanced（決定有無作品照片步驟） */
+  plan?: "basic" | "advanced";
   questions: Question[];
   progress: Record<string, { attempts: number; passed: boolean }>;
 }
@@ -58,13 +77,13 @@ interface PerqItem {
   attempt: number;
   /** 雇主迴圈徽標文案 */
   employerLabel?: string;
+  /** 評分標準（choice = DISC 選擇題） */
+  rubric?: Question["rubric"];
 }
 
 /** 逐題模式常量（唔 import store.ts：避免 service key 打入客戶端 bundle） */
 const PERQ_MAX_EMPLOYERS = 4;
 const PERQ_MAX_SECONDS = 90;
-const EMPLOYER_COUNT_TEXT =
-  CORE70_QUESTIONS.find((q) => q.section === "adv-employer")?.question || "";
 
 const PHOTO_SLOTS = ["dish-1", "dish-2", "dish-3", "work-1", "work-2"] as const;
 type PhotoSlot = (typeof PHOTO_SLOTS)[number];
@@ -547,9 +566,9 @@ export default function InterviewClient({ token }: { token: string }) {
     setPhase({ name: "question" });
   };
 
-  // ---------- 實時逐題模式（per-question，Advanced v2） ----------
-  /** 構建逐題運行時題單；employerCount 為 null 時未答前僱主數量（未展開迴圈） */
-  const buildPerqList = (count: number | null): PerqItem[] => {
+  // ---------- 實時逐題模式（per-question，Advanced v2 / Basic v3） ----------
+  /** 構建逐題運行時題單；loopCount 為 null 時未答前僱主數量（未展開迴圈） */
+  const buildPerqList = (loopCount: number | null): PerqItem[] => {
     const items: PerqItem[] = questions.map((q) => ({
       key: q.id,
       qid: q.id,
@@ -557,34 +576,39 @@ export default function InterviewClient({ token }: { token: string }) {
       displayTrans: q.translations || {},
       category: q.category || null,
       attempt: 1,
+      rubric: q.rubric || null,
     }));
-    if (count === null) return items;
-    const countIdx = items.findIndex((it) => it.display === EMPLOYER_COUNT_TEXT);
-    if (countIdx < 0 || count <= 0) return items; // N=0：跳過前僱主章節後續問題
-    // 展開迴圈：每位僱主 6 題（Q29–34 模板替換 [k]，TTS 音頻複用模板題）
-    const loopItems: PerqItem[] = [];
-    for (let k = 1; k <= count; k++) {
-      for (const tpl of EMPLOYER_LOOP_TEMPLATE) {
-        const base = questions.find((q) => q.question === tpl.question);
-        if (!base) continue;
-        const prefix = `${t("employerBadge", { k })} — `;
-        loopItems.push({
-          key: `${base.id}-e${k}`,
-          qid: base.id,
-          display: prefix + fillEmployerIndex(base.question, k),
-          displayTrans: Object.fromEntries(
-            Object.entries(base.translations || {}).map(([l, text]) => [
-              l,
-              prefix + fillEmployerIndex(text, k),
-            ])
-          ),
-          category: base.category || null,
-          attempt: k,
-          employerLabel: t("employerBadge", { k }),
-        });
+    if (loopCount === null) return items;
+    // 逐個迴圈章節展開（basic-employer 9 題/位、adv-employer 6 題/位）
+    for (const [cat, def] of Object.entries(LOOP_SECTIONS)) {
+      const countIdx = items.findIndex((it) => it.category === cat && it.display === def.countText);
+      if (countIdx < 0) continue;
+      if (loopCount <= 0) continue; // N=0：跳過迴圈模板
+      const loopItems: PerqItem[] = [];
+      for (let k = 1; k <= loopCount; k++) {
+        for (const tpl of def.templates) {
+          const base = questions.find((q) => q.category === cat && q.question === tpl.question);
+          if (!base) continue;
+          const prefix = `${t("employerBadge", { k })} — `;
+          loopItems.push({
+            key: `${base.id}-e${k}`,
+            qid: base.id,
+            display: prefix + base.question.replace(/\[k\]/g, String(k)),
+            displayTrans: Object.fromEntries(
+              Object.entries(base.translations || {}).map(([l, text]) => [
+                l,
+                prefix + text.replace(/\[k\]/g, String(k)),
+              ])
+            ),
+            category: base.category || null,
+            attempt: k,
+            rubric: base.rubric || null,
+          });
+        }
       }
+      items.splice(countIdx + 1, 0, ...loopItems);
     }
-    return [...items.slice(0, countIdx + 1), ...loopItems, ...items.slice(countIdx + 1)];
+    return items;
   };
 
   /** 選定前僱主數量後重建題單並跳到迴圈第一題 */
@@ -592,7 +616,8 @@ export default function InterviewClient({ token }: { token: string }) {
     const list = buildPerqList(n);
     setEmployerCount(n);
     setPerqList(list);
-    const countIdx = list.findIndex((it) => it.display === EMPLOYER_COUNT_TEXT);
+    // 跳到第一個迴圈數量題之後
+    const countIdx = list.findIndex((it) => isLoopCountItem(it));
     setPerqIndex(countIdx >= 0 ? countIdx + 1 : 0);
     setPhase({ name: "perq" });
   };
@@ -691,13 +716,14 @@ export default function InterviewClient({ token }: { token: string }) {
 
       setSavingPerq(false);
       setError("");
-      // 前進：前僱主數量題 → 選擇數量步驟；最後一題 → 照片上傳；否則下一題
-      if (item.display === EMPLOYER_COUNT_TEXT && employerCount === null) {
+      // 前進：迴圈數量題 → 選擇數量步驟；最後一題 → advanced 先傳照片、basic 直接提交
+      if (isLoopCountItem(item) && employerCount === null) {
         setPhase({ name: "employerCount" });
         return;
       }
       if (perqIndex >= perqList.length - 1) {
-        setPhase({ name: "photos" });
+        if (info?.plan === "advanced") setPhase({ name: "photos" });
+        else void submitPerqSession();
         return;
       }
       setPerqIndex(perqIndex + 1);
@@ -770,6 +796,42 @@ export default function InterviewClient({ token }: { token: string }) {
     setConfirmFinish(false);
     setQIndex(next);
     markVisit(q);
+  };
+
+  /** 逐題模式：DISC 選擇題——點選即提交，無需錄製 */
+  const perqSubmitChoice = async (itemKey: string, choice: string) => {
+    if (perqBusyRef.current) return;
+    const item = perqList[perqIndex];
+    if (!item || item.key !== itemKey) return;
+    perqBusyRef.current = true;
+    setSavingPerq(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/interview/${token}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionId: item.qid,
+          questionText: item.display,
+          attempt: item.attempt,
+          choice,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "提交失敗，請重試");
+      setSavingPerq(false);
+      if (perqIndex >= perqList.length - 1) {
+        if (info?.plan === "advanced") setPhase({ name: "photos" });
+        else void submitPerqSession();
+        return;
+      }
+      setPerqIndex(perqIndex + 1);
+    } catch (e) {
+      setSavingPerq(false);
+      setError(e instanceof Error ? e.message : "提交失敗，請重試");
+    } finally {
+      perqBusyRef.current = false;
+    }
   };
 
   /** 停止錄製並攞到整段視頻 blob */
@@ -1146,8 +1208,30 @@ export default function InterviewClient({ token }: { token: string }) {
               </button>
             </div>
             <p className="mt-2 text-[12.5px] leading-[1.7] text-[#8b95ad]">
-              {t("answerHintPerq")}
+              {currentPerq.rubric?.kind === "choice" ? t("choiceHint") : t("answerHintPerq")}
             </p>
+          </div>
+        )}
+
+        {/* DISC 選擇題：A/B/C/D 按鈕，點選即提交（無需錄製） */}
+        {currentPerq?.rubric?.kind === "choice" && (
+          <div className="mt-4 grid gap-2.5">
+            {(currentPerq.rubric.options || []).map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                disabled={savingPerq}
+                onClick={() => void perqSubmitChoice(currentPerq.key, opt.key)}
+                className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#e6e9f2] bg-white px-4 py-3.5 text-left transition-colors hover:border-[#35a07a]/50 hover:bg-[#e9f5f0] disabled:opacity-60"
+              >
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#e9f5f0] text-[12px] font-bold text-[#2a8163]">
+                  {opt.key}
+                </span>
+                <span className="text-[14px] leading-[1.7] text-[#3d4763]">
+                  {opt.text?.[lang] || opt.text?.en || opt.text?.zh || ""}
+                </span>
+              </button>
+            ))}
           </div>
         )}
 
@@ -1157,7 +1241,8 @@ export default function InterviewClient({ token }: { token: string }) {
           </p>
         )}
 
-        {/* 錄製 / 提交控制 */}
+        {/* 錄製 / 提交控制（選擇題除外） */}
+        {currentPerq?.rubric?.kind !== "choice" && (
         <div className="mt-6">
           {savingPerq ? (
             <div className="flex items-center justify-center gap-2 rounded-full bg-[#f4f6fb] px-6 py-3 text-[14px] font-semibold text-[#5d6b85]">
@@ -1176,6 +1261,7 @@ export default function InterviewClient({ token }: { token: string }) {
             </button>
           )}
         </div>
+        )}
       </>
     );
   } else if (phase.name === "employerCount") {

@@ -26,18 +26,19 @@ export const QUESTION_SECTIONS: QuestionSection[] = [
 ];
 
 /**
- * Advanced Plan（自製 CV）測試章節 —— 8 個分類，題目見 ADVANCED_QUESTIONS。
+ * Advanced Plan（自製 CV）附加測試章節 —— 7 個分類（2026-10 v3）：
+ * 評分表 5 章（嬰幼兒/小童青少年/寵物/家務烹飪/綜合能力性格，題目見 question-banks-v3.ts ASSESSMENT_QUESTIONS）
+ * + 保留 2 章（基本資料/長者照顧，題目仍在本文件 ADVANCED_QUESTIONS 對應分類）。
  * 與 QUESTION_SECTIONS 同構；僅 Advanced 訂閱用戶發起面試時可勾選出題。
  */
 export const ADVANCED_SECTIONS: QuestionSection[] = [
   { key: "basic-info", label: { yue: "基本資料", zh: "基本资料", en: "Basic Information", id: "Informasi Dasar", tl: "Pangunahing Impormasyon" } },
-  { key: "personality", label: { yue: "性格測試", zh: "性格测试", en: "Personality Test", id: "Tes Kepribadian", tl: "Pagsusuri ng Pagkatao" } },
-  { key: "aptitude", label: { yue: "IQ / AQ / EQ / 記憶測試", zh: "IQ / AQ / EQ / 记忆测试", en: "IQ / AQ / EQ / Memory Test", id: "Tes IQ / AQ / EQ / Memori", tl: "Pagsusuri ng IQ / AQ / EQ / Memorya" } },
   { key: "elderly-care", label: { yue: "長者照顧", zh: "长者照顾", en: "Elderly Care", id: "Perawatan Lansia", tl: "Pag-aalaga sa Matatanda" } },
+  { key: "infant-care", label: { yue: "嬰幼兒 (0-2歲) 照顧", zh: "婴幼儿 (0-2岁) 照顾", en: "Infant & Toddler Care", id: "Perawatan Bayi & Balita", tl: "Pag-aalaga sa Sanggol at Bata" } },
+  { key: "child-care", label: { yue: "小童至青少年照顧", zh: "小童及青少年照顾", en: "Child & Teen Care", id: "Perawatan Anak & Remaja", tl: "Pag-aalaga ng Bata at Tin-edyser" } },
   { key: "pet-care", label: { yue: "寵物照顧測試", zh: "宠物照顾测试", en: "Pet Care Test", id: "Tes Perawatan Hewan Peliharaan", tl: "Pagsusuri sa Pag-aalaga ng Alagang Hayop" } },
   { key: "housework-cooking", label: { yue: "家務與烹飪測試", zh: "家务与烹饪测试", en: "Housework & Cooking Test", id: "Tes Pekerjaan Rumah & Memasak", tl: "Pagsusuri sa Gawaing Bahay at Pagluluto" } },
-  { key: "child-care", label: { yue: "小童及青少年照顧測試", zh: "小童及青少年照顾测试", en: "Child & Teen Care Test", id: "Tes Perawatan Anak & Remaja", tl: "Pagsusuri sa Pag-aalaga ng Bata at Teenager" } },
-  { key: "infant-care", label: { yue: "嬰幼兒照顧測試", zh: "婴幼儿照顾测试", en: "Infant Care Test", id: "Tes Perawatan Bayi & Balita", tl: "Pagsusuri sa Pag-aalaga ng Sanggol" } },
+  { key: "comprehensive", label: { yue: "綜合能力及性格測試", zh: "综合能力及性格测试", en: "Comprehensive Ability & Personality Test", id: "Tes Kemampuan Komprehensif & Kepribadian", tl: "Pagsusuri ng Kakayahan at Pagkatao" } },
 ];
 
 // ════════════════════════════════════════════════════════════════

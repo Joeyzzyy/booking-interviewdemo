@@ -107,6 +107,7 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
     photoUploading: "Uploading…",
     submitFinal: "Submit & Finish",
     skipPhotos: "Skip & Finish",
+    choiceHint: "Choose ONE answer that best describes your natural habit. There is no right or wrong answer.",
   },
   id: {
     loading: "Memuat…",
@@ -175,6 +176,7 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
     photoUploading: "Mengunggah…",
     submitFinal: "Kirim & Selesai",
     skipPhotos: "Lewati & Selesai",
+    choiceHint: "Pilih SATU jawaban yang paling sesuai dengan kebiasaan alami Anda. Tidak ada jawaban benar atau salah.",
   },
   tl: {
     loading: "Naglo-load…",
@@ -243,6 +245,7 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
     photoUploading: "Nag-a-upload…",
     submitFinal: "I-submit & Tapusin",
     skipPhotos: "Laktawan & Tapusin",
+    choiceHint: "Pumili ng ISANG sagot na pinakatumutugma sa iyong natural na gawi. Walang tama o maling sagot.",
   },
   zh: {
     loading: "加载中…",
@@ -311,6 +314,7 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
     photoUploading: "上传中…",
     submitFinal: "提交并完成",
     skipPhotos: "跳过并完成",
+    choiceHint: "请选一个最符合你平时习惯的做法，没有对错之分。",
   },
   yue: {
     loading: "載入中…",
@@ -379,5 +383,6 @@ export const UI_STRINGS: Record<LocaleKey, Record<string, string>> = {
     photoUploading: "上傳中…",
     submitFinal: "提交並完成",
     skipPhotos: "跳過並完成",
+    choiceHint: "請揀一個最符合你平時習慣嘅做法，冇對錯之分。",
   },
 };

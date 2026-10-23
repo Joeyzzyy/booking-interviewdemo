@@ -3,6 +3,7 @@ import {
   ADVANCED_SECTION_KEYS,
   CORE_SECTIONS,
 } from "@/lib/interview/shared-questions";
+import { BASIC_SECTION_KEYS } from "@/lib/interview/question-banks-v3";
 
 export const MAX_ATTEMPTS = 3; // 每題最多作答次數
 export const MAX_EMPLOYERS = 4; // 前僱主迴圈上限（甲方劇本 Q28 規則）
@@ -42,6 +43,8 @@ export interface Question {
   translations?: Record<string, string> | null;
   /** 各語言 TTS 音頻 storage 路徑 */
   audio?: Record<string, string> | null;
+  /** 評分標準（評分表題目 / DISC 選擇題） */
+  rubric?: Record<string, unknown> | null;
 }
 
 export async function getInterviewByToken(token: string): Promise<Interview | null> {
@@ -65,7 +68,7 @@ export async function getActiveQuestionsForOwner(ownerId: string | null): Promis
   if (!supabase) return [];
   let query = supabase
     .from("interview_questions")
-    .select("id, question, focus, sort_order, category, translations, audio")
+    .select("id, question, focus, sort_order, category, translations, audio, rubric")
     .eq("active", true);
   query = ownerId
     ? query.or(`customer_id.is.null,customer_id.eq.${ownerId}`)
@@ -97,10 +100,10 @@ export async function getQuestionsForInterview(interview: Interview): Promise<Qu
       (q) => !q.category || coreKeys.has(q.category) || picked.has(q.category)
     );
   }
-  // basic：排除 Advanced 主體章節 + 附加測試章節（含自定義題）
-  const coreKeys = new Set(CORE_SECTIONS.map((s) => s.key));
+  // basic：只出新版 Basic 章節（basic-*）+ 自定義題；舊 9 類別行已 active=false
+  const basicKeys = new Set(BASIC_SECTION_KEYS);
   return all.filter(
-    (q) => (q.category ? !advancedKeys.has(q.category) && !coreKeys.has(q.category) : true)
+    (q) => !q.category || basicKeys.has(q.category)
   );
 }
 
