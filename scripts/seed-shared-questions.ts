@@ -86,7 +86,9 @@ async function main() {
   const langNote = LANG_FILTER?.length ? `，限 ${TARGET_LANGS.join("/")} 語音頻` : "";
   console.log(`公共題庫種子：共 ${queue.length} 題（Basic ${SHARED_SET.length} + Core70 ${CORE_SET.length} + Advanced ${ADVANCED_SET.length}）${FORCE ? "（強制重新生成）" : ""}${langNote}\n`);
 
-  // 已有公共題（customer_id IS NULL），按題目原文索引
+  // 已有公共題（customer_id IS NULL），按「章節|題目原文」索引：
+  // Basic / Core70 / Advanced 三套題庫可能出現相同題目原文（如國籍/年齡/宗教），
+  // 必須按章節精確匹配，唔可以跨章節复用（否則會把 Basic 題改類別）
   const { data: existingRows, error: loadErr } = await supabase
     .from("interview_questions")
     .select("id, question, category, sort_order, translations, audio")
@@ -95,7 +97,9 @@ async function main() {
     console.error("✗ 讀取已有題目失敗:", loadErr.message);
     process.exit(1);
   }
-  const existing = new Map((existingRows || []).map((r) => [r.question as string, r]));
+  const existing = new Map(
+    (existingRows || []).map((r) => [`${r.category as string}|${r.question as string}`, r])
+  );
 
   let inserted = 0;
   let skipped = 0;
@@ -106,8 +110,8 @@ async function main() {
     const no = String(i + 1).padStart(2, " ");
     const short = item.question.length > 60 ? `${item.question.slice(0, 57)}…` : item.question;
 
-    // 1) 確保題目入庫（含分類 + 排序）
-    let id = existing.get(item.question)?.id as string | undefined;
+    // 1) 確保題目入庫（含分類 + 排序；只匹配同章節，跨章節同文題目另插新行）
+    let id = existing.get(`${item.section}|${item.question}`)?.id as string | undefined;
     if (!id) {
       const { data, error } = await supabase
         .from("interview_questions")
@@ -127,18 +131,18 @@ async function main() {
       id = data.id as string;
       inserted += 1;
     } else {
-      // 已存在：校正分類 / 排序 / 啟用狀態（唔郁譯文音頻）
-      const row = existing.get(item.question)!;
-      if (row.category !== item.section || row.sort_order !== i) {
+      // 已存在（同章節）：僅校正排序 / 啟用狀態（唔郁譯文音頻）
+      const row = existing.get(`${item.section}|${item.question}`)!;
+      if (row.sort_order !== i) {
         await supabase
           .from("interview_questions")
-          .update({ category: item.section, sort_order: i, active: true })
+          .update({ sort_order: i, active: true })
           .eq("id", id);
       }
     }
 
     // 2) 檢查資產完整性（目標語言的譯文 + 音頻），齊就跳過
-    const row = existing.get(item.question);
+    const row = existing.get(`${item.section}|${item.question}`);
     const translations = (row?.translations || {}) as Record<string, string>;
     const audio = (row?.audio || {}) as Record<string, string>;
     const complete =

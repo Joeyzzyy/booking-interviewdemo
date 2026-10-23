@@ -91,9 +91,10 @@ export async function getQuestionsForInterview(interview: Interview): Promise<Qu
         ? interview.sections.filter((s) => advancedKeys.has(s))
         : []
     );
-    // 70 題主體永遠全出；僅當勾選時才加對應測試章節；自定義題（無分類）保留
+    const coreKeys = new Set(CORE_SECTIONS.map((s) => s.key));
+    // 70 題主體（adv-*）永遠全出 + 僅當勾選時加對應測試章節 + 自定義題（無分類）
     return all.filter(
-      (q) => !q.category || !advancedKeys.has(q.category) || picked.has(q.category)
+      (q) => !q.category || coreKeys.has(q.category) || picked.has(q.category)
     );
   }
   // basic：排除 Advanced 主體章節 + 附加測試章節（含自定義題）
