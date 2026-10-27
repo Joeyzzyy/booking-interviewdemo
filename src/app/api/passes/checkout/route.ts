@@ -1,7 +1,7 @@
 import { getSessionCustomer } from "@/lib/booking/auth";
 import { getSupabase } from "@/lib/booking/db";
 import { getService } from "@/lib/booking/services";
-import { createPassCheckoutSession } from "@/lib/booking/stripe";
+import { createPassCheckoutSession, resolvePassPriceHkd } from "@/lib/booking/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,8 @@ export async function POST(request: Request) {
   if (!service || body.quantity !== 1) {
     return Response.json({ error: "請選擇服務項目", code: "CHECKOUT_PARAMS" }, { status: 400 });
   }
-  const amountHkd = service.priceHkd;
+  // 測試價覆蓋：訂單記錄與 Stripe 實扣保持一致
+  const amountHkd = resolvePassPriceHkd(service.priceHkd);
 
   // 1) 建待付款訂單
   const { data: order, error: insertErr } = await supabase
