@@ -26,14 +26,16 @@ const LanguageContext = createContext<LanguageContextValue>({
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<LocaleKey>(DEFAULT_LOCALE);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY);
     if (isLocaleKey(saved) && saved !== locale) {
       setLocaleState(saved);
     }
-    // 僅在掛載時恢復一次
+    // 僅在掛載時恢復一次（需等 hydration 後才能讀 localStorage）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     const meta = LOCALES.find((l) => l.key === locale);

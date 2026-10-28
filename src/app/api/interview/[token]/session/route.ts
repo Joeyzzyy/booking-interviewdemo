@@ -277,7 +277,6 @@ export async function POST(
           to: arr[i + 1] ? arr[i + 1].at : Number.MAX_SAFE_INTEGER,
         }))
         .filter((e) => e.to > e.from);
-      const segMap = new Map<string, { buffer: Buffer; startSec: number; endSec: number }>();
       const audioSegPaths = new Map<string, { path: string; start: number; end: number }>();
       if (fullWav && timeline.length > 0) {
         try {

@@ -1,6 +1,6 @@
 import { createOtpCode, discardOtpCode, isChannel, normalizeIdentifier } from "@/lib/booking/auth";
 import { sendVerificationCodeEmail } from "@/lib/booking/email";
-import { sendVerificationCodeSms, smsConfigured } from "@/lib/booking/sms";
+import { sendVerificationCodeSms } from "@/lib/booking/sms";
 
 export const dynamic = "force-dynamic";
 

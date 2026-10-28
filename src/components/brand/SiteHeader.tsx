@@ -43,17 +43,23 @@ export default function SiteHeader() {
     }
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // 掛載時加載賬號 + 訂閱登入變更事件（setState 發生在異步回調中）
   useEffect(() => {
     void loadMe();
     const onAuthChanged = () => void loadMe();
     window.addEventListener("nl-auth-changed", onAuthChanged);
     return () => window.removeEventListener("nl-auth-changed", onAuthChanged);
   }, [loadMe]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // 路由變化時關閉展開的菜單
   useEffect(() => {
     setMenuOpen(false);
     setUserMenuOpen(false);
   }, [pathname]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // 點擊外部 / ESC 關閉郵箱下拉菜單
   useEffect(() => {

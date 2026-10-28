@@ -45,6 +45,8 @@ function BindModal({
   const [busy, setBusy] = useState(false);
   const [devCode, setDevCode] = useState("");
 
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // 彈窗打開時重置表單（有意的同步重置）
   useEffect(() => {
     if (open) {
       setIdentifier("");
@@ -54,6 +56,7 @@ function BindModal({
       setDevCode("");
     }
   }, [open]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const sendCode = async () => {
     setError("");
@@ -184,12 +187,15 @@ export default function AccountClient() {
     }
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // 掛載時加載賬號 + 訂閱登入變更事件（setState 發生在異步回調中）
   useEffect(() => {
     void loadMe();
     const onAuthChanged = () => void loadMe();
     window.addEventListener("nl-auth-changed", onAuthChanged);
     return () => window.removeEventListener("nl-auth-changed", onAuthChanged);
   }, [loadMe]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // 未登入：自動彈出登入框
   useEffect(() => {

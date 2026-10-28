@@ -27,9 +27,9 @@ export default function SiteFooter() {
             <Link href="/account" className="font-semibold text-black/50 transition-colors hover:text-[#2a8163]">
               {t.footer.account}
             </Link>
-            <a href="/#interview" className="font-semibold text-black/50 transition-colors hover:text-[#2a8163]">
+            <Link href="/#interview" className="font-semibold text-black/50 transition-colors hover:text-[#2a8163]">
               {t.footer.interview}
-            </a>
+            </Link>
           </nav>
 
           <div className="flex flex-col gap-2.5 text-[13px]">

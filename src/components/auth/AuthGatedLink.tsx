@@ -30,12 +30,15 @@ export default function AuthGatedLink({
     }
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // 掛載時檢查登入態 + 訂閱登入變更事件（setState 發生在異步回調中）
   useEffect(() => {
     void check();
     const onAuthChanged = () => void check();
     window.addEventListener("nl-auth-changed", onAuthChanged);
     return () => window.removeEventListener("nl-auth-changed", onAuthChanged);
   }, [check]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const onClick = async (e: MouseEvent<HTMLAnchorElement>) => {
     if (loggedIn === true) return; // 已登入：正常跳轉

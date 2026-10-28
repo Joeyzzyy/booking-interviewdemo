@@ -529,6 +529,8 @@ export default function InterviewClient({ token }: { token: string }) {
     setVisitedIds((prev) => (prev.includes(q.id) ? prev : [...prev, q.id]));
     eventsRef.current.push({
       questionId: q.id,
+      // 切題事件回調中調用，非 render 期間
+      // eslint-disable-next-line react-hooks/purity
       at: Math.round((Date.now() - recordStartRef.current) / 1000),
     });
   };
@@ -557,6 +559,8 @@ export default function InterviewClient({ token }: { token: string }) {
     chunksRef.current = [];
     recorder.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
     recorder.start(1000);
+    // 開始錄製事件回調中調用，非 render 期間
+    // eslint-disable-next-line react-hooks/purity
     recordStartRef.current = Date.now();
     eventsRef.current = [];
     setVisitedIds([]);
