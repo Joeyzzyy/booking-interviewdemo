@@ -252,8 +252,11 @@ export default function AdminInterviews({
       fd.set("resumeText", values.resumeText || "");
       fd.set("plan", effectivePlan);
       if (effectivePlan === "advanced") {
-        const picked = (values.sections || []).length > 0 ? values.sections! : ADVANCED_SECTIONS.map((s) => s.key);
-        fd.set("sections", picked.join(","));
+        // 防御：Form 值異常（非數組）時回落到全部章節，避免 .join 崩潰
+        const pickedSections = Array.isArray(values.sections) && values.sections.length > 0
+          ? values.sections
+          : ADVANCED_SECTIONS.map((s) => s.key);
+        fd.set("sections", pickedSections.join(","));
       }
       const file = fileList[0]?.originFileObj;
       if (file) fd.set("resume", file);
@@ -422,17 +425,21 @@ export default function AdminInterviews({
             </Form.Item>
           )}
           {effectivePlan === "advanced" && (
-            <Form.Item name="sections" label={tcr.sectionsLabel} initialValue={ADVANCED_SECTIONS.map((s) => s.key)}>
-              <div>
-                <p className="mb-2 text-[12.5px] leading-[1.7] text-[#8b95ad]">{tcr.sectionsHint}</p>
-                <Checkbox.Group
-                  className="grid grid-cols-2 gap-y-2"
-                  options={ADVANCED_SECTIONS.map((s) => ({
-                    label: sectionLabel(s.key, locale),
-                    value: s.key,
-                  }))}
-                />
-              </div>
+            // Checkbox.Group 必須是 Form.Item 的直接子元素，否則 value/onChange
+            // 會注到 div 上，勾選時原生 change 冒泡導致 sections 變成單個字符串
+            <Form.Item
+              name="sections"
+              label={tcr.sectionsLabel}
+              initialValue={ADVANCED_SECTIONS.map((s) => s.key)}
+              extra={<span className="block text-[12.5px] leading-[1.7] text-[#8b95ad]">{tcr.sectionsHint}</span>}
+            >
+              <Checkbox.Group
+                className="grid grid-cols-2 gap-y-2"
+                options={ADVANCED_SECTIONS.map((s) => ({
+                  label: sectionLabel(s.key, locale),
+                  value: s.key,
+                }))}
+              />
             </Form.Item>
           )}
           <Form.Item
